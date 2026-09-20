@@ -1919,6 +1919,27 @@ function exportJSON() {
   a.href = URL.createObjectURL(b); a.download = "gradebook-backup-" + todayISO() + ".json"; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
+/* The two above and below are not the same thing. exportJSON writes this
+   gradebook only, which is what you want before a risky import. These two carry
+   all three tools, which is what you want when moving to another device. */
+function suiteBackup() {
+  if (!window.SuiteSync) return toast("Sync module did not load");
+  window.SuiteSync.exportFile().then(r => {
+    if (r.how === "cancelled") return;
+    toast(r.how === "share" ? "Shared " + r.name : "Saved " + r.name);
+  }).catch(e => toast("Could not save: " + (e.message || e)));
+}
+function suiteRestore() {
+  if (!window.SuiteSync) return toast("Sync module did not load");
+  if (!confirm("Loading a backup replaces the gradebook, the lesson plans and the running records on this device with what is in the file.\n\nContinue?")) return;
+  window.SuiteSync.importFile().then(changed => {
+    if (!changed.length) { toast("Nothing in that file was newer"); return; }
+    reloadFromStorage(); render();
+    toast("Loaded " + changed.length + " of the three tools' data");
+  }).catch(e => {
+    if (e && e.message !== "AbortError") toast("Could not load that file: " + (e.message || e));
+  });
+}
 function wipe() {
   if (!confirm("This erases the roster, every mark, and all imported data. Continue?")) return;
   if (!confirm("Really erase everything? Save a backup first if you are not sure.")) return;
@@ -2997,7 +3018,14 @@ function syncCardHTML() {
   const SS = window.SuiteSync;
   let h = '<div class="card pad"><h2>Sync</h2>';
   if (!SS || !SS.supported) {
-    h += '<p class="hint">This browser cannot write to a file directly. Everything still saves in this browser, and the backup buttons below move data by hand. For sync, open the suite on a computer in Chrome or Edge.</p></div>';
+    /* Safari has never shipped the File System Access API, on the phone or the
+       desktop, so this is a fact about the browser rather than something to
+       fix. Say that plainly and put the route that does work right here,
+       instead of sending him to a computer he may not be sitting at. */
+    h += '<p class="small" style="margin-top:4px">This browser cannot hold a live link to a file. Safari has no way to do it \\u2014 on an iPhone or iPad, no browser does, because they all run Safari\\u2019s engine underneath.</p>' +
+      '<p class="hint">Everything still saves on this device as you work. To move it between devices, use a backup file: it carries the gradebook, ' + plannerDayCount() + " saved lesson-plan days and " + orfReadingCount() + ' running records together. On a computer in Chrome or Edge, the same data connects to a live file instead and keeps itself in step.</p>' +
+      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Save a backup of all three tools</button>' +
+      '<button class="btn" onclick="suiteRestore()">Load a backup</button></div></div>';
     return h;
   }
   const st = SS.state;

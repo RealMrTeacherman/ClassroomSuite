@@ -77,6 +77,22 @@
     '@media (max-width:520px){#suitenav .lbl{display:none}#suitenav a{padding:8px 10px}' +
     '#suitenav a[aria-current="page"] .lbl{display:inline}}' +
     /* A thumb needs more than a 12px glyph. */
+    '#suitesheet{position:fixed;right:20px;bottom:calc(72px + env(safe-area-inset-bottom,0px));' +
+    'z-index:2147483002;width:min(300px,calc(100vw - 40px));display:flex;flex-direction:column;gap:2px;' +
+    'padding:10px;border-radius:14px;border:1px solid rgba(16,24,32,.1);background:rgba(255,255,255,.96);' +
+    'box-shadow:0 2px 18px rgba(16,24,32,.18);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);' +
+    "font:400 13.5px/1.45 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;color:#14202A}" +
+    '#suitesheet>b{font-weight:600;font-size:14px;padding:2px 6px 0}' +
+    '#suitesheet>i{font-style:normal;color:#55636E;font-size:12.5px;padding:0 6px 6px}' +
+    '#suitesheet button{display:block;width:100%;text-align:left;border:0;background:transparent;' +
+    'font:inherit;cursor:pointer;padding:9px 6px;border-radius:8px;color:#14202A}' +
+    '#suitesheet button:hover{background:rgba(16,24,32,.05)}' +
+    '#suitesheet button span{font-weight:500}' +
+    '#suitesheet button em{display:block;font-style:normal;color:#8A95A0;font-size:12px;margin-top:1px}' +
+    '#suitesheet button.cancel{color:#55636E;border-top:1px solid rgba(16,24,32,.09);' +
+    'border-radius:0 0 8px 8px;margin-top:3px;padding-top:10px}' +
+    '@media print{#suitesheet{display:none!important}}' +
+    '@media (pointer:coarse){#suitesheet button{padding:12px 8px}}' +
     '@media (pointer:coarse){#suitenav a,#suitenav button{min-height:40px;padding:10px 13px}' +
     '#suitenav .ic{font-size:15px}#suitenav .dot{width:9px;height:9px}}';
   document.head.appendChild(css);
@@ -142,26 +158,66 @@
     setTimeout(function () { t.remove(); }, 4200);
   }
 
+  /* A small menu of real buttons. confirm() would be shorter, but the share
+     sheet on iOS has to be opened from a genuine tap and a confirm() spends
+     that. This also reads better than "OK means save, Cancel means load". */
+  function sheet(title, note, options) {
+    var old = document.getElementById("suitesheet");
+    if (old) old.remove();
+    var box = document.createElement("div");
+    box.id = "suitesheet";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-label", title);
+    var h = '<b>' + title + "</b>";
+    if (note) h += "<i>" + note + "</i>";
+    box.innerHTML = h;
+    options.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = "<span>" + o.label + "</span>" + (o.hint ? "<em>" + o.hint + "</em>" : "");
+      b.onclick = function () { box.remove(); o.run(); };
+      box.appendChild(b);
+    });
+    var c = document.createElement("button");
+    c.type = "button"; c.className = "cancel"; c.textContent = "Cancel";
+    c.onclick = function () { box.remove(); };
+    box.appendChild(c);
+    document.body.appendChild(box);
+    setTimeout(function () {
+      document.addEventListener("click", function away(ev) {
+        if (box.contains(ev.target)) return;
+        box.remove(); document.removeEventListener("click", away);
+      });
+    }, 0);
+  }
+
+  function backupMenu() {
+    var S = window.SuiteSync;
+    sheet("Move data between devices",
+      "Safari cannot hold a live link to a file, so this moves it by hand. One file, all three tools.",
+      [
+        { label: "Save a backup", hint: "share it to Drive, Files or another device", run: function () {
+            S.exportFile().then(function (r) {
+              if (r.how === "cancelled") return;
+              say(r.how === "share" ? "Shared " + r.name + "." : "Saved " + r.name + " to your downloads.");
+            }).catch(function (e) { say("Could not save: " + (e.message || e)); });
+          } },
+        { label: "Load a backup", hint: "replaces what is on this device", run: function () {
+            S.importFile().then(function (changed) {
+              if (!changed.length) { say("Nothing in that file was newer."); return; }
+              say("Loaded. Reloading to pick it up.");
+              setTimeout(function () { location.reload(); }, 900);
+            }).catch(function (e) {
+              if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
+            });
+          } }
+      ]);
+  }
+
   function syncMenu() {
     var S = window.SuiteSync;
     if (!S) return;
-    if (!S.supported) {
-      /* No connected file on this device, so offer the thing that does work
-         here: a backup file you can move through Drive, Files or mail. */
-      if (confirm("This browser cannot hold a live link to a file.\n\n" +
-        "OK to save a backup of all three tools, or Cancel to load one you have already saved.")) {
-        say("Saved " + S.exportFile() + ". Put it somewhere you can reach from your other device.");
-      } else {
-        S.importFile().then(function (changed) {
-          if (!changed.length) { say("Nothing in that file was newer."); return; }
-          say("Loaded. Reloading to pick it up.");
-          setTimeout(function () { location.reload(); }, 900);
-        }).catch(function (e) {
-          if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
-        });
-      }
-      return;
-    }
+    if (!S.supported) { backupMenu(); return; }
     if (S.state === "needsPermission") {
       S.ensurePermission().then(function (ok) {
         if (ok) S.pull(false).then(function () { say("Reconnected."); });

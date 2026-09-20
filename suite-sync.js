@@ -237,12 +237,32 @@
     var payload = snapshot();
     var name = "classroom-" + new Date().toISOString().slice(0, 10) + ".json";
     var blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url; a.download = name; a.rel = "noopener";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-    return name;
+
+    function download() {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = name; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      return { name: name, how: "download" };
+    }
+
+    /* On iOS a download lands wherever Safari decides and gives you no chance
+       to put it in Drive. The share sheet does, and it is the natural way to
+       move a file off a phone, so prefer it where it exists. It has to be
+       reached from a real tap, which is why the caller opens a menu with
+       buttons rather than a confirm(). */
+    var file = null;
+    try { file = new File([blob], name, { type: "application/json" }); } catch (e) { }
+    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: "Classroom data" })
+        .then(function () { return { name: name, how: "share" }; })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") return { name: name, how: "cancelled" };
+          return download();
+        });
+    }
+    return Promise.resolve(download());
   }
   function importText(text) {
     var payload = normalise(JSON.parse(text));
