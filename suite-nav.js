@@ -1,0 +1,185 @@
+/* Suite switcher: a small bar that lets the three tools behave like one app.
+   Injected into each page rather than built into any of them, so it can be
+   removed by deleting one script tag. */
+(function () {
+  if (window.__suiteNav) return;
+  window.__suiteNav = true;
+
+  var deferredPrompt = null, installBtn = null;
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    paintInstall();
+  });
+  window.addEventListener("appinstalled", function () {
+    deferredPrompt = null;
+    paintInstall();
+  });
+  function standalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+  }
+  function paintInstall() {
+    if (!installBtn) return;
+    installBtn.style.display = (deferredPrompt && !standalone()) ? "" : "none";
+  }
+
+  var APPS = ["gradebook", "planner", "fluency"];
+  var PAGES = [
+    { app: "gradebook", label: "Gradebook", icon: "\u25A4" },
+    { app: "planner", label: "Planner", icon: "\u25F1" },
+    { app: "fluency", label: "Fluency", icon: "\u25F7" }
+  ];
+
+  /* Nothing here assumes the suite sits at the root of a domain, so the same
+     files work at example.com/, at user.github.io/classroom/, and from a
+     folder on disk. Paths are worked out from wherever this page actually is. */
+  function segments() {
+    var p = location.pathname.split("/").filter(Boolean);
+    if (p.length && p[p.length - 1].indexOf(".") >= 0) p.pop();   // drop a file name
+    return p;
+  }
+  function currentApp() {
+    var p = segments();
+    var last = p[p.length - 1];
+    return APPS.indexOf(last) >= 0 ? last : "";
+  }
+  function base() {
+    var p = segments();
+    if (APPS.indexOf(p[p.length - 1]) >= 0) p.pop();
+    return "/" + (p.length ? p.join("/") + "/" : "");
+  }
+
+  var css = document.createElement("style");
+  css.textContent =
+    '#suitenav{position:fixed;right:20px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:2147483000;' +
+    'max-width:calc(100vw - 24px);overflow-x:auto;scrollbar-width:none;' +
+    'display:flex;gap:2px;padding:3px;border-radius:999px;' +
+    'border:1px solid rgba(16,24,32,.1);background:rgba(255,255,255,.9);' +
+    'box-shadow:0 2px 10px rgba(16,24,32,.12);' +
+    "font:500 12.5px/1 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;" +
+    '-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}' +
+    '#suitenav a{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;' +
+    'color:#55636E;text-decoration:none;white-space:nowrap}' +
+    '#suitenav a:hover{color:#14202A;background:rgba(16,24,32,.05)}' +
+    '#suitenav a[aria-current="page"]{background:#10655C;color:#fff}' +
+    '#suitenav b{font-weight:600}' +
+    '#suitenav .ic{font-size:13px;opacity:.75}' +
+    '@media print{#suitenav{display:none!important}}' +
+    '#suitenav button{border:0;background:transparent;font:inherit;cursor:pointer;' +
+    'display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;color:#55636E}' +
+    '#suitenav button:hover{color:#14202A;background:rgba(16,24,32,.05)}' +
+    '#suitenav .sep{width:1px;background:rgba(16,24,32,.12);margin:5px 2px}' +
+    '#suitenav .dot{width:7px;height:7px;border-radius:50%;background:#B4BCC4;flex:none}' +
+    '#suitenav .dot.ok{background:#2F7A56}#suitenav .dot.warn{background:#A87621}' +
+    '#suitenav .dot.err{background:#B4472F}' +
+    '#suitenav::-webkit-scrollbar{display:none}' +
+    '@media (max-width:520px){#suitenav .lbl{display:none}#suitenav a{padding:8px 10px}' +
+    '#suitenav a[aria-current="page"] .lbl{display:inline}}' +
+    /* A thumb needs more than a 12px glyph. */
+    '@media (pointer:coarse){#suitenav a,#suitenav button{min-height:40px;padding:10px 13px}' +
+    '#suitenav .ic{font-size:15px}#suitenav .dot{width:9px;height:9px}}';
+  document.head.appendChild(css);
+
+  function build() {
+    var cur = currentApp(), root = base();
+    var nav = document.createElement("nav");
+    nav.id = "suitenav";
+    nav.setAttribute("aria-label", "Switch tool");
+    PAGES.forEach(function (p) {
+      var a = document.createElement("a");
+      a.href = root + p.app + "/";
+      if (p.app === cur) a.setAttribute("aria-current", "page");
+      a.innerHTML = '<span class="ic">' + p.icon + '</span><b class="lbl">' + p.label + "</b>";
+      nav.appendChild(a);
+    });
+    installBtn = document.createElement("button");
+    installBtn.type = "button";
+    installBtn.innerHTML = '<span class="ic">\u2913</span><b class="lbl">Install</b>';
+    installBtn.title = "Install this as an app on this device";
+    installBtn.style.display = "none";
+    installBtn.onclick = function () {
+      if (!deferredPrompt) return;
+      var p = deferredPrompt;
+      deferredPrompt = null;
+      paintInstall();
+      p.prompt();
+      p.userChoice.then(function (r) {
+        if (r && r.outcome !== "accepted") { deferredPrompt = p; paintInstall(); }
+      });
+    };
+    nav.appendChild(installBtn);
+    paintInstall();
+
+    if (window.SuiteSync) {
+      var sep = document.createElement("span"); sep.className = "sep"; nav.appendChild(sep);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerHTML = '<span class="dot"></span><b class="lbl">Sync</b>';
+      var dot = btn.querySelector(".dot"), lbl = btn.querySelector(".lbl");
+      window.SuiteSync.onState(function (st, dt) {
+        dot.className = "dot " + (st === "connected" ? "ok" : st === "needsPermission" ? "warn" : st === "error" ? "err" : "");
+        lbl.textContent = st === "connected" ? "Synced" : st === "needsPermission" ? "Reconnect"
+          : st === "error" ? "Sync error" : st === "unsupported" ? "Local only" : "Sync";
+        btn.title = st === "connected" ? "Synced with " + dt
+          : st === "needsPermission" ? "Click to allow access to the synced file again"
+          : st === "unsupported" ? "This browser cannot write to a file directly"
+          : st === "error" ? dt : "Click to connect a file";
+      });
+      btn.onclick = function () { syncMenu(); };
+      nav.appendChild(btn);
+    }
+    document.body.appendChild(nav);
+  }
+
+  function say(msg) {
+    var t = document.createElement("div");
+    t.textContent = msg;
+    t.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:2147483001;" +
+      "background:#14202A;color:#fff;padding:10px 16px;border-radius:10px;font:13.5px/1.4 inherit;" +
+      "box-shadow:0 2px 10px rgba(16,24,32,.24);max-width:min(520px,92vw)";
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 4200);
+  }
+
+  function syncMenu() {
+    var S = window.SuiteSync;
+    if (!S) return;
+    if (!S.supported) {
+      /* No connected file on this device, so offer the thing that does work
+         here: a backup file you can move through Drive, Files or mail. */
+      if (confirm("This browser cannot hold a live link to a file.\n\n" +
+        "OK to save a backup of all three tools, or Cancel to load one you have already saved.")) {
+        say("Saved " + S.exportFile() + ". Put it somewhere you can reach from your other device.");
+      } else {
+        S.importFile().then(function (changed) {
+          if (!changed.length) { say("Nothing in that file was newer."); return; }
+          say("Loaded. Reloading to pick it up.");
+          setTimeout(function () { location.reload(); }, 900);
+        }).catch(function (e) {
+          if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
+        });
+      }
+      return;
+    }
+    if (S.state === "needsPermission") {
+      S.ensurePermission().then(function (ok) {
+        if (ok) S.pull(false).then(function () { say("Reconnected."); });
+      });
+      return;
+    }
+    if (S.state === "connected") {
+      if (confirm("Synced with " + S.fileName + ".\n\nOK to write now, or Cancel to disconnect.")) {
+        S.push(true).then(function () { say("Written to " + S.fileName + "."); });
+      } else {
+        S.disconnect().then(function () { say("Disconnected. Still saving in this browser."); });
+      }
+      return;
+    }
+    var existing = confirm("Connect a file that all three tools share.\n\nOK to open an existing file, Cancel to create a new one.\n\nPut it in your Google Drive folder and Drive keeps it in step across machines.");
+    S.connect(existing).then(function () { say("Connected. Everything is written to that file from now on."); })
+      .catch(function (e) { if (e && e.name !== "AbortError") say("Could not connect: " + (e.message || e)); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
+  else build();
+})();

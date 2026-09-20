@@ -1,0 +1,14 @@
+/gradebook/manifest.json
+  Content-Type: application/manifest+json
+
+/planner/manifest.json
+  Content-Type: application/manifest+json
+
+/fluency/manifest.json
+  Content-Type: application/manifest+json
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate

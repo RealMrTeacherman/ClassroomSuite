@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Classroom suite</title>
+<meta name="theme-color" content="#EDF0F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="suite-theme.css">
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:24px;
+  font-family:var(--suite-sans);font-size:16px;line-height:1.5}
+main{max-width:780px;width:100%}
+h1{margin:0 0 4px;font-family:var(--suite-serif);font-size:24px;font-weight:600;color:var(--suite-ink)}
+p.sub{margin:0 0 22px;color:var(--suite-ink-2);font-size:14.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+@media (max-width:760px){
+  body{align-items:flex-start;padding:20px 16px}
+  .grid{grid-template-columns:1fr}
+  a.card{display:flex;align-items:center;gap:13px;padding:14px}
+  a.card img{margin:0;flex:none}
+  a.card .t{min-width:0}
+}
+a.card{display:block;background:var(--suite-panel);border:1px solid var(--suite-line);
+  border-radius:var(--suite-radius);padding:18px;text-decoration:none;color:inherit;
+  box-shadow:var(--suite-shadow-sm)}
+a.card:hover{border-color:var(--suite-accent);box-shadow:var(--suite-shadow)}
+a.card img{width:40px;height:40px;border-radius:9px;display:block;margin-bottom:12px}
+a.card .t{display:block;min-width:0}
+a.card b{display:block;font-size:15.5px;font-weight:600;margin-bottom:3px;color:var(--suite-ink)}
+a.card span{font-size:13.5px;color:var(--suite-ink-2)}
+footer{margin-top:22px;font-size:13.5px;color:var(--suite-ink-2);line-height:1.6}
+code{background:rgba(16,24,32,.06);border-radius:4px;padding:1px 6px;font-family:var(--suite-mono);font-size:12.5px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Classroom suite</h1>
+  <p class="sub">Three tools, one roster, one synced file. Each installs as its own app.</p>
+  <div class="grid">
+    <a class="card" href="gradebook/"><img src="icon-192.png" alt=""><span class="t"><b>Gradebook</b><span>Standards, grouping, report card marks</span></span></a>
+    <a class="card" href="planner/"><img src="planner-icon-192.png" alt=""><span class="t"><b>Planner</b><span>Daily and weekly lesson plans</span></span></a>
+    <a class="card" href="fluency/"><img src="fluency-icon-192.png" alt=""><span class="t"><b>Running Records</b><span>Timed oral reading fluency</span></span></a>
+  </div>
+  <footer>Open one and use the <b>Install</b> button in the corner switcher to add it to your dock or home screen. Bookmark <code>gradebook/</code> rather than this page for everyday use.</footer>
+</main>
+<script src="suite-nav.js" defer></script>
+</body>
+</html>

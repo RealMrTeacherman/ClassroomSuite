@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pocket Chart — Daily Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Michroma&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Atomic-age palette: harvest gold, burnt orange, turquoise, avocado, chocolate */
+  --shell:#EFE4CE;
+  --shell-2:#E4D6BA;
+  --card:#FDFAF3;
+  --ink:#2C1E15;
+  --ink-2:#6B5646;
+  --ink-3:#9C8874;
+  --line:#DCC8A6;
+  --line-2:#C9B08A;
+  --screen:#2A1D16;
+  --screen-txt:#F6EAD3;
+  --orange:#C8511C;
+  --orange-2:#A94214;
+  --gold:#D89A1C;
+  --teal:#16706B;
+  --avocado:#5E8C3A;
+  --shell-top:#F5ECDA;
+  --radius:18px;
+  --display:'Michroma','Eurostile','Trebuchet MS',sans-serif;
+  --body:'Space Grotesk','Futura',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Space Mono','SFMono-Regular',Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--shell);
+  background-image:linear-gradient(180deg,var(--shell-top) 0,var(--shell) 400px);
+  background-repeat:no-repeat;
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:64px;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink)}
+:focus-visible{outline:2.5px solid var(--orange);outline-offset:2px;border-radius:6px}
+
+.wrap{max-width:1060px;margin:0 auto;padding:0 16px}
+
+/* ---------- header ---------- */
+header{
+  background:var(--card);
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:40;
+}
+/* Racing stripe: the one bit of pure 1962 */
+header::after{
+  content:'';position:absolute;left:0;right:0;bottom:-4px;height:4px;
+  background:linear-gradient(90deg,
+    var(--orange) 0 25%, var(--gold) 25% 50%, var(--teal) 50% 75%, var(--avocado) 75% 100%);
+}
+.hbar{display:flex;align-items:center;gap:12px;padding:13px 0}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.mark{width:34px;height:34px;flex:0 0 34px}
+.brand h1{
+  font-family:var(--display);font-size:15px;font-weight:400;
+  margin:0;letter-spacing:.02em;white-space:nowrap;text-transform:uppercase;
+}
+.brand span{
+  display:block;font-size:9.5px;font-weight:500;color:var(--ink-3);
+  letter-spacing:.18em;text-transform:uppercase;margin-top:3px;
+}
+.jar{display:flex;align-items:center;gap:8px;background:var(--shell);
+  border:1px solid var(--line);border-radius:999px;padding:5px 13px 5px 8px}
+.jar b{font-family:var(--mono);font-size:12px;font-weight:700}
+.jar small{font-size:10.5px;color:var(--ink-3);letter-spacing:.03em}
+
+.tabs{display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--line);padding:8px 0}
+.tab{
+  font-family:var(--display);font-size:10px;font-weight:400;text-transform:uppercase;
+  letter-spacing:.1em;padding:9px 15px;border-radius:999px;color:var(--ink-2);
+  border:1px solid transparent;
+}
+.tab:hover{border-color:var(--line)}
+.tab[aria-selected="true"]{background:var(--orange);color:#FFF6E8;border-color:var(--orange)}
+
+/* ---------- date nav ---------- */
+.datenav{display:flex;align-items:center;gap:11px;margin:22px 0 16px}
+.arrow{
+  width:46px;height:46px;border-radius:50%;background:var(--card);
+  border:1.5px solid var(--line-2);display:grid;place-items:center;font-size:19px;
+  color:var(--ink-2);flex:0 0 46px;line-height:1;
+}
+.arrow:hover{background:var(--orange);border-color:var(--orange);color:#FFF6E8}
+.dateblock{flex:1;min-width:0}
+.dow{font-family:var(--body);font-size:29px;font-weight:700;letter-spacing:-.02em;line-height:1.08}
+.dsub{font-size:12px;color:var(--ink-3);font-family:var(--mono);letter-spacing:.02em}
+.todaybtn{
+  font-family:var(--display);font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;
+  padding:11px 15px;border-radius:999px;background:var(--card);
+  border:1.5px solid var(--line-2);color:var(--ink-2);
+}
+.todaybtn:hover{border-color:var(--orange);color:var(--orange)}
+.chip{
+  display:inline-flex;align-items:center;font-family:var(--display);font-size:8.5px;
+  letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:999px;
+  border:1.5px solid var(--line-2);color:var(--ink-3);background:var(--card);vertical-align:5px;
+}
+
+/* ---------- subject cards ---------- */
+.railhead{display:flex;align-items:baseline;gap:11px;margin:24px 0 11px}
+.railhead h2{
+  font-family:var(--display);font-size:10.5px;font-weight:400;margin:0;
+  text-transform:uppercase;letter-spacing:.14em;
+}
+.railhead p{margin:0;font-size:12.5px;color:var(--ink-3)}
+.rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:12px}
+.sub{
+  background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:19px 15px 15px;position:relative;overflow:hidden;
+  box-shadow:0 2px 0 rgba(120,96,64,.09);
+}
+/* Thick-thin stripe pair, straight off a 1965 hi-fi */
+.sub::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:9px;
+  background:linear-gradient(to bottom,var(--c) 0 5px,var(--card) 5px 7px,var(--c) 7px 9px);
+}
+/* Skipping mutes the lesson code, not the plan written beside it —
+   dimming the whole card dropped notes to ~3:1 against the background. */
+.sub.skip{opacity:1}
+.sub.skip .slot,
+.sub.skip .freein,
+.sub.skip .prov{opacity:.4}
+.sub.skip .subname,
+.sub.skip .subcur,
+.sub.skip .subtime{color:var(--ink-3)}
+.sub.skip::before{opacity:.45}
+.sub.suggested{border-style:dashed;border-color:var(--line-2)}
+.subtop{display:flex;align-items:flex-start;gap:8px;margin-bottom:11px}
+.subname{font-family:var(--body);font-size:16px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.submeta{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:3px}
+.subcur{font-size:10px;color:var(--ink-3);letter-spacing:.09em;text-transform:uppercase}
+.subtime{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+.skipbtn{
+  margin-left:auto;font-family:var(--display);font-size:8px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);border:1.5px solid var(--line);
+  border-radius:999px;padding:5px 9px;flex:0 0 auto;
+}
+.skipbtn:hover{color:var(--orange);border-color:var(--orange)}
+.sub.skip .skipbtn{background:var(--ink);color:var(--shell);border-color:var(--ink)}
+.slot{display:flex;align-items:stretch;gap:9px}
+/* The odometer: a recessed instrument readout */
+.readout{
+  flex:1;background:var(--screen);border:none;border-radius:11px;
+  padding:11px 13px;text-align:left;font-family:var(--mono);font-size:16px;font-weight:700;
+  color:var(--screen-txt);letter-spacing:.02em;overflow:hidden;position:relative;min-width:0;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.45);
+}
+.readout::after{
+  content:'';position:absolute;inset:0;pointer-events:none;border-radius:11px;
+  background:linear-gradient(to bottom,rgba(255,255,255,.11),transparent 55%);
+}
+.readout:hover{background:#3A2A1F}
+.readout span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readout.roll span{animation:roll .26s cubic-bezier(.2,.7,.3,1)}
+@keyframes roll{from{transform:translateY(-90%);opacity:0}to{transform:translateY(0);opacity:1}}
+.step{
+  width:42px;border:1.5px solid var(--line-2);background:var(--shell);border-radius:50%;
+  font-size:20px;font-weight:700;color:var(--ink-2);display:grid;place-items:center;
+  flex:0 0 42px;line-height:1;
+}
+.step:hover{background:var(--orange);border-color:var(--orange);color:#FFF6E8}
+.freein{
+  width:100%;background:var(--screen);border:none;border-radius:11px;
+  padding:11px 13px;font-family:var(--mono);font-size:13.5px;color:var(--screen-txt);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.45);
+}
+.freein::placeholder{color:#8C7A66}
+.prov{
+  font-size:10.5px;color:var(--ink-3);margin-top:9px;letter-spacing:.04em;
+  text-transform:uppercase;line-height:1.4;
+}
+.subnote{
+  width:100%;margin-top:10px;border:none;border-top:1.5px dashed var(--line);
+  padding:10px 4px 2px;background:none;font-size:14.5px;color:var(--ink);
+  font-family:var(--body);line-height:1.65;resize:none;overflow:hidden;display:block;
+}
+.subnote::placeholder{color:var(--ink-3);font-size:13px}
+/* The rule going solid orange is the focus indicator, so it has to be
+   unmistakable — a colour change alone on a dashed hairline wasn't. */
+.subnote:focus{
+  outline:none;border-top:2px solid var(--orange);
+  background:color-mix(in srgb,var(--orange) 5%,transparent);
+  border-radius:0 0 8px 8px;
+}
+.subnote:focus::placeholder{color:transparent}
+
+/* ---------- banner ---------- */
+.banner{
+  border:1.5px solid var(--line);border-radius:14px;
+  padding:11px 15px;font-size:13px;font-weight:500;margin-bottom:6px;
+}
+
+/* ---------- save bar ---------- */
+.savebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 0}
+.primary{
+  font-family:var(--display);font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;
+  background:var(--orange);color:#FFF6E8;padding:15px 24px;border-radius:999px;
+  box-shadow:0 2px 0 var(--orange-2);
+}
+.primary:hover{background:var(--orange-2);box-shadow:0 2px 0 #7E300C}
+.ghost{
+  font-size:13.5px;font-weight:500;padding:13px 17px;border-radius:999px;
+  background:var(--card);border:1.5px solid var(--line-2);color:var(--ink-2);
+}
+.ghost:hover{border-color:var(--orange);color:var(--orange)}
+.savenote{font-size:12px;color:var(--ink-3)}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:17px;margin-top:16px;box-shadow:0 2px 0 rgba(120,96,64,.09);
+}
+.panel h2{
+  font-family:var(--display);font-size:10.5px;font-weight:400;margin:0 0 5px;
+  text-transform:uppercase;letter-spacing:.14em;
+}
+.panel.closed h2{font-size:15px;letter-spacing:.08em}
+.panel .hint{font-size:12.5px;color:var(--ink-3);margin:0 0 12px}
+/* Grows with what you type, up to 60vh, then scrolls — a fixed 92px window
+   made anything longer than a few lines unreadable without scrubbing. */
+textarea.notes{
+  width:100%;min-height:120px;max-height:60vh;resize:none;
+  border:1.5px solid var(--line);border-radius:12px;
+  padding:12px 13px;background:var(--shell);font-size:15px;line-height:1.65;overflow:auto;
+}
+textarea.notes:focus{
+  border-color:var(--orange);outline:none;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--orange) 18%,transparent);
+}
+.flags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.flag{
+  font-size:11.5px;font-weight:500;padding:7px 13px;border-radius:999px;
+  border:1.5px solid var(--line);color:var(--ink-2);background:var(--card);
+}
+.flag:hover{border-color:var(--line-2)}
+.flag[aria-pressed="true"]{background:var(--teal);color:#FFF6E8;border-color:var(--teal)}
+
+/* ---------- timeline ---------- */
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:flex;gap:12px;padding:9px 0;border-top:1.5px solid var(--line)}
+.tl li:first-child{border-top:none}
+.tl time{font-family:var(--mono);font-size:11px;color:var(--ink-2);flex:0 0 82px;padding-top:3px}
+.tlbody{min-width:0;flex:1}
+.tllabel{font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:0 0 9px;
+  box-shadow:0 0 0 2.5px color-mix(in srgb, var(--c) 22%, transparent)}
+.tlpos{
+  font-family:var(--mono);font-size:10.5px;font-weight:700;background:var(--screen);
+  color:var(--screen-txt);border-radius:5px;padding:2px 7px;white-space:nowrap;letter-spacing:.02em;
+}
+.tlnote{font-size:13.5px;color:var(--ink-2);margin-top:3px;line-height:1.55}
+/* Your own note keeps its line breaks — bulleted notes were rendering as
+   one run-on paragraph — and gets the subject colour as a margin rule. */
+.tlnote.mine{
+  color:var(--ink);font-weight:500;white-space:pre-wrap;margin-top:7px;
+  border-left:2.5px solid var(--c,var(--line-2));padding-left:11px;
+}
+.empty{text-align:center;padding:28px 14px;color:var(--ink-3);font-size:13.5px}
+
+/* ---------- week view ---------- */
+.weekgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.wday{
+  background:var(--card);border:1.5px solid var(--line);border-radius:15px;padding:12px;
+  text-align:left;min-width:0;box-shadow:0 2px 0 rgba(120,96,64,.09);
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+}
+.wday:hover{border-color:var(--line-2)}
+.wday.is-today{border-color:var(--orange);box-shadow:0 2px 0 var(--orange)}
+.wday h3{font-family:var(--display);font-size:10px;font-weight:400;margin:0;
+  text-transform:uppercase;letter-spacing:.1em}
+.wday .wd{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:9px}
+.wrow{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:3px 0;min-width:0}
+.wrow em{font-style:normal;color:var(--ink-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow b{font-family:var(--mono);font-weight:700;font-size:10.5px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.wnote{margin-top:8px;font-size:12.5px;line-height:1.5;color:var(--ink);
+  border-top:1.5px dashed var(--line);padding-top:7px;white-space:pre-wrap;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.wday.is-closed{background:var(--shell-2);border-style:dashed}
+.wday.is-closed .wd{opacity:.7}
+.closedlbl{color:var(--orange);font-weight:500}
+.wday h3 i{font-style:normal;font-size:8px;font-family:var(--mono);color:var(--teal);
+  border:1.5px solid var(--line);border-radius:4px;padding:1px 4px;
+  vertical-align:1px;letter-spacing:0}
+
+/* ---------- settings ---------- */
+.setrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1.5px solid var(--line)}
+.setrow:first-of-type{border-top:none}
+.setrow label{font-size:10px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.08em}
+.setrow input[type=text],.setrow input[type=number],.setrow select{
+  border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--shell);
+}
+.setrow input[type=number]{width:68px}
+.swatch{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line-2);flex:0 0 26px;padding:0;overflow:hidden}
+.blockrow{display:flex;gap:8px;align-items:center;padding:7px 0}
+.blockrow input[type=text]{border:1.5px solid var(--line);border-radius:9px;padding:7px 9px;background:var(--shell)}
+.blockrow .bt{width:64px;font-family:var(--mono);font-size:12px;flex:0 0 64px}
+.blockrow .bl{flex:1;min-width:80px}
+.blockrow select{border:1.5px solid var(--line);border-radius:9px;padding:7px;background:var(--shell);font-size:12.5px}
+.del{color:var(--ink-3);font-size:18px;padding:0 7px}
+.del:hover{color:var(--orange)}
+.daypick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.daypick button{
+  font-family:var(--display);font-size:9px;text-transform:uppercase;letter-spacing:.09em;
+  padding:9px 13px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--ink-2);
+}
+.daypick button[aria-selected="true"]{background:var(--teal);color:#FFF6E8;border-color:var(--teal)}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);
+  background:var(--ink);color:var(--shell);padding:13px 21px;border-radius:999px;
+  font-size:13px;font-weight:500;z-index:99;opacity:0;transition:.25s;pointer-events:none;
+  box-shadow:0 8px 26px rgba(44,30,21,.3);
+}
+.toast.show{transform:translate(-50%,0);opacity:1}
+
+.jump{position:relative;display:inline-block;cursor:pointer;border-bottom:1.5px dashed var(--line-2);padding-bottom:1px}
+.jump:hover{color:var(--ink-2)}
+.jump input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
+
+@media (max-width:640px){
+  .dow{font-size:24px}
+  .weekgrid{grid-template-columns:1fr;gap:8px}
+  .rail{grid-template-columns:1fr}
+  .brand span{display:none}
+  .hbar{padding:11px 0}
+  /* One card per row on a phone, so there's room to actually read the note. */
+  .wnote{-webkit-line-clamp:8;font-size:13px}
+  .subnote{font-size:15.5px}
+  textarea.notes{max-height:none}
+  .railhead{flex-direction:column;gap:2px;align-items:flex-start;margin:20px 0 10px}
+  .savebar .primary{flex:1 1 100%;text-align:center}
+  .tab{padding:9px 12px;font-size:9px}
+  [data-theme="fourcolor"] .tab{font-size:12px;padding:9px 11px;letter-spacing:.04em}
+  [data-theme="fourcolor"] .dow{font-size:30px}
+  [data-theme="fourcolor"] .primary{font-size:13px}
+  [data-theme="fourcolor"] .brand h1{font-size:18px}
+}
+/* iOS Safari zooms the whole page whenever you focus a field smaller than
+   16px, and never zooms back out — which made writing a note on a phone a
+   fight with the viewport. Every editable field goes to 16px on touch.
+   This has to sit after the width query above, or the narrower rules there
+   would win on a phone and put the fields back under the threshold. */
+@media (pointer:coarse){
+  input,select,textarea,
+  .subnote,.freein,
+  .setrow input[type=text],.setrow input[type=number],.setrow select,
+  .blockrow input[type=text],.blockrow select,.blockrow .bt,.blockrow .bn,
+  .field input[type=text],textarea.notes,.sheettext{font-size:16px}
+  .subnote::placeholder{font-size:15px}
+  /* Bigger tap targets for the controls you hit dozens of times a day. */
+  .step{width:46px;flex:0 0 46px;height:46px}
+  .skipbtn{padding:8px 12px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+@media print{
+  header,.datenav,.savebar,.flags,.tabs,.toast,.skipbtn,.step{display:none !important}
+  body{background:#fff;padding:0;background-image:none}
+  .panel,.sub{break-inside:avoid;border-color:#bbb;box-shadow:none}
+  .readout,.freein,.tlpos{background:#fff !important;color:#000 !important;
+    border:1px solid #999 !important;box-shadow:none !important}
+  .readout::after{display:none}
+  /* Notes are textareas, so anything past the visible box was silently
+     dropped from the printout. Let them run to full height. */
+  .subnote,textarea.notes{max-height:none !important;overflow:visible !important;
+    background:#fff !important;border-color:#bbb !important;box-shadow:none !important}
+  .wnote{-webkit-line-clamp:unset !important;overflow:visible !important}
+  .tlnote,.tlnote.mine{color:#000 !important}
+}
+
+/* ---------- themes ---------- */
+[data-theme="moonbase"]{
+  --shell:#E4E7EC; --shell-top:#EFF1F5; --shell-2:#D5DAE1; --card:#FBFCFD;
+  --ink:#1A2028; --ink-2:#55606E; --ink-3:#8B96A4; --line:#D2D8E0; --line-2:#B6BFCB;
+  --screen:#171C23; --screen-txt:#EDF1F6;
+  --orange:#E2561F; --orange-2:#BE4315; --gold:#C9A227; --teal:#2E7D91; --avocado:#5E8C6A;
+}
+[data-theme="console"]{
+  --shell:#13181E; --shell-top:#1A2028; --shell-2:#1E252D; --card:#1E252D;
+  --ink:#EDE7DA; --ink-2:#A9A294; --ink-3:#7A7466; --line:#333C47; --line-2:#4A5563;
+  --screen:#0A0D11; --screen-txt:#F2B33D;
+  --orange:#E4711E; --orange-2:#C25A12; --gold:#F0B429; --teal:#3FA9A0; --avocado:#7FB03F;
+}
+[data-theme="formica"]{
+  --shell:#E6F1EA; --shell-top:#F1F8F3; --shell-2:#D5E6DB; --card:#FFFFFF;
+  --ink:#1F2E29; --ink-2:#53665F; --ink-3:#8AA097; --line:#CADED2; --line-2:#A9C6B8;
+  --screen:#1B2A26; --screen-txt:#F4EFE2;
+  --orange:#D33B55; --orange-2:#B12B43; --gold:#E8B33C; --teal:#12A0A8; --avocado:#6FA84B;
+}
+
+/* Accent-derived tints so every theme recolours these automatically */
+.chip.saved{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,var(--card));
+  background:color-mix(in srgb,var(--teal) 12%,var(--card))}
+.chip.draft{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,var(--card));
+  background:color-mix(in srgb,var(--gold) 12%,var(--card))}
+.chip.off{color:var(--orange);border-color:color-mix(in srgb,var(--orange) 40%,var(--card));
+  background:color-mix(in srgb,var(--orange) 10%,var(--card))}
+.banner{background:color-mix(in srgb,var(--gold) 12%,var(--card));
+  border-color:color-mix(in srgb,var(--gold) 40%,var(--card));color:var(--gold)}
+.wday h3 i{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,var(--card));
+  background:color-mix(in srgb,var(--teal) 12%,var(--card))}
+
+[data-theme="fourcolor"]{
+  --shell:#EDF1F8; --shell-top:#F8FAFD; --shell-2:#DCE3F0; --card:#FFFFFF;
+  --ink:#101A33; --ink-2:#3B4763; --ink-3:#78849C;
+  --line:#D4DCEC; --line-2:#101A33;
+  --screen:#101A33; --screen-txt:#F5B927;
+  --orange:#C8102E; --orange-2:#93091F; --gold:#E8A317; --teal:#1B4DA8; --avocado:#1E8A4C;
+  --display:'Bangers',Impact,'Haettenschweiler','Arial Narrow',sans-serif;
+}
+/* Hard black keylines and offset shadows: comic panel borders */
+[data-theme="fourcolor"] .sub,
+[data-theme="fourcolor"] .panel,
+[data-theme="fourcolor"] .wday,
+[data-theme="fourcolor"] .mate{border-width:2.5px;border-color:#101A33;box-shadow:4px 4px 0 #101A33}
+[data-theme="fourcolor"] header{border-bottom-width:2.5px;border-bottom-color:#101A33}
+[data-theme="fourcolor"] .ghost,
+[data-theme="fourcolor"] .arrow,
+[data-theme="fourcolor"] .step,
+[data-theme="fourcolor"] .todaybtn,
+[data-theme="fourcolor"] .flag,
+[data-theme="fourcolor"] .skipbtn,
+[data-theme="fourcolor"] .themebtn{border-width:2.5px;border-color:#101A33}
+[data-theme="fourcolor"] .readout,
+[data-theme="fourcolor"] .freein{border:2.5px solid #101A33;box-shadow:none}
+[data-theme="fourcolor"] .primary{border:2.5px solid #101A33;box-shadow:4px 4px 0 #101A33;
+  background:linear-gradient(var(--orange) 0 78%,#E8A317 78% 100%)}
+[data-theme="fourcolor"] .primary:hover{box-shadow:2px 2px 0 #101A33}
+[data-theme="fourcolor"] textarea.notes{border-width:2.5px;border-color:#101A33}
+/* Bangers is condensed, so the display sizes step up to match */
+[data-theme="fourcolor"] .dow{font-family:var(--display);font-size:36px;letter-spacing:.02em;font-weight:400}
+[data-theme="fourcolor"] .brand h1{font-size:21px;letter-spacing:.04em}
+[data-theme="fourcolor"] .tab{font-size:14px;letter-spacing:.06em}
+[data-theme="fourcolor"] .primary{font-size:15px;letter-spacing:.06em}
+[data-theme="fourcolor"] .panel h2,
+[data-theme="fourcolor"] .railhead h2{font-size:14px;letter-spacing:.07em}
+[data-theme="fourcolor"] .panel.closed h2{font-size:20px}
+[data-theme="fourcolor"] .chip{font-size:11.5px;letter-spacing:.06em;vertical-align:4px}
+[data-theme="fourcolor"] .todaybtn{font-size:13px;letter-spacing:.06em}
+[data-theme="fourcolor"] .daypick button{font-size:12.5px;letter-spacing:.05em}
+[data-theme="fourcolor"] .wday h3{font-size:14px;letter-spacing:.05em}
+[data-theme="fourcolor"] .skipbtn{font-size:11px;letter-spacing:.05em}
+[data-theme="fourcolor"] .mateyou{font-size:11px;letter-spacing:.05em}
+
+/* ---------- team ---------- */
+.mate{
+  background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:15px;margin-top:11px;box-shadow:0 2px 0 rgba(0,0,0,.06);position:relative;overflow:hidden;
+}
+.mate::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:var(--c,var(--orange))}
+.mate.self{border-color:var(--line-2)}
+.matetop{display:flex;align-items:baseline;gap:9px;margin:4px 0 11px;flex-wrap:wrap}
+.matename{font-family:var(--body);font-size:16px;font-weight:700}
+.matewhen{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-left:auto}
+.mateyou{font-family:var(--display);font-size:8px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-3);border:1.5px solid var(--line);border-radius:999px;padding:3px 8px}
+.mrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.mrow:first-of-type{border-top:none}
+.mrow em{font-style:normal;flex:1;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow b{font-family:var(--mono);font-size:11px;font-weight:700;background:var(--screen);
+  color:var(--screen-txt);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.delta{font-family:var(--mono);font-size:10.5px;font-weight:700;min-width:62px;text-align:right}
+.delta.ahead{color:var(--teal)} .delta.behind{color:var(--orange)} .delta.same{color:var(--ink-3)}
+.themegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;margin-top:4px}
+.themebtn{
+  border:1.5px solid var(--line);border-radius:13px;padding:11px;text-align:left;
+  display:flex;align-items:center;gap:10px;background:var(--card);
+}
+.themebtn:hover{border-color:var(--line-2)}
+.themebtn[aria-pressed="true"]{border-color:var(--orange);box-shadow:0 0 0 1.5px var(--orange)}
+.themebtn span{font-size:12.5px;font-weight:500}
+.swatchrow{display:flex;flex:0 0 auto}
+.swatchrow i{width:11px;height:22px;display:block}
+.swatchrow i:first-child{border-radius:4px 0 0 4px}
+.swatchrow i:last-child{border-radius:0 4px 4px 0}
+.privacy{
+  font-size:12px;color:var(--ink-2);background:color-mix(in srgb,var(--gold) 10%,var(--card));
+  border:1.5px solid color-mix(in srgb,var(--gold) 35%,var(--card));
+  border-radius:12px;padding:11px 13px;margin-bottom:12px;line-height:1.5;
+}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:11px}
+.field label{font-size:10px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.08em}
+.field input[type=text]{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--shell)}
+.field small{font-size:11.5px;color:var(--ink-3)}
+.optin{display:flex;align-items:flex-start;gap:9px;font-size:13px;margin:4px 0 13px;line-height:1.45}
+.optin input{margin-top:3px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--orange)}
+
+/* ---------- sheet ----------
+   Replaces prompt(): a real dialog with labelled numeric fields, which
+   mobile keyboards and screen readers can both handle properly. */
+dialog.sheet{border:none;padding:0;background:none;max-width:none;max-height:none;color:var(--ink)}
+dialog.sheet::backdrop{background:rgba(30,20,12,.5)}
+.sheetcard{
+  background:var(--card);border:1.5px solid var(--line-2);border-radius:var(--radius);
+  padding:19px;width:min(93vw,380px);box-shadow:0 14px 44px rgba(44,30,21,.3);
+}
+[data-theme="fourcolor"] .sheetcard{border-width:2.5px;border-color:#101A33;box-shadow:5px 5px 0 #101A33}
+.sheetcard h2{font-family:var(--display);font-size:10.5px;font-weight:400;margin:0 0 5px;
+  text-transform:uppercase;letter-spacing:.14em}
+[data-theme="fourcolor"] .sheetcard h2{font-size:15px;letter-spacing:.07em}
+.sheetcard .hint{font-size:12.5px;color:var(--ink-3);margin:0 0 14px}
+.numrow{display:flex;gap:9px;margin-bottom:14px}
+.numfield{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.numfield label{font-size:9.5px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.1em}
+.numfield input{
+  width:100%;border:1.5px solid var(--line-2);border-radius:10px;padding:11px 10px;
+  background:var(--screen);color:var(--screen-txt);font-family:var(--mono);
+  font-size:19px;font-weight:700;text-align:center;
+}
+.numfield input:focus{outline:2.5px solid var(--orange);outline-offset:1px}
+.sheetcard .field input[type=text]{width:100%}
+.quickpick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.quickpick button{font-size:12px;font-weight:500;padding:7px 12px;border-radius:999px;
+  border:1.5px solid var(--line);background:var(--card);color:var(--ink-2)}
+.quickpick button:hover{border-color:var(--orange);color:var(--orange)}
+.sheetbar{display:flex;gap:9px;align-items:center}
+.sheetbar .primary{padding:13px 20px}
+.sheetbar .ghost{padding:12px 16px}
+.sheettext{
+  width:100%;min-height:210px;resize:vertical;border:1.5px solid var(--line);border-radius:12px;
+  padding:11px 12px;background:var(--shell);font-family:var(--mono);font-size:12px;line-height:1.5;
+  margin-bottom:13px;
+}
+.blockrow{flex-wrap:wrap}
+.blockrow .bn{flex:1 1 100%;font-size:12.5px;border:1.5px dashed var(--line);
+  border-radius:9px;padding:7px 9px;background:var(--shell);color:var(--ink-2)}
+</style>
+<script src="../suite-migrate.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#EDF0F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="../planner-icon-192.png">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hbar">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <rect x="2" y="4" width="30" height="26" rx="9" fill="#FDFAF3" stroke="#2C1E15" stroke-width="2"/>
+          <rect x="7" y="10" width="20" height="5" rx="2.5" fill="#C8511C"/>
+          <rect x="7" y="19" width="13" height="5" rx="2.5" fill="#16706B"/>
+          <circle cx="24.5" cy="21.5" r="2.5" fill="#D89A1C"/>
+        </svg>
+        <div>
+          <h1>Pocket Chart</h1>
+          <span>2nd grade daily planner</span>
+        </div>
+      </div>
+      <div class="jar" id="jar" title="Days logged toward the next class party"></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab" role="tab" data-view="today" aria-controls="main" aria-selected="true">Today</button>
+      <button class="tab" role="tab" data-view="week" aria-controls="main" aria-selected="false">Week</button>
+      <button class="tab" role="tab" data-view="team" aria-controls="main" aria-selected="false">Team</button>
+      <button class="tab" role="tab" data-view="settings" aria-controls="main" aria-selected="false">Settings</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="main" role="tabpanel" tabindex="-1"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================== storage ============================== */
+const K = { settings:'lp:settings:v2', days:'lp:days:v2', me:'lp:me:v1', pending:'lp:pending:v1' };
+
+/* Theme presets. Each carries a subject palette in subject order:
+   phonics, reading, writing, math, science, win. */
+const THEMES = {
+  atomic:  {name:'Atomic Ranch',   swatch:['#EFE4CE','#C8511C','#D89A1C','#16706B'],
+            subjects:['#5E8C3A','#16706B','#7A4A6B','#D89A1C','#C8511C','#45607C']},
+  moonbase:{name:'Moonbase',       swatch:['#E4E7EC','#E2561F','#C9A227','#2E7D91'],
+            subjects:['#5E8C6A','#2E7D91','#7A5E8E','#C9A227','#E2561F','#4C5C6E']},
+  console: {name:'Mission Control',swatch:['#13181E','#E4711E','#F0B429','#3FA9A0'],
+            subjects:['#7FB03F','#3FA9A0','#A97FC4','#F0B429','#E4711E','#6E8CA8']},
+  fourcolor:{name:'Vanguard',      swatch:['#EDF1F8','#C8102E','#E8A317','#1B4DA8'],
+            subjects:['#1E8A4C','#1B4DA8','#7A2D8F','#E8A317','#C8102E','#0E7C8C']},
+  formica: {name:'Formica',        swatch:['#E6F1EA','#D33B55','#E8B33C','#12A0A8'],
+            subjects:['#6FA84B','#12A0A8','#9B5A8C','#E8B33C','#D33B55','#4E7A86']}
+};
+const KNOWN_COLOURS = new Set();
+
+let ME = {id:'', name:'', theme:'atomic', share:false, code:''};
+
+function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
+function teamKey(code,id){ return `team:${slug(code)}:${id}`; }
+function newId(){ return 'u'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', ME.theme||'atomic');
+}
+/* Recolour subjects only if they're still on a known preset colour,
+   so a colour picked by hand in Settings is never overwritten. */
+function applyThemePalette(id){
+  const pal = (THEMES[id]||{}).subjects || [];
+  S.subjects.forEach((sb,i)=>{
+    if(pal[i] && KNOWN_COLOURS.has((sb.color||'').toUpperCase())) sb.color = pal[i];
+  });
+}
+
+/* Synced storage only works on a PUBLISHED artifact — in an unpublished
+   draft window.storage exists but every operation fails. The old code let
+   set() fall back to localStorage while get() returned null without looking
+   there, so writes landed on the device, reads never found them, and the app
+   came up empty on every reload. One probe at boot decides which backend is
+   actually usable, and both paths then agree. */
+let cloudOK = false;
+async function detectStorage(){
+  cloudOK = false;
+  if (typeof window.storage === 'undefined' || !window.storage) return false;
+  try {
+    /* A probing set, not a get: get() throws on a missing key too, so it
+       can't tell "no storage" from "nothing saved yet". */
+    await window.storage.set('lp:probe:v1', String(Date.now()));
+    cloudOK = true;
+  } catch(e){ cloudOK = false; }
+  return cloudOK;
+}
+
+const store = {
+  async get(key){
+    if (cloudOK){
+      try { const r = await window.storage.get(key); return r && r.value ? JSON.parse(r.value) : null; }
+      catch(e){ return null; }   // a missing key throws; that just means nothing saved yet
+    }
+    try { const v = window.localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+  },
+  async set(key, val){
+    const s = JSON.stringify(val);
+    if (cloudOK){
+      try { await window.storage.set(key, s); return true; } catch(e){ /* fall through to the device */ }
+    }
+    try { window.localStorage.setItem(key, s); return true; } catch(e){ return false; }
+  }
+};
+
+/* ============================== defaults ============================== */
+const DEFAULT_SUBJECTS = [
+  {id:'phonics', name:'Phonics',        curriculum:'ECRI',              schema:'uwd', color:'#5E8C3A', start:{unit:1,week:1,day:1}, weeksPerUnit:5,  daysPerWeek:5, on:true},
+  {id:'reading', name:'Reading',        curriculum:'Benchmark',         schema:'uwd', color:'#16706B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
+  {id:'writing', name:'Writing',        curriculum:'Benchmark',         schema:'uwd', color:'#7A4A6B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
+  {id:'math',    name:'Math',           curriculum:'Reveal',            schema:'ul',  color:'#D89A1C', start:{unit:1,lesson:1},     lessonsPerUnit:10, on:true},
+  {id:'science', name:'Science / SS',   curriculum:'OpenSciEd + SS',    schema:'free',color:'#C8511C', start:{text:''},             on:true},
+  {id:'win',     name:'WIN Time',       curriculum:'Reading M/Th · Math T/F', schema:'free', color:'#45607C', start:{text:''},      on:true}
+];
+
+const SEL = 'Health/SEL — Great Body Shop / Wayfinder';
+function mtrfBlocks(dow){
+  /* 1:30 block, then 1:55 block. */
+  const sp = {1:[SEL,'PE'],
+              2:['Music','Library'],
+              4:['Music',SEL],
+              5:['PE',SEL]}[dow];
+  const win = (dow===1||dow===4) ? 'WIN — Reading small groups' : 'WIN — Math small groups';
+  return [
+    {t:'8:00',  l:'Arrival & blocks',            s:'',        n:'Manipulative tubs at every table spot'},
+    {t:'8:05',  l:'Morning Meeting',             s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
+    {t:'8:15',  l:'Phonics',                     s:'phonics', n:'ECRI slides on the carpet'},
+    {t:'8:30',  l:'Reading small groups',        s:'reading', n:'Blue chart · Build Automaticity packets'},
+    {t:'8:50',  l:'Whole-group comprehension',   s:'reading', n:'Benchmark Teacher’s Guide · anchor chart skill'},
+    {t:'9:10',  l:'Reading small groups',        s:'reading', n:'Colors shift one slot down'},
+    {t:'9:30',  l:'Recess',                      s:'',        n:'Teacher-supervised'},
+    {t:'9:45',  l:'Read aloud & snack',          s:'',        n:''},
+    {t:'10:00', l:'Math warm-up',                s:'math',    n:''},
+    {t:'10:15', l:'Math core lesson',            s:'math',    n:'Reveal Teacher’s Guide · Learn + On My Own'},
+    {t:'10:40', l:'Math small groups',           s:'math',    n:'Yellow chart'},
+    {t:'11:00', l:'Lunch & recess',              s:'',        n:'Greet students at the cafeteria at 11:40'},
+    {t:'11:40', l:'Writing',                     s:'writing', n:'Carpet brainstorm → composition notebooks → iReady'},
+    {t:'12:05', l:win,                           s:'win',     n:'Deklan pulled for extra support'},
+    {t:'1:00',  l:'Science / Social Studies',    s:'science', n:''},
+    {t:'1:30',  l:'Specials 1 — '+sp[0],         s:'',        n:''},
+    {t:'1:55',  l:'Specials 2 — '+sp[1],         s:'',        n:''},
+    {t:'2:15',  l:'Closing clean-up',            s:'',        n:'Number boxes · trash · chairs in · backpacks'},
+    {t:'2:20',  l:'Shoutouts',                   s:'',        n:'Bonus Mighty Mustangs'},
+    {t:'2:25',  l:'Bussers out · dismissal 2:30',s:'',        n:''}
+  ];
+}
+/* Wednesday runs a shortened early-release day for PD. */
+function wedBlocks(){
+  return [
+    {t:'8:00',  l:'Morning Meeting',               s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
+    {t:'8:15',  l:'Phonics',                       s:'phonics', n:'ECRI — first 15 minutes of the Reading block'},
+    {t:'8:30',  l:'Reading',                       s:'reading', n:''},
+    {t:'9:00',  l:'Structured Break',              s:'',        n:'Recess'},
+    {t:'9:15',  l:'Math',                          s:'math',    n:''},
+    {t:'9:45',  l:'Assembly / Enrichments / Math', s:'math',    n:'Varies by week — extra math when there’s no assembly or enrichment'},
+    {t:'10:30', l:'WIN',                           s:'win',     n:''},
+    {t:'11:00', l:'Recess',                        s:'',        n:''},
+    {t:'11:15', l:'Line up & sanitize',            s:'',        n:''},
+    {t:'11:20', l:'Lunch',                         s:'',        n:''},
+    {t:'11:45', l:'STEAM — Teacher Choice',        s:'',        n:''},
+    {t:'12:20', l:'Core Arts — Health/SEL Block A',s:'',        n:''},
+    {t:'12:45', l:'Dismissal',                     s:'',        n:'Confirm the exact time'}
+  ];
+}
+const DEFAULT_TEMPLATES = {0:[],1:mtrfBlocks(1),2:mtrfBlocks(2),3:wedBlocks(),4:mtrfBlocks(4),5:mtrfBlocks(5),6:[]};
+const FLAGS = ['Assembly','Early release','Sub','Fire drill','Field trip','Picture day','Testing','Half day'];
+
+/* ---- Creswell SD 2026–27, as it applies to Creslane Elementary ---- */
+const YEAR = {
+  label:'2026–27',
+  first:'2026-09-01',   // Classes begin, grades 1–5
+  last :'2027-06-09',   // Last day of school
+  closed:{
+    '2026-09-04':'No School','2026-09-07':'Labor Day',
+    '2026-11-06':'Grading Day','2026-11-11':'Veterans Day',
+    '2026-11-23':'Conferencing Day','2026-11-24':'Conferencing Day',
+    '2026-11-25':'Thanksgiving Break','2026-11-26':'Thanksgiving Break','2026-11-27':'Thanksgiving Break',
+    '2026-12-21':'Winter Break','2026-12-22':'Winter Break','2026-12-23':'Winter Break',
+    '2026-12-24':'Winter Break','2026-12-25':'Winter Break','2026-12-28':'Winter Break',
+    '2026-12-29':'Winter Break','2026-12-30':'Winter Break','2026-12-31':'Winter Break',
+    '2027-01-01':'Winter Break','2027-01-04':'Staff In-Service Day','2027-01-18':'M.L. King Day',
+    '2027-01-29':'Semester Grading Day','2027-02-15':'Presidents Day',
+    '2027-02-26':'CES Conferencing Day',
+    '2027-03-22':'Spring Break','2027-03-23':'Spring Break','2027-03-24':'Spring Break',
+    '2027-03-25':'Spring Break','2027-03-26':'Spring Break',
+    '2027-04-09':'Grading Day','2027-05-31':'Memorial Day'
+  },
+  /* Early release for PD is every Wednesday. Add one-off dates here if any come up. */
+  earlyExtra:[]
+};
+
+const forced = new Set();
+
+/* One place that decides what any given date is. */
+function dayStatus(d){
+  const k = key(d);
+  const custom = DAYS[k] && DAYS[k].noSchool;
+  if(custom)                     return {school:false, label:DAYS[k].closedLabel || 'No school', custom:true};
+  /* A day you actually saved a plan for stays open, whatever the district
+     calendar says — otherwise the closed-day panel hid the plan you'd
+     written the moment you reloaded (`forced` only lives in memory). */
+  if(DAYS[k] && DAYS[k].saved)   return {school:true, early: d.getDay()===3 || YEAR.earlyExtra.indexOf(k)>=0};
+  if(forced.has(k))              return {school:true, early: d.getDay()===3 || YEAR.earlyExtra.indexOf(k)>=0};
+  if(d.getDay()===0||d.getDay()===6) return {school:false, label:'Weekend'};
+  if(YEAR.closed[k])             return {school:false, label:YEAR.closed[k]};
+  if(k < YEAR.first)             return {school:false, label:'Before the first day of school', outside:true};
+  if(k > YEAR.last)              return {school:false, label:'After the last day of school', outside:true};
+  return {school:true, early: d.getDay()===3 || YEAR.earlyExtra.indexOf(k)>=0};
+}
+function nextSchoolDay(from, dir){
+  let d = addDays(from, dir);
+  for(let i=0;i<400;i++){
+    if(dayStatus(d).school) return d;
+    d = addDays(d, dir);
+  }
+  return addDays(from, dir);
+}
+
+/* ============================== state ============================== */
+let S = { subjects:[], templates:{} };
+let DAYS = {};
+/* Days you've started but not saved. Kept out of DAYS so an unsaved day
+   never feeds the lesson suggestions, but persisted so closing the tab or
+   backgrounding the app on a phone doesn't throw the work away. */
+let PENDING = {};
+let cursor = new Date();
+let view = 'today';
+let draft = null;          // uncommitted working copy for the cursor date
+let dirty = false;
+
+/* ============================== date utils ============================== */
+const pad = n => String(n).padStart(2,'0');
+const key = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseKey = k => { const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const isToday = d => key(d)===key(new Date());
+const longDate = d => `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+
+/* ============================== position logic ============================== */
+function sub(id){ return S.subjects.find(x=>x.id===id); }
+
+function advance(sb,p){
+  const q = Object.assign({},p);
+  if(sb.schema==='uwd'){
+    q.day=(q.day||1)+1;
+    if(q.day>(sb.daysPerWeek||5)){ q.day=1; q.week=(q.week||1)+1; }
+    if(q.week>(sb.weeksPerUnit||3)){ q.week=1; q.unit=(q.unit||1)+1; }
+  } else if(sb.schema==='ul'){
+    q.lesson=(q.lesson||1)+1;
+    if(q.lesson>(sb.lessonsPerUnit||10)){ q.lesson=1; q.unit=(q.unit||1)+1; }
+  } else if(sb.schema==='l'){
+    q.lesson=(q.lesson||1)+1;
+  }
+  return q;
+}
+function retreat(sb,p){
+  const q = Object.assign({},p);
+  if(sb.schema==='uwd'){
+    q.day=(q.day||1)-1;
+    if(q.day<1){ q.week=(q.week||1)-1; q.day=sb.daysPerWeek||5; }
+    if(q.week<1){ q.unit=(q.unit||1)-1; q.week=sb.weeksPerUnit||3; }
+    if(q.unit<1){ q.unit=1; q.week=1; q.day=1; }
+  } else if(sb.schema==='ul'){
+    q.lesson=(q.lesson||1)-1;
+    if(q.lesson<1){ q.unit=(q.unit||1)-1; q.lesson=sb.lessonsPerUnit||10; }
+    if(q.unit<1){ q.unit=1; q.lesson=1; }
+  } else if(sb.schema==='l'){
+    q.lesson=Math.max(1,(q.lesson||1)-1);
+  }
+  return q;
+}
+function fmt(sb,p){
+  if(!p) return '—';
+  if(sb.schema==='uwd') return `U${p.unit} · W${p.week} · D${p.day}`;
+  if(sb.schema==='ul')  return `U${p.unit} · L${p.lesson}`;
+  if(sb.schema==='l')   return `L${p.lesson}`;
+  return (p.text||'').trim() || '—';
+}
+
+/* Walk backwards to the most recent day this subject was actually taught.
+   Rendering a day calls this twice per subject and the team view calls it
+   per subject per teammate, so the key sort and the results are cached and
+   dropped whenever DAYS changes. */
+let _dayKeys = null, _ltCache = new Map();
+function invalidateDayCache(){ _dayKeys = null; _ltCache.clear(); }
+function sortedDayKeys(){
+  if(!_dayKeys) _dayKeys = Object.keys(DAYS).filter(k=>k!=='undefined').sort().reverse();
+  return _dayKeys;
+}
+function lastTaught(sb, beforeKey){
+  const ck = sb.id+'|'+beforeKey;
+  if(_ltCache.has(ck)) return _ltCache.get(ck);
+  let hit = null;
+  for(const k of sortedDayKeys()){
+    if(k >= beforeKey) continue;
+    const rec = DAYS[k];
+    if(!rec || rec.noSchool || rec.saved===false) continue;
+    const e = rec.entries && rec.entries[sb.id];
+    if(e && e.taught && e.pos){ hit = {pos:e.pos, from:k}; break; }
+  }
+  _ltCache.set(ck, hit);
+  return hit;
+}
+function suggest(sb, dk){
+  const prev = lastTaught(sb, dk);
+  if(!prev) return Object.assign({}, sb.start);
+  if(sb.schema==='free') return Object.assign({}, prev.pos);
+  return advance(sb, prev.pos);
+}
+/* One short line telling you what the suggestion was built from. */
+function provenance(sb, dk){
+  const prev = lastTaught(sb, dk);
+  if(!prev) return 'starting point';
+  const d = parseKey(prev.from);
+  const when = `${DOW[d.getDay()].slice(0,3)} ${d.getMonth()+1}/${d.getDate()}`;
+  return `after ${fmt(sb, prev.pos)} · ${when}`;
+}
+
+/* Build the working record for a date: saved record, or a fresh suggested draft. */
+function buildDraft(dk){
+  const saved = DAYS[dk];
+  if(saved) return JSON.parse(JSON.stringify(saved));
+  if(PENDING[dk]) return JSON.parse(JSON.stringify(PENDING[dk]));
+  /* A subject defaults to "taught" only if the day's schedule actually has a block
+     for it — so Wednesday doesn't ask about Writing or Science. */
+  const tpl = S.templates[parseKey(dk).getDay()] || [];
+  const inDay = new Set(tpl.map(b=>b.s).filter(Boolean));
+  const entries = {};
+  S.subjects.filter(s=>s.on).forEach(sb=>{
+    entries[sb.id] = { pos: suggest(sb,dk), taught: tpl.length ? inDay.has(sb.id) : true, note:'' };
+  });
+  return { entries, notes:'', flags:[], noSchool:false, saved:false };
+}
+
+
+/* Block times are 12-hour with no am/pm ("1:30" is the afternoon).
+   A school day never starts before 7, so anything under 7 is pm. */
+function mins(t){
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t||'').trim());
+  if(!m) return null;
+  let hh = +m[1];
+  if(hh < 7) hh += 12;
+  return hh*60 + (+m[2]);
+}
+/* A block runs until the next one starts. */
+function blockEnd(blocks,i){ return blocks[i+1] ? blocks[i+1].t : null; }
+function span(a,b){ return b ? `${a}–${b}` : a; }
+/* First start to last end across every block carrying this subject. */
+function subjectSpan(blocks, id){
+  const idx = blocks.map((b,i)=> b.s===id ? i : -1).filter(i=>i>=0);
+  if(!idx.length) return null;
+  return span(blocks[idx[0]].t, blockEnd(blocks, idx[idx.length-1]));
+}
+
+/* Blocks are stored in the order they were added, but a block added in
+   Settings landed at the bottom of the list — which put it last in the
+   timeline and made `blockEnd` compute a nonsense span for its neighbour.
+   Ordering by clock time everywhere fixes both. Blank times sink. */
+function sortBlocks(arr){
+  return arr.slice().sort((a,b)=>{
+    const x = mins(a.t), y = mins(b.t);
+    return (x==null?1e9:x) - (y==null?1e9:y);
+  });
+}
+function blocksFor(d){ return sortBlocks(S.templates[d.getDay()] || []); }
+
+/* ============================== persistence ============================== */
+let saveTimer=null;
+function queueSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(persist,450); }
+async function persist(){
+  invalidateDayCache();
+  const ok = await store.set(K.days, DAYS);
+  if(!ok) toast('Couldn’t save — export a backup so you don’t lose today');
+}
+
+let pendTimer=null;
+function queuePending(){ clearTimeout(pendTimer); pendTimer=setTimeout(persistPending,450); }
+async function persistPending(){ await store.set(K.pending, PENDING); }
+function flushPending(){ if(pendTimer){ clearTimeout(pendTimer); pendTimer=null; persistPending(); } }
+/* Snapshot the working draft so it survives a tab switch, a reload, or the
+   phone killing the tab in the background. */
+function stashDraft(){
+  if(!draft || draft.saved || !draft.__key) return;
+  const rec = JSON.parse(JSON.stringify(draft));
+  delete rec.__key;
+  PENDING[draft.__key] = rec;
+  queuePending();
+}
+async function persistSettings(){ await store.set(K.settings, S); }
+async function persistMe(){ await store.set(K.me, ME); }
+
+/* ---------- team sync ----------
+   Only a name and lesson positions ever leave this device. Day notes,
+   subject notes and schedule-change flags are never published. */
+const canSync = () => cloudOK;
+
+function absIndex(sb,p){
+  if(!p) return null;
+  if(sb.schema==='uwd') return ((((p.unit||1)-1)*(sb.weeksPerUnit||3))+((p.week||1)-1))*(sb.daysPerWeek||5)+((p.day||1)-1);
+  if(sb.schema==='ul')  return (((p.unit||1)-1)*(sb.lessonsPerUnit||10))+((p.lesson||1)-1);
+  if(sb.schema==='l')   return (p.lesson||1)-1;
+  return null;
+}
+
+async function publishStatus(){
+  if(!canSync() || !ME.share || !ME.name || !ME.code) return;
+  const pos = {};
+  S.subjects.filter(s=>s.on && s.schema!=='free').forEach(sb=>{
+    const lt = lastTaught(sb, '9999-12-31');
+    if(lt) pos[sb.id] = {pos:lt.pos, on:lt.from};
+  });
+  const rec = {id:ME.id, name:ME.name, theme:ME.theme, updated:new Date().toISOString(), pos};
+  try{ await window.storage.set(teamKey(ME.code, ME.id), JSON.stringify(rec), true); }
+  catch(e){ /* sync is best-effort; never blocks saving a day */ }
+}
+
+async function fetchTeam(){
+  if(!canSync() || !ME.code) return [];
+  const out = [];
+  try{
+    const r = await window.storage.list(`team:${slug(ME.code)}:`, true);
+    for(const k of (r && r.keys) || []){
+      try{ const v = await window.storage.get(k, true); if(v && v.value) out.push(JSON.parse(v.value)); }
+      catch(e){ /* skip unreadable entries */ }
+    }
+  }catch(e){ /* no shared data yet */ }
+  return out.sort((a,b)=> a.id===ME.id ? -1 : b.id===ME.id ? 1 : String(a.name).localeCompare(String(b.name)));
+}
+
+async function stopSharing(){
+  if(!canSync() || !ME.code || !ME.id) return;
+  try{ await window.storage.delete(teamKey(ME.code, ME.id), true); }catch(e){}
+}
+
+/* Typing debounces; an explicit save writes through immediately so nothing is
+   lost if the app is closed or backgrounded a moment later. */
+function commitDay(flush){
+  const dk = key(cursor);
+  draft.saved = true;
+  const rec = JSON.parse(JSON.stringify(draft));
+  delete rec.__key;
+  DAYS[dk] = rec;
+  dirty = false;
+  invalidateDayCache();
+  if(PENDING[dk]){ delete PENDING[dk]; queuePending(); }
+  if(flush){ clearTimeout(saveTimer); persist(); teamCache=null; publishStatus(); } else queueSave();
+}
+function flushSave(){
+  stashDraft();
+  if(saveTimer){ clearTimeout(saveTimer); saveTimer=null; persist(); }
+  flushPending();
+}
+
+/* ============================== render ============================== */
+/* Notes size themselves to their content. Height is measured from
+   scrollHeight, which is wrong until the web font has actually swapped in —
+   so this is re-run on fonts.ready and on resize, otherwise long notes sit
+   clipped at whatever height the fallback font happened to produce. */
+function grow(el){
+  if(!el) return;
+  const cap = parseFloat(getComputedStyle(el).maxHeight);
+  el.style.height = 'auto';
+  const h = el.scrollHeight;
+  el.style.height = ((cap && h > cap) ? cap : h) + 'px';
+  el.style.overflowY = (cap && h > cap) ? 'auto' : 'hidden';
+}
+function growAll(){ document.querySelectorAll('.subnote, textarea.notes').forEach(grow); }
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(growAll).catch(()=>{});
+let growTimer=null;
+window.addEventListener('resize', ()=>{ clearTimeout(growTimer); growTimer=setTimeout(growAll,120); });
+
+const main = document.getElementById('main');
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function render(){
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.view===view)));
+  renderJar();
+  if(view==='today') renderToday();
+  else if(view==='week') renderWeek();
+  else if(view==='team') renderTeam();
+  else renderSettings();
+}
+
+function renderJar(){
+  const n = Object.values(DAYS).filter(d=>d.saved && !d.noSchool).length;
+  const inCycle = n % 20, full = Math.floor(n/20);
+  let marbles='';
+  for(let i=0;i<inCycle;i++){
+    const col=(i%5)+1, row=Math.floor(i/5);
+    marbles += `<circle cx="${3.4+col*2.6}" cy="${19-row*2.7}" r="1.2" fill="#D89A1C"/>`;
+  }
+  document.getElementById('jar').innerHTML =
+    `<svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true">
+       <path d="M6.4 4.4h9.2v2.2l1.5 2.6v10.9a2.1 2.1 0 0 1-2.1 2.1H7a2.1 2.1 0 0 1-2.1-2.1V9.2L6.4 6.6Z"
+             fill="#FDFAF3" stroke="#2C1E15" stroke-width="1.5" stroke-linejoin="round"/>${marbles}
+     </svg>
+     <b>${n}</b><small>day${n===1?'':'s'} logged${full?` · ${full} party${full>1?'s':''}`:''}</small>`;
+}
+
+/* ---------- Today ---------- */
+function renderToday(){
+  const dk = key(cursor);
+  if(!draft || draft.__key!==dk){ draft = buildDraft(dk); draft.__key = dk; dirty=false; }
+  const blocks = blocksFor(cursor);
+  const hasTemplate = blocks.length>0;
+  const st = dayStatus(cursor);
+  const isDraft = !draft.saved && !!PENDING[dk];
+  const status = !st.school ? `<span class="chip off">${esc(st.label)}</span>`
+               : draft.saved ? `<span class="chip saved">Saved</span>`
+               : isDraft     ? `<span class="chip draft">Draft</span>`
+                             : `<span class="chip draft">Suggested</span>`;
+  const early = st.school && st.early
+    ? `<div class="banner">Early release — Wednesdays run a shortened day for PD.</div>` : '';
+
+  main.innerHTML = `
+    <div class="datenav">
+      <button class="arrow" data-nav="-1" aria-label="Previous day">‹</button>
+      <div class="dateblock">
+        <div class="dow">${DOW[cursor.getDay()]} ${status}</div>
+        <label class="dsub jump">
+          <span>${longDate(cursor)}${isToday(cursor)?' · today':''}</span>
+          <input type="date" id="jumpdate" value="${dk}" aria-label="Jump to a date">
+        </label>
+      </div>
+      <button class="arrow" data-nav="1" aria-label="Next day">›</button>
+      ${isToday(cursor)?'':'<button class="todaybtn" id="gotoday">Today</button>'}
+    </div>
+
+    ${!st.school ? `
+      <div class="panel closed">
+        <h2>${esc(st.label)}</h2>
+        <p class="hint">${st.custom
+            ? 'You marked this day closed. Lessons won’t advance past it.'
+            : st.outside
+              ? `The ${esc(YEAR.label)} school year runs ${esc(longDate(parseKey(YEAR.first)))} to ${esc(longDate(parseKey(YEAR.last)))}.`
+              : 'From the district calendar. Lessons pick up on the next school day.'}</p>
+        <div class="savebar">
+          <button class="ghost" id="jumpnext">Go to the next school day</button>
+          ${st.custom ? '<button class="ghost" id="unsetoff">Actually, we had school</button>' : ''}
+          ${(!st.custom && !st.outside && cursor.getDay()!==0 && cursor.getDay()!==6)
+            ? '<button class="ghost" id="plananyway">Plan this day anyway</button>' : ''}
+        </div>
+      </div>` : `
+      ${early}
+      <div class="railhead">
+        <h2>Where we are</h2>
+        <p>Tap − or + to nudge · tap the code to type it</p>
+      </div>
+      <div class="rail">${S.subjects.filter(s=>s.on).map(cardHTML).join('')}</div>
+
+      <div class="savebar">
+        <button class="primary" id="save">${draft.saved?'Update this day':'Save this day'}</button>
+        <button class="ghost" id="copysub">Copy sub-friendly plan</button>
+        <button class="ghost" id="setoff">No school</button>
+        <span class="savenote">${draft.saved
+          ? 'Edits save automatically.'
+          : 'Kept as a draft as you type. Saving is what moves tomorrow’s lessons on.'}</span>
+      </div>`}
+
+    ${!st.school ? '' : `
+    <div class="panel">
+      <h2>Notes & schedule changes</h2>
+      <p class="hint">Anything that made today different — and anything future-you needs to remember.</p>
+      <textarea class="notes" id="notes" placeholder="Assembly pushed math to after lunch. Finish Lesson 5 tomorrow.">${esc(draft.notes)}</textarea>
+      <div class="flags">${FLAGS.map(f=>`<button class="flag" data-flag="${esc(f)}" aria-pressed="${draft.flags.includes(f)}">${esc(f)}</button>`).join('')}</div>
+    </div>
+
+    <div class="panel">
+      <h2>The day, block by block</h2>
+      <p class="hint">${hasTemplate?'Straight from your sub plans — edit any block in Settings.':''}</p>
+      ${hasTemplate ? `<ul class="tl">${(()=>{const seen=new Set();return blocks.map((b,i)=>blockHTML(b,seen,blockEnd(blocks,i))).join('');})()}</ul>`
+        : `<div class="empty">
+             ${cursor.getDay()===3
+               ? 'Wednesday is an early-release PD day, so it runs a shortened schedule. Add its blocks in Settings, or start from Monday and trim.'
+               : `No schedule set for ${DOW[cursor.getDay()]} yet.`}<br>
+             <button class="ghost" id="copysched" style="margin-top:10px">Copy Monday’s schedule here</button>
+           </div>`}
+    </div>`}`;
+  wireToday();
+}
+
+function cardHTML(sb){
+  const when = subjectSpan(blocksFor(cursor), sb.id);
+  const e = draft.entries[sb.id] || (draft.entries[sb.id]={pos:suggest(sb,key(cursor)),taught:true,note:''});
+  const cls = ['sub', e.taught?'':'skip', draft.saved?'':'suggested'].join(' ');
+  const control = sb.schema==='free'
+    ? `<input class="freein" data-free="${sb.id}" value="${esc(e.pos.text||'')}" placeholder="What we did">`
+    : `<div class="slot">
+         <button class="step" data-step="-1" data-id="${sb.id}" aria-label="Back one for ${esc(sb.name)}">−</button>
+         <button class="readout" data-edit="${sb.id}" aria-label="Edit ${esc(sb.name)} position"><span>${esc(fmt(sb,e.pos))}</span></button>
+         <button class="step" data-step="1" data-id="${sb.id}" aria-label="Forward one for ${esc(sb.name)}">+</button>
+       </div>`;
+  return `<article class="${cls}" style="--c:${esc(sb.color)}">
+      <div class="subtop">
+        <div>
+          <div class="subname">${esc(sb.name)}</div>
+          <div class="submeta">
+            <span class="subcur">${esc(sb.curriculum)}</span>
+            ${when ? `<span class="subtime">${esc(when)}</span>` : ''}
+          </div>
+        </div>
+        <button class="skipbtn" data-skip="${sb.id}" aria-pressed="${!e.taught}"
+                title="${e.taught?`Mark ${esc(sb.name)} as not taught today`:`Mark ${esc(sb.name)} as taught today`}"
+        >${e.taught?'Skip':'Skipped'}</button>
+      </div>
+      ${control}
+      <div class="prov">${esc(provenance(sb, key(cursor)))}</div>
+      <textarea class="subnote" data-note="${sb.id}" rows="1"
+             placeholder="Add specifics — pages, groups, what to reteach"
+             aria-label="Notes for ${esc(sb.name)}">${esc(e.note||'')}</textarea>
+    </article>`;
+}
+
+function blockHTML(b, seen, endT){
+  const sb = b.s ? sub(b.s) : null;
+  const e = sb && draft.entries[sb.id];
+  const txt = (sb && e && e.taught) ? fmt(sb,e.pos) : '';
+  const pos = (txt && txt!=='—') ? `<span class="tlpos">${esc(txt)}</span>` : '';
+  let mine = '';
+  if(sb && e && e.note && seen && !seen.has(sb.id)){
+    seen.add(sb.id);
+    mine = `<div class="tlnote mine">${esc(e.note)}</div>`;
+  }
+  return `<li ${sb?`style="--c:${esc(sb.color)}"`:''}>
+      <time>${esc(span(b.t,endT))}</time>
+      <div class="tlbody">
+        <div class="tllabel">
+          ${sb?'<span class="dot"></span>':''}${esc(b.l)}${pos}
+        </div>
+        ${b.n?`<div class="tlnote">${esc(b.n)}</div>`:''}
+        ${mine}
+      </div>
+    </li>`;
+}
+
+function wireToday(){
+  main.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>go(+b.dataset.nav));
+  const gt=document.getElementById('gotoday');
+  if(gt) gt.onclick=()=>{ stashDraft(); cursor=new Date(); draft=null; render(); };
+  const jd=document.getElementById('jumpdate');
+  if(jd) jd.onchange=()=>{ if(!jd.value) return; stashDraft(); cursor=parseKey(jd.value); draft=null; render(); };
+
+  main.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{
+    const sb=sub(b.dataset.id), e=draft.entries[sb.id];
+    e.pos = (+b.dataset.step>0) ? advance(sb,e.pos) : retreat(sb,e.pos);
+    const ro = main.querySelector(`[data-edit="${sb.id}"]`);
+    ro.querySelector('span').textContent = fmt(sb,e.pos);
+    ro.classList.remove('roll'); void ro.offsetWidth; ro.classList.add('roll');
+    touch();
+  });
+
+  main.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editPos(b.dataset.edit));
+
+  main.querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>{
+    const e=draft.entries[b.dataset.skip];
+    e.taught=!e.taught;
+    touch(); renderToday();
+  });
+
+  main.querySelectorAll('[data-free]').forEach(i=>i.oninput=()=>{
+    draft.entries[i.dataset.free].pos.text = i.value; touch();
+  });
+
+  main.querySelectorAll('[data-note]').forEach(i=>{
+    grow(i);
+    i.oninput = ()=>{ draft.entries[i.dataset.note].note = i.value; grow(i); touch(); };
+  });
+
+  const jn=document.getElementById('jumpnext');
+  if(jn) jn.onclick=()=>{ stashDraft(); cursor=nextSchoolDay(cursor,1); draft=null; render(); };
+  const pa=document.getElementById('plananyway');
+  if(pa) pa.onclick=()=>{ forced.add(key(cursor)); draft=null; render(); };
+
+  const nt=document.getElementById('notes');
+  if(nt){
+    grow(nt);
+    nt.oninput=()=>{ draft.notes=nt.value; grow(nt); touch(); };
+  }
+
+  main.querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>{
+    const f=b.dataset.flag, i=draft.flags.indexOf(f);
+    if(i<0) draft.flags.push(f); else draft.flags.splice(i,1);
+    b.setAttribute('aria-pressed', String(i<0)); touch();
+  });
+
+  const sv=document.getElementById('save');
+  if(sv) sv.onclick=()=>{ commitDay(true); render(); toast('Saved — tomorrow will pick up from here'); };
+
+  const cs=document.getElementById('copysub'); if(cs) cs.onclick=copySubPlan;
+  const so=document.getElementById('setoff');
+  if(so) so.onclick=()=>{
+    const reasons=['Snow day','Power outage','Smoke day','Ice day','No school'];
+    openSheet(`
+      <h2>No school</h2>
+      <p class="hint">${esc(DOW[cursor.getDay()])}, ${esc(longDate(cursor))} won’t count as a teaching day,
+        and lessons will pick up where they left off.</p>
+      <div class="quickpick">${reasons.map(r=>`<button data-why="${esc(r)}">${esc(r)}</button>`).join('')}</div>
+      <div class="field">
+        <label for="whytxt">Or write your own</label>
+        <input type="text" id="whytxt" maxlength="40" placeholder="Water main break">
+      </div>
+      <div class="sheetbar">
+        <button class="primary" data-sheet-save>Mark day closed</button>
+        <button class="ghost" data-sheet-cancel>Cancel</button>
+      </div>`, el=>{
+      const txt = el.querySelector('#whytxt');
+      const mark = why=>{
+        draft.noSchool=true; draft.closedLabel=(why||'').trim()||'No school';
+        forced.delete(key(cursor));
+        closeSheet(); commitDay(true); render(); toast('Marked closed — lessons hold their place');
+      };
+      el.querySelectorAll('[data-why]').forEach(b=>b.onclick=()=>mark(b.dataset.why));
+      el.querySelector('[data-sheet-save]').onclick=()=>mark(txt.value);
+      txt.onkeydown=ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); mark(txt.value); } };
+    });
+  };
+  const uo=document.getElementById('unsetoff');
+  if(uo) uo.onclick=()=>{ delete DAYS[key(cursor)]; draft=null; persist(); render(); };
+  const cp=document.getElementById('copysched');
+  if(cp) cp.onclick=()=>{
+    S.templates[cursor.getDay()] = JSON.parse(JSON.stringify(S.templates[1]||mtrfBlocks(1)));
+    persistSettings(); render(); toast('Schedule copied — tweak it in Settings');
+  };
+}
+
+/* Any edit to an already-saved day writes through immediately. */
+function touch(){
+  dirty=true;
+  if(draft.saved) commitDay(); else stashDraft();
+}
+
+/* ---------- backup ----------
+   Artifacts run in a sandboxed iframe, which blocks downloads outright: the
+   old export built a blob, called click() on an anchor that was never in the
+   document, and reported nothing when the browser dropped it. Copying the
+   text is the path that always works; the download is offered as a bonus. */
+function backupText(){
+  return JSON.stringify({app:'pocket-chart', v:SCHEDULE_VERSION, settings:S, days:DAYS}, null, 2);
+}
+function downloadBackup(text){
+  try{
+    const blob = new Blob([text], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pocket-chart-${key(new Date())}.json`;
+    document.body.appendChild(a);   // a detached anchor is ignored in some browsers
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    toast('If no file appeared, use Copy backup instead');
+  }catch(e){
+    toast('Downloads are blocked here — use Copy backup');
+  }
+}
+/* Returns true if the backup was applied. Shape is checked first so a junk
+   file can't leave the app in a state it can't render. */
+function applyBackup(text){
+  let d;
+  try{ d = JSON.parse(text); }
+  catch(e){ toast('That isn’t valid backup text'); return false; }
+  if(!d || typeof d!=='object'){ toast('That isn’t a Pocket Chart backup'); return false; }
+  const hasDays = d.days && typeof d.days==='object';
+  const hasSettings = d.settings && Array.isArray(d.settings.subjects) && d.settings.subjects.length;
+  if(!hasDays && !hasSettings){ toast('That isn’t a Pocket Chart backup'); return false; }
+  if(hasSettings){
+    S = d.settings;
+    if(!S.templates || typeof S.templates!=='object')
+      S.templates = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+    migrateSchedule();
+  }
+  if(hasDays) DAYS = d.days;
+  PENDING = {};
+  invalidateDayCache();
+  persist(); persistSettings(); persistPending();
+  draft=null; render();
+  const n = Object.keys(DAYS).length;
+  toast(`Restored ${n} day${n===1?'':'s'}`);
+  return true;
+}
+
+/* ---------- sheet ----------
+   A small modal built on <dialog>, so Esc, focus trapping and the backdrop
+   come from the platform. Replaces prompt(), which is awkward on phones,
+   unstyleable, and blocked outright by some in-app browsers. */
+let sheetEl = null;
+function openSheet(html, onOpen){
+  closeSheet();
+  sheetEl = document.createElement('dialog');
+  sheetEl.className = 'sheet';
+  sheetEl.innerHTML = `<div class="sheetcard">${html}</div>`;
+  document.body.appendChild(sheetEl);
+  sheetEl.addEventListener('close', ()=>{ if(sheetEl){ sheetEl.remove(); sheetEl=null; } });
+  /* Clicking the backdrop (the dialog itself, outside the card) dismisses. */
+  sheetEl.addEventListener('click', ev=>{ if(ev.target===sheetEl) closeSheet(); });
+  sheetEl.showModal();
+  const cancel = sheetEl.querySelector('[data-sheet-cancel]');
+  if(cancel) cancel.onclick = closeSheet;
+  if(onOpen) onOpen(sheetEl);
+  const first = sheetEl.querySelector('input,textarea,button');
+  if(first){ first.focus(); if(first.select) first.select(); }
+}
+function closeSheet(){
+  if(!sheetEl) return;
+  const el = sheetEl; sheetEl = null;
+  try{ el.close(); }catch(e){}
+  el.remove();
+}
+
+const numField = (k,label,val) =>
+  `<div class="numfield"><label for="nf-${k}">${label}</label>
+     <input id="nf-${k}" type="number" min="1" inputmode="numeric" data-nf="${k}" value="${val}"></div>`;
+
+function editPos(id){
+  const sb=sub(id), e=draft.entries[id], p=e.pos;
+  const parts = sb.schema==='uwd'
+      ? [['unit','Unit',p.unit||1],['week','Week',p.week||1],['day','Day',p.day||1]]
+    : sb.schema==='ul'
+      ? [['unit','Unit',p.unit||1],['lesson','Lesson',p.lesson||1]]
+      : [['lesson','Lesson',p.lesson||1]];
+  const rollover = sb.schema==='uwd'
+      ? `${sb.weeksPerUnit||3} weeks per unit · ${sb.daysPerWeek||5} days per week`
+    : sb.schema==='ul' ? `${sb.lessonsPerUnit||10} lessons per unit` : '';
+
+  openSheet(`
+    <h2>${esc(sb.name)}</h2>
+    <p class="hint">Where this subject is in ${esc(sb.curriculum)}.${rollover?` Rolls over at ${esc(rollover)}.`:''}</p>
+    <div class="numrow">${parts.map(([k,l,v])=>numField(k,l,v)).join('')}</div>
+    <div class="sheetbar">
+      <button class="primary" data-sheet-save>Set position</button>
+      <button class="ghost" data-sheet-cancel>Cancel</button>
+    </div>`, el=>{
+    const commit = ()=>{
+      const out={};
+      el.querySelectorAll('[data-nf]').forEach(i=>{
+        out[i.dataset.nf] = Math.max(1, parseInt(i.value,10)||1);
+      });
+      e.pos = out; closeSheet(); touch(); renderToday();
+    };
+    el.querySelector('[data-sheet-save]').onclick = commit;
+    el.querySelectorAll('[data-nf]').forEach(i=>{
+      i.onkeydown = ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); commit(); } };
+    });
+  });
+}
+
+function go(n){
+  /* The old confirm() made you choose between losing the day and staying
+     put. The day is kept as a draft instead, so navigation is free. */
+  stashDraft();
+  cursor = nextSchoolDay(cursor, n>0?1:-1);
+  draft=null; render();
+}
+
+/* ---------- Week ---------- */
+function renderWeek(){
+  const start = addDays(cursor, -((cursor.getDay()+6)%7)); // Monday
+  const days=[0,1,2,3,4].map(i=>addDays(start,i));
+  main.innerHTML = `
+    <div class="datenav">
+      <button class="arrow" data-wk="-7" aria-label="Previous week">‹</button>
+      <div class="dateblock">
+        <div class="dow">Week of ${MON[start.getMonth()].slice(0,3)} ${start.getDate()}</div>
+        <div class="dsub">${longDate(days[4])} ends the week</div>
+      </div>
+      <button class="arrow" data-wk="7" aria-label="Next week">›</button>
+    </div>
+    <div class="weekgrid">${days.map(weekCard).join('')}</div>`;
+  main.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{ cursor=addDays(cursor,+b.dataset.wk); render(); });
+  main.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{
+    stashDraft(); cursor=parseKey(b.dataset.jump); draft=null; view='today'; render();
+  });
+}
+function weekCard(d){
+  const dk=key(d), rec=DAYS[dk], st=dayStatus(d);
+  const rows = rec && st.school
+    ? S.subjects.filter(s=>s.on && rec.entries[s.id] && rec.entries[s.id].taught && fmt(s,rec.entries[s.id].pos)!=='—')
+        .map(s=>`<div class="wrow"><span class="dot" style="--c:${esc(s.color)}"></span><em>${esc(s.name)}</em><b>${esc(fmt(s,rec.entries[s.id].pos))}</b></div>`).join('')
+    : '';
+  const body = !st.school ? `<div class="wrow closedlbl">${esc(st.label)}</div>`
+             : !rec ? `<div class="wrow" style="color:var(--ink-3)">Not planned yet</div>`
+             : rows;
+  return `<button class="wday ${isToday(d)?'is-today':''} ${st.school?'':'is-closed'}" data-jump="${dk}">
+      <h3>${DOW[d.getDay()].slice(0,3)}${st.school&&st.early?' <i>ER</i>':''}</h3>
+      <div class="wd">${d.getMonth()+1}/${d.getDate()}</div>
+      ${body}
+      ${rec && rec.notes && st.school ? `<div class="wnote">${esc(rec.notes)}</div>`:''}
+    </button>`;
+}
+
+/* ---------- Team ---------- */
+let teamCache = null;
+function renderTeam(){
+  if(!canSync()){
+    main.innerHTML = `<div class="panel"><h2>Team</h2>
+      <p class="hint">Sharing needs synced storage, which only runs on a <b>published</b> artifact.
+      This copy is saving to this device alone, so your plans stay here and won't follow you to
+      another device. Publish it from the artifact menu to turn on sync and the Team tab.</p>
+      <p class="hint">Either way, use <b>Export a backup</b> in Settings to keep a copy you control.</p></div>`;
+    return;
+  }
+  if(!ME.share || !ME.name || !ME.code){ renderTeamSetup(); return; }
+
+  main.innerHTML = `
+    <div class="datenav">
+      <div class="dateblock">
+        <div class="dow">Team</div>
+        <div class="dsub">code: ${esc(slug(ME.code))}</div>
+      </div>
+      <button class="todaybtn" id="refresh">Refresh</button>
+    </div>
+    <div id="mates"><div class="empty">Loading…</div></div>
+    <div class="savebar"><button class="ghost" id="teamsettings">Sharing settings</button></div>`;
+  document.getElementById('refresh').onclick=()=>{ teamCache=null; loadMates(); };
+  document.getElementById('teamsettings').onclick=()=>{ view='settings'; render(); };
+  loadMates();
+}
+
+async function loadMates(){
+  const box = document.getElementById('mates');
+  if(!box) return;
+  if(!teamCache){ await publishStatus(); teamCache = await fetchTeam(); }
+  const mates = teamCache;
+  if(!mates.length){
+    box.innerHTML = `<div class="empty">No one's published yet. Once your teammates enter the code
+      <b>${esc(slug(ME.code))}</b> and save a day, they'll show up here.</div>`;
+    return;
+  }
+  box.innerHTML = mates.map(mateHTML).join('');
+}
+
+function mateHTML(m){
+  const isMe = m.id===ME.id;
+  const accent = (THEMES[m.theme]||THEMES.atomic).swatch[1];
+  const rows = S.subjects.filter(s=>s.on && s.schema!=='free').map(sb=>{
+    const theirs = m.pos && m.pos[sb.id];
+    if(!theirs) return `<div class="mrow"><em>${esc(sb.name)}</em><span class="delta same">—</span></div>`;
+    const mineLt = lastTaught(sb, '9999-12-31');
+    const a = absIndex(sb, theirs.pos), b = mineLt ? absIndex(sb, mineLt.pos) : null;
+    let d = `<span class="delta same">—</span>`;
+    if(!isMe && a!=null && b!=null){
+      const diff = a-b;
+      d = diff===0 ? `<span class="delta same">same</span>`
+        : diff>0   ? `<span class="delta ahead">+${diff} ahead</span>`
+                   : `<span class="delta behind">${diff} behind</span>`;
+    }
+    return `<div class="mrow"><em>${esc(sb.name)}</em><b>${esc(fmt(sb,theirs.pos))}</b>${d}</div>`;
+  }).join('');
+  const when = m.updated ? new Date(m.updated) : null;
+  return `<article class="mate ${isMe?'self':''}" style="--c:${esc(accent)}">
+      <div class="matetop">
+        <span class="matename">${esc(m.name||'Unnamed')}</span>
+        ${isMe?'<span class="mateyou">you</span>':''}
+        <span class="matewhen">${when?`${when.getMonth()+1}/${when.getDate()}`:''}</span>
+      </div>
+      ${rows}
+    </article>`;
+}
+
+function renderTeamSetup(){
+  main.innerHTML = `
+    <div class="panel">
+      <h2>Share with your team</h2>
+      <p class="hint">See where the other 2nd grade rooms are in each curriculum.</p>
+      <div class="privacy">
+        <b>What gets shared:</b> your name and the last lesson you logged in each subject.<br>
+        <b>What never leaves this device:</b> your day notes, subject notes and schedule flags —
+        so nothing you write about a student is ever published.<br>
+        Anyone who has this app <i>and</i> your team code can see the shared part, so pick a code
+        only your team would guess.
+      </div>
+      <div class="field">
+        <label for="tname">Your name</label>
+        <input type="text" id="tname" value="${esc(ME.name)}" placeholder="e.g. Josh" maxlength="40">
+      </div>
+      <div class="field">
+        <label for="tcode">Team code</label>
+        <input type="text" id="tcode" value="${esc(ME.code)}" placeholder="e.g. creslane-2nd-2026" maxlength="40">
+        <small>All three of you type the same code. Letters, numbers and dashes.</small>
+      </div>
+      <label class="optin"><input type="checkbox" id="topt" ${ME.share?'checked':''}>
+        Publish my name and lesson positions to this team code.</label>
+      <button class="primary" id="tsave">Start sharing</button>
+    </div>`;
+  document.getElementById('tsave').onclick=async()=>{
+    const n=document.getElementById('tname').value.trim();
+    const c=slug(document.getElementById('tcode').value);
+    const o=document.getElementById('topt').checked;
+    if(!n)  return toast('Add your name first');
+    if(!c)  return toast('Add a team code first');
+    if(!o)  return toast('Tick the box to start sharing');
+    if(!ME.id) ME.id=newId();
+    ME.name=n; ME.code=c; ME.share=true;
+    await persistMe(); teamCache=null; render(); toast('Sharing on');
+  };
+}
+/* ---------- Settings ---------- */
+let editDow = 1;
+function renderSettings(){
+  main.innerHTML = `
+    <div class="panel">
+      <h2>Subjects</h2>
+      <p class="hint">“Weeks per unit” and “lessons per unit” tell the app when to roll over to the next unit.</p>
+      ${S.subjects.map(subjectSettings).join('')}
+    </div>
+
+    <div class="panel">
+      <h2>Daily schedule</h2>
+      <p class="hint">Pick a day, then edit its blocks. Attaching a subject makes that lesson code show up in the timeline.</p>
+      <div class="daypick">
+        ${[1,2,3,4,5].map(i=>`<button data-dow="${i}" aria-selected="${i===editDow}">${DOW[i]}</button>`).join('')}
+      </div>
+      <div id="blocks">${(S.templates[editDow]||[]).map((b,i)=>blockEditor(b,i)).join('') || '<div class="empty">No blocks yet. Add one below to start building this day.</div>'}</div>
+      <div class="savebar">
+        <button class="ghost" id="addblock">Add a block</button>
+        <button class="ghost" id="resetday">Reset to sub-plan schedule</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Theme</h2>
+      <p class="hint">Yours only — your teammates each pick their own.</p>
+      <div class="themegrid">
+        ${Object.keys(THEMES).map(id=>`
+          <button class="themebtn" data-theme-pick="${id}" aria-pressed="${ME.theme===id}">
+            <span class="swatchrow">${THEMES[id].swatch.map(c=>`<i style="background:${esc(c)}"></i>`).join('')}</span>
+            <span>${esc(THEMES[id].name)}</span>
+          </button>`).join('')}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Team sharing</h2>
+      <p class="hint">${ME.share
+        ? `Publishing as <b>${esc(ME.name)}</b> to code <b>${esc(slug(ME.code))}</b>.`
+        : 'Off. Nothing about your plans leaves this device.'}</p>
+      <div class="privacy">
+        Shared: your name and last logged lesson per subject.
+        Never shared: day notes, subject notes and schedule flags.
+      </div>
+      ${ME.share ? `<div class="savebar">
+          <button class="ghost" id="teamedit">Change name or code</button>
+          <button class="ghost" id="teamoff" style="color:var(--orange)">Stop sharing</button>
+        </div>`
+      : `<div class="savebar"><button class="ghost" id="teamedit">Set up sharing</button></div>`}
+    </div>
+
+    <div class="panel">
+      <h2>School year ${esc(YEAR.label)}</h2>
+      <p class="hint" id="yearstats"></p>
+      <ul class="tl" id="closelist"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Your data</h2>
+      <p class="hint">Plans sync to whichever device you sign in on. Export a copy for your co-teacher, or as a backup.</p>
+      <div class="savebar">
+        <button class="ghost" id="exp">Export a backup file</button>
+        <button class="ghost" id="imp">Import a backup file</button>
+        <button class="ghost" id="wipe" style="color:var(--orange)">Erase everything</button>
+      </div>
+    </div>`;
+  wireSettings();
+}
+function subjectSettings(sb){
+  const lim = sb.schema==='uwd'
+    ? `<label>Weeks / unit</label><input type="number" min="1" data-set="${sb.id}:weeksPerUnit" value="${sb.weeksPerUnit||3}">
+       <label>Days / week</label><input type="number" min="1" data-set="${sb.id}:daysPerWeek" value="${sb.daysPerWeek||5}">`
+    : sb.schema==='ul'
+    ? `<label>Lessons / unit</label><input type="number" min="1" data-set="${sb.id}:lessonsPerUnit" value="${sb.lessonsPerUnit||10}">`
+    : '';
+  return `<div class="setrow">
+      <input type="color" class="swatch" data-set="${sb.id}:color" value="${esc(sb.color)}" aria-label="${esc(sb.name)} colour">
+      <input type="text" data-set="${sb.id}:name" value="${esc(sb.name)}" style="width:120px" aria-label="Subject name">
+      <input type="text" data-set="${sb.id}:curriculum" value="${esc(sb.curriculum)}" style="width:130px" aria-label="Curriculum">
+      ${lim}
+      <label style="margin-left:auto"><input type="checkbox" data-set="${sb.id}:on" ${sb.on?'checked':''}> Show</label>
+    </div>`;
+}
+function blockEditor(b,i){
+  const opts = ['<option value="">— no subject —</option>']
+    .concat(S.subjects.map(s=>`<option value="${s.id}" ${b.s===s.id?'selected':''}>${esc(s.name)}</option>`)).join('');
+  return `<div class="blockrow">
+      <input class="bt" type="text" data-blk="${i}:t" value="${esc(b.t)}" aria-label="Time"
+             inputmode="numeric" placeholder="8:15">
+      <input class="bl" type="text" data-blk="${i}:l" value="${esc(b.l)}" aria-label="Block name">
+      <select data-blk="${i}:s" aria-label="Subject">${opts}</select>
+      <button class="del" data-delblk="${i}" aria-label="Delete ${esc(b.l||'block')}">×</button>
+      <input class="bn" type="text" data-blk="${i}:n" value="${esc(b.n||'')}"
+             placeholder="Optional reminder shown under this block"
+             aria-label="Note for ${esc(b.l||'this block')}">
+    </div>`;
+}
+function wireSettings(){
+  main.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=async()=>{
+    ME.theme = b.dataset.themePick;
+    applyThemePalette(ME.theme);
+    applyTheme();
+    await persistMe(); await persistSettings();
+    publishStatus(); renderSettings();
+  });
+  const te=document.getElementById('teamedit');
+  if(te) te.onclick=()=>{ view='team'; ME.share=false; render(); };
+  const to=document.getElementById('teamoff');
+  if(to) to.onclick=async()=>{
+    if(!confirm('Stop sharing and remove your entry from the team code?')) return;
+    await stopSharing();
+    ME.share=false; await persistMe(); teamCache=null; renderSettings(); toast('Sharing off');
+  };
+
+  /* Year progress + the closure list, grouped so repeats collapse. */
+  const first=parseKey(YEAR.first), last=parseKey(YEAR.last);
+  let total=0, done=0, early=0, d=new Date(first);
+  const today=key(new Date());
+  while(key(d)<=YEAR.last){
+    if(dayStatus(d).school){ total++; if(dayStatus(d).early) early++; if(key(d)<today) done++; }
+    d=addDays(d,1);
+  }
+  const ys=document.getElementById('yearstats');
+  if(ys) ys.textContent =
+    `${longDate(first)} to ${longDate(last)} · ${total} student days, ${early} of them early release.`
+    + (done>0&&done<=total ? ` You're ${Math.round(done/total*100)}% through the year.` : '');
+
+  const cl=document.getElementById('closelist');
+  if(cl){
+    const groups=[]; 
+    Object.keys(YEAR.closed).sort().forEach(k=>{
+      const g=groups[groups.length-1];
+      if(g && g.label===YEAR.closed[k] && addDays(parseKey(g.end),1).getTime()===parseKey(k).getTime()) g.end=k;
+      else groups.push({label:YEAR.closed[k], start:k, end:k});
+    });
+    cl.innerHTML = groups.map(g=>{
+      const a=parseKey(g.start), b=parseKey(g.end);
+      const when = g.start===g.end
+        ? `${DOW[a.getDay()].slice(0,3)} ${a.getMonth()+1}/${a.getDate()}`
+        : `${a.getMonth()+1}/${a.getDate()}–${b.getMonth()+1}/${b.getDate()}`;
+      return `<li><time>${esc(when)}</time><div class="tlbody"><div class="tllabel">${esc(g.label)}</div></div></li>`;
+    }).join('');
+  }
+
+  main.querySelectorAll('[data-set]').forEach(el=>{
+    el.onchange=()=>{
+      const [id,field]=el.dataset.set.split(':'); const sb=sub(id);
+      sb[field] = el.type==='checkbox' ? el.checked : (el.type==='number' ? Math.max(1,parseInt(el.value,10)||1) : el.value);
+      persistSettings();
+      if(field==='on'||field==='color'||field==='name') renderSettings();
+    };
+  });
+  main.querySelectorAll('[data-dow]').forEach(b=>b.onclick=()=>{ editDow=+b.dataset.dow; renderSettings(); });
+  main.querySelectorAll('[data-blk]').forEach(el=>{
+    el.onchange=()=>{
+      const [i,f]=el.dataset.blk.split(':');
+      S.templates[editDow][+i][f]=el.value;
+      /* Editing a time can reorder the day, so re-sort and redraw. */
+      if(f==='t'){ S.templates[editDow] = sortBlocks(S.templates[editDow]); persistSettings(); renderSettings(); return; }
+      persistSettings();
+    };
+  });
+  main.querySelectorAll('[data-delblk]').forEach(b=>b.onclick=()=>{
+    S.templates[editDow].splice(+b.dataset.delblk,1); persistSettings(); renderSettings();
+  });
+  document.getElementById('addblock').onclick=()=>{
+    (S.templates[editDow] = S.templates[editDow]||[]).push({t:'',l:'New block',s:'',n:''});
+    persistSettings(); renderSettings();
+  };
+  document.getElementById('resetday').onclick=()=>{
+    S.templates[editDow] = editDow===3 ? [] : mtrfBlocks(editDow);
+    persistSettings(); renderSettings(); toast('Reset to the sub-plan schedule');
+  };
+  document.getElementById('exp').onclick=()=>{
+    const text = backupText();
+    const days = Object.keys(DAYS).length;
+    openSheet(`
+      <h2>Export a backup</h2>
+      <p class="hint">${days} saved day${days===1?'':'s'} plus your subjects and schedule.
+        Downloading is blocked inside some app windows, so copying the text is the
+        reliable route — paste it into Notes, an email to yourself, or Drive.</p>
+      <textarea class="sheettext" readonly>${esc(text)}</textarea>
+      <div class="sheetbar">
+        <button class="primary" data-copy>Copy backup</button>
+        <button class="ghost" data-dl>Try download</button>
+        <button class="ghost" data-sheet-cancel>Done</button>
+      </div>`, el=>{
+      const ta = el.querySelector('textarea');
+      el.querySelector('[data-copy]').onclick = ()=>{
+        const done = ()=>toast('Backup copied — paste it somewhere safe');
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done).catch(()=>{ ta.focus(); ta.select(); toast('Press and hold the text to copy'); });
+        } else { ta.focus(); ta.select(); toast('Press and hold the text to copy'); }
+      };
+      el.querySelector('[data-dl]').onclick = ()=>downloadBackup(text);
+    });
+  };
+  document.getElementById('imp').onclick=()=>{
+    openSheet(`
+      <h2>Import a backup</h2>
+      <p class="hint">Paste the text of a backup, or pick a file if this device lets you.
+        This replaces the days and settings currently in this copy.</p>
+      <textarea class="sheettext" placeholder="Paste your backup here"></textarea>
+      <div class="sheetbar">
+        <button class="primary" data-restore>Restore</button>
+        <button class="ghost" data-file>Choose a file</button>
+        <button class="ghost" data-sheet-cancel>Cancel</button>
+      </div>`, el=>{
+      const ta = el.querySelector('textarea');
+      el.querySelector('[data-restore]').onclick = ()=>{
+        if(!ta.value.trim()) return toast('Paste a backup first');
+        if(applyBackup(ta.value)) closeSheet();
+      };
+      el.querySelector('[data-file]').onclick = ()=>{
+        const f=document.createElement('input');
+        f.type='file'; f.accept='.json,application/json';
+        f.onchange=()=>{
+          if(!f.files || !f.files[0]) return;
+          const r=new FileReader();
+          r.onload=()=>{ if(applyBackup(r.result)) closeSheet(); };
+          r.onerror=()=>toast('That file couldn’t be read');
+          r.readAsText(f.files[0]);
+        };
+        f.click();
+      };
+    });
+  };
+  document.getElementById('wipe').onclick=()=>{
+    if(!confirm('Erase every saved day and reset your settings? This can’t be undone.')) return;
+    DAYS={}; PENDING={};
+    /* tv and seededFirstDay were dropped here, so the next reload re-ran
+       every migration and re-seeded the first day over a clean slate. */
+    S={subjects:JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),
+       templates:JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),
+       tv:SCHEDULE_VERSION, seededFirstDay:true};
+    invalidateDayCache();
+    persist(); persistSettings(); persistPending();
+    draft=null; render(); toast('Everything erased');
+  };
+}
+
+/* ---------- sub plan text ---------- */
+function copySubPlan(){
+  const blocks=blocksFor(cursor);
+  let out=`${DOW[cursor.getDay()]}, ${longDate(cursor)}\n\n`;
+  if(draft.flags.length) out+=`Heads up: ${draft.flags.join(' · ')}\n\n`;
+  const seen=new Set();
+  blocks.forEach((b,i)=>{
+    const sb=b.s?sub(b.s):null, e=sb&&draft.entries[sb.id];
+    const txt=(sb&&e&&e.taught)?fmt(sb,e.pos):'';
+    const pos=(txt&&txt!=='—')?`  [${txt}]`:'';
+    out+=`${span(b.t,blockEnd(blocks,i)).padEnd(13)} ${b.l}${pos}\n`;
+    if(b.n) out+=`              ${b.n}\n`;
+    if(sb&&e&&e.note&&!seen.has(sb.id)){ seen.add(sb.id);
+      out+=String(e.note).split('\n').map(l=>`              → ${l}`).join('\n')+'\n'; }
+  });
+  if(draft.notes) out+=`\nNotes\n${draft.notes}\n`;
+  /* clipboard.writeText needs a secure context and rejects outright in some
+     in-app browsers, where the old catch left you with nothing. Fall back to
+     showing the text so it can still be selected and copied by hand. */
+  const fallback = ()=> openSheet(`
+    <h2>Sub-friendly plan</h2>
+    <p class="hint">This device blocked the copy. Select the text below and copy it manually.</p>
+    <textarea class="sheettext" readonly>${esc(out)}</textarea>
+    <div class="sheetbar"><button class="ghost" data-sheet-cancel>Done</button></div>`,
+    el=>{ const t=el.querySelector('textarea'); t.focus(); t.select(); });
+
+  if(!navigator.clipboard || !navigator.clipboard.writeText) return fallback();
+  navigator.clipboard.writeText(out)
+    .then(()=>toast('Copied — paste it straight into your sub plans'))
+    .catch(fallback);
+}
+
+/* ---------- misc ---------- */
+let tT=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),2600);
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ stashDraft(); view=t.dataset.view; render(); });
+document.addEventListener('keydown',e=>{
+  if(/input|textarea|select/i.test(e.target.tagName)) return;
+  if(view!=='today') return;
+  if(e.key==='ArrowLeft') go(-1);
+  if(e.key==='ArrowRight') go(1);
+  if(e.key==='Enter'){ const b=document.getElementById('save'); if(b){ b.click(); } }
+});
+/* No "leave site?" prompt any more — an unsaved day is stashed as a draft
+   and comes back on the next load, so there's nothing to warn about. */
+window.addEventListener('beforeunload', flushSave);
+/* Mobile browsers often never fire beforeunload — these do fire when the app is backgrounded. */
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
+
+/* Brings an already-saved schedule up to date without discarding customisations. */
+const SCHEDULE_VERSION = 7;
+function migrateSchedule(){
+  if(S.tv >= SCHEDULE_VERSION) return;
+  if(S.tv < 3){
+    /* v3: correct the two Specials labels, leave every other block alone. */
+    [1,2,4,5].forEach(d=>{
+      const tpl = S.templates[d];
+      if(!tpl) return;
+      const want = mtrfBlocks(d).filter(b=>/^Specials/.test(b.l));
+      tpl.forEach(b=>{
+        if(/^Specials 1 —/.test(b.l)) b.l = want[0].l;
+        if(/^Specials 2 —/.test(b.l)) b.l = want[1].l;
+      });
+    });
+  }
+  /* v4: fill in Wednesday only if it's still empty. */
+  if(!S.templates[3] || !S.templates[3].length) S.templates[3] = wedBlocks();
+
+  /* v5: ECRI is the first 15 minutes of Wednesday's Reading block, so split it in two.
+     Only touches the untouched default block. */
+  if(S.tv < 5){
+    const wed = S.templates[3] || [];
+    const i = wed.findIndex(b=>b.t==='8:15' && b.s==='reading' && b.l==='Reading');
+    if(i>=0 && !wed.some(b=>b.s==='phonics')){
+      wed.splice(i,1,
+        {t:'8:15', l:'Phonics', s:'phonics', n:'ECRI — first 15 minutes of the Reading block'},
+        {t:'8:30', l:'Reading', s:'reading', n:''});
+    }
+  }
+  /* v6: the 9:45 Wednesday block, previously a placeholder. */
+  if(S.tv < 6){
+    const wed = S.templates[3] || [];
+    const b = wed.find(x=>x.t==='9:45' && x.l==='Not filled in yet');
+    if(b){
+      b.l = 'Assembly / Enrichments / Math';
+      b.s = 'math';
+      b.n = 'Varies by week — extra math when there’s no assembly or enrichment';
+    }
+  }
+  /* v7: atomic-age palette. Only recolours subjects still on the old default,
+     so any colour picked by hand in Settings survives. */
+  if(S.tv < 7){
+    const remap = {'#17876B':'#5E8C3A','#2F6FB2':'#16706B','#7B4FA8':'#7A4A6B',
+                   '#D9932B':'#D89A1C','#C4552F':'#C8511C','#4E5D6C':'#45607C'};
+    S.subjects.forEach(sb=>{ const n=remap[(sb.color||'').toUpperCase()]; if(n) sb.color=n; });
+  }
+  S.tv = SCHEDULE_VERSION;
+  persistSettings();
+}
+
+/* First day of school, adapted from the Sept 5 2024 plan. Installed once;
+   if it's deleted or edited, it is never re-applied. */
+const FIRST_DAY_PLAN = {
+  notes:
+`FIRST DAY — foundations and routines. No curriculum lessons yet, so every subject is marked skipped and Unit 1 starts tomorrow.
+
+MORNING MEETING (8:00)
+Welcome and greet each student at the door, direct them to their cubby, then to their table spot to build with pattern blocks.
+Countdown to stopping — introduce the "come together" sound and the PAX method on the whiteboard poster.
+Introduce the bathroom hand symbol.
+Establish routines: smooth transitions to carpet spots.
+Attendance and lunch count.
+
+READ-ALOUD SLOT (9:45)
+Practice transitioning into the room and back to carpet spots.
+
+Adapted from Sept 5 2024 (Day D). That day ran a slightly different schedule — recess 11:00–11:15 with lunch 11:20–11:40, and specials were P.E. then Library. Today's blocks below follow the current Tuesday schedule.`,
+  entries:{
+    phonics:{taught:false, note:'No ECRI today — the whole morning is foundations and routines.'},
+    reading:{taught:false, note:
+`FOUNDATIONS AND ROUTINES (8:15–9:30 in 2024)
+• Discussion: why do we need class rules? → make the class rules poster together
+• "Does anyone know what this is?" Mighty Mustang and class store introduction
+• Introduce the consequence system: warning → consequence → behaviour sheet
+• Mighty Mustang wallet naming and personalising at desks
+• Review and practice a good transition to carpet spots
+• Guided practice — getting materials and getting right to work: ALL ABOUT ME POSTERS
+• Practice transitioning back to carpet spots
+• Introduce the library and correct ways to handle books (model, then practice)
+• Students pick their first 5 books and find a comfortable spot
+• Stamina Check 1
+• 9:25 RULES RODEO — Bus #1, playground, cafeteria, hallway`},
+    writing:{taught:false, note:'We will ROCK our classmates.'},
+    math:{taught:false, note:
+`Community building rather than Reveal today.
+• Read-aloud: We Will Rock Our Classmates → discussion
+• Art: "My talent is…"
+• Brain break: Stand-Up If… (cereal for breakfast, only child, hair colour, siblings, bus or car, home or school lunch, first initial, likes P.E./computers/recess/art/video games/reading, birthday month)
+• LINE EXPECTATIONS — modelling and practice`},
+    science:{taught:false, note:
+`• Would you rather?
+• Introduce clean-up routines
+• Closing clean-up`},
+    win:{taught:false, text:'Rotation intro + centers', note:
+`Rotation introduction and practice.
+Centers: whiteboard drawing · shape building · second manipulative · back with teacher (logging into computers)`}
+  }
+};
+
+function seedFirstDay(){
+  if(S.seededFirstDay) return;
+  S.seededFirstDay = true;
+  persistSettings();
+  if(DAYS[YEAR.first]) return;            // never overwrite a real plan
+  const entries = {};
+  S.subjects.filter(s=>s.on).forEach(sb=>{
+    const seed = FIRST_DAY_PLAN.entries[sb.id] || {};
+    const pos = sb.schema==='free'
+      ? {text: seed.text || ''}
+      : Object.assign({}, sb.start);
+    entries[sb.id] = {pos, taught: seed.taught !== false ? true : false, note: seed.note || ''};
+  });
+  DAYS[YEAR.first] = {entries, notes:FIRST_DAY_PLAN.notes, flags:[], noSchool:false, saved:true};
+  persist();
+}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  Object.values(THEMES).forEach(t=>t.subjects.forEach(c=>KNOWN_COLOURS.add(c.toUpperCase())));
+  ['#17876B','#2F6FB2','#7B4FA8','#D9932B','#C4552F','#4E5D6C'].forEach(c=>KNOWN_COLOURS.add(c));
+  await detectStorage();
+  const [s,d,me,pend] = await Promise.all([
+    store.get(K.settings), store.get(K.days), store.get(K.me), store.get(K.pending)
+  ]);
+  if(me && typeof me==='object') ME = Object.assign(ME, me);
+  if(!ME.id) ME.id = newId();
+  applyTheme();
+  S = s && s.subjects ? s : {subjects:JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),templates:JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),tv:SCHEDULE_VERSION};
+  if(!S.templates) S.templates = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+  migrateSchedule();
+  DAYS = d || {};
+  invalidateDayCache();
+  /* Drop drafts for days that have since been saved, so a stale draft can
+     never shadow the real record. */
+  PENDING = (pend && typeof pend==='object') ? pend : {};
+  Object.keys(PENDING).forEach(k=>{ if(DAYS[k]) delete PENDING[k]; });
+  seedFirstDay();
+  if(!dayStatus(cursor).school) cursor = nextSchoolDay(cursor, 1);
+  render();
+})();
+</script>
+<link rel="stylesheet" href="../suite-theme.css">
+<script src="../suite-sync.js"></script>
+<script src="../suite-nav.js" defer></script>
+<script src="../suite-boot.js" defer></script>
+<script src="../sub-plans.js" defer></script>
+</body>
+</html>

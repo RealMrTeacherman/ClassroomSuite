@@ -1,0 +1,160 @@
+/* ==========================================================================
+   suite-theme.css — the shared look, applied across all three tools.
+
+   The planner and the running-records tool are styled through their own CSS
+   variables, so this file re-points those variables rather than rewriting
+   their rules. Nothing here depends on their markup, which means neither tool
+   had to be edited to be retoned, and deleting this one <link> restores each
+   of them exactly as it was.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  /* --- the palette, named once --- */
+  --suite-paper: #EDF0F2;
+  --suite-paper-2: #E4E8EB;
+  --suite-paper-hi: #F6F8F9;
+  --suite-panel: #FFFFFF;
+  --suite-ink: #14202A;
+  --suite-ink-2: #55636E;
+  --suite-ink-3: #8A95A0;
+  --suite-line: rgba(16, 24, 32, .09);
+  --suite-line-2: rgba(16, 24, 32, .14);
+  --suite-accent: #10655C;
+  --suite-accent-2: #0B4A43;
+  --suite-accent-soft: #E7F0EE;
+
+  /* the four marks: the only saturated colour in the suite */
+  --suite-m1: #B4472F;
+  --suite-m2: #A87621;
+  --suite-m3: #2F7A56;
+  --suite-m4: #35608C;
+  --suite-m1-soft: #FBEDE9;
+  --suite-m2-soft: #FAF2E2;
+  --suite-m3-soft: #E9F3ED;
+  --suite-m4-soft: #E9EFF6;
+
+  --suite-radius: 14px;
+  --suite-radius-sm: 8px;
+  --suite-shadow: 0 1px 2px rgba(16, 24, 32, .06), 0 10px 26px rgba(16, 24, 32, .05);
+  --suite-shadow-sm: 0 1px 2px rgba(16, 24, 32, .06);
+  --suite-shadow-float: 0 2px 10px rgba(16, 24, 32, .12);
+
+  --suite-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --suite-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+  --suite-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* --- planner (pocket chart) variable names --- */
+  --shell: var(--suite-paper);
+  --shell-2: var(--suite-paper-2);
+  --shell-top: var(--suite-paper-hi);
+  --card: var(--suite-panel);
+  --ink: var(--suite-ink);
+  --ink-2: var(--suite-ink-2);
+  --ink-3: var(--suite-ink-3);
+  --line: var(--suite-line);
+  --line-2: var(--suite-line-2);
+  --screen: var(--suite-ink);
+  --screen-txt: #F4F7F9;
+  --orange: var(--suite-m1);
+  --orange-2: #963A25;
+  --gold: var(--suite-m2);
+  --teal: var(--suite-accent);
+  --avocado: var(--suite-m3);
+  --display: var(--suite-serif);
+  --body: var(--suite-sans);
+  --mono: var(--suite-mono);
+
+  /* --- running records variable names --- */
+  --surface: var(--suite-paper);
+  --panel: var(--suite-panel);
+  --muted: var(--suite-ink-3);
+  --accent: var(--suite-accent);
+  --accent-soft: var(--suite-accent-soft);
+  --err: var(--suite-m1);
+  --err-soft: var(--suite-m1-soft);
+  --sc: var(--suite-m4);
+  --sc-soft: var(--suite-m4-soft);
+  --warn: var(--suite-m2);
+  --sans: var(--suite-sans);
+  --read: var(--suite-serif);
+
+  /* shared by both */
+  --radius: var(--suite-radius);
+}
+
+/* Tabular figures everywhere, so columns of marks and scores line up. */
+body {
+  font-feature-settings: 'tnum' 1;
+  background-color: var(--suite-paper);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0) 340px);
+  background-repeat: no-repeat;
+  color: var(--suite-ink);
+}
+
+/* Both tools draw heavier shadows and rounder corners than this look wants.
+   Softening them here keeps their markup untouched. */
+.card, .panel, .sheet, .tile, .box {
+  box-shadow: var(--suite-shadow-sm) !important;
+}
+
+@media print {
+  body { background: #fff !important; }
+  .card, .panel, .sheet, .tile, .box { box-shadow: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ==========================================================================
+   Mobile layer.
+
+   This file loads after each tool's own <style>, so these rules win ties
+   without any !important and without touching the planner's or the running
+   records tool's markup. Everything here is inside a media query, so a
+   desktop render is byte-for-byte what it was.
+   ========================================================================== */
+
+/* iOS Safari zooms the page in whenever a field smaller than 16px takes focus,
+   and never zooms back out. Every field in every tool goes to 16px on a touch
+   device. The planner already did this for itself; repeating it here is
+   harmless and covers the other two. */
+@media (pointer: coarse) {
+  input, select, textarea, button { font-size: 16px; }
+  .tiny, .small, .hint, .muted { font-size: 13px; }
+  /* Anything you tap dozens of times a day gets a real target. */
+  button, [role="tab"], .scale button, nav.tabs button { min-height: 40px; }
+}
+
+/* A seven-column table is wider than a phone. Left alone it drags the whole
+   page sideways, which makes every other column unreachable. Turning the table
+   itself into a scroll box keeps the page still and lets the table move.
+   Tables already inside a .scroll box have their own wrapper and are left as
+   they were, sticky headers and all. */
+@media (max-width: 760px) {
+  section.panel table, .panel table, .card table { display: block; overflow-x: auto; }
+  .scroll table { display: table; }
+}
+
+/* The corner switcher floats over the bottom of the page, so every tool needs
+   room under its last row, plus whatever the phone's home bar takes. */
+@media (max-width: 760px) {
+  .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* All three tools ask for viewport-fit=cover, which hands the full screen over
+   and puts the status bar and the home indicator on top of the page. Holding
+   the document inside the safe area, and dropping the sticky bars to just
+   below the status bar, is what keeps the first row of any tool tappable on a
+   notched phone. On anything without insets every value here is zero. */
+@media (max-width: 760px) {
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  header, .timerbar { top: env(safe-area-inset-top, 0px); }
+}

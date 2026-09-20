@@ -1,0 +1,1810 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Running Records</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#EDF0F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="../fluency-icon-192.png">
+<style>
+  :root{
+    --surface:#EEF1F0;
+    --panel:#ffffff;
+    --ink:#16211F;
+    --ink-2:#4A5A56;
+    --muted:#7C8C88;
+    --line:#D6DEDB;
+    --accent:#0F6B5C;
+    --accent-soft:#DCEBE7;
+    --err:#B3261E;
+    --err-soft:#FBE4E1;
+    --sc:#2B5FA8;
+    --sc-soft:#E1EAF7;
+    --warn:#8A5A00;
+    --radius:10px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --read:Georgia,"Iowan Old Style","Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--surface);color:var(--ink);font-family:var(--sans);
+    font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 16px 64px}
+  header.top{padding:18px 0 8px}
+  h1{font-size:20px;margin:0 0 2px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px;margin:0}
+  nav.tabs{display:flex;gap:4px;margin:14px 0 18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:4px;overflow:auto}
+  nav.tabs button{
+    flex:1;min-width:88px;border:0;background:transparent;color:var(--ink-2);
+    font:inherit;font-size:14px;padding:9px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;
+  }
+  nav.tabs button[aria-selected="true"]{background:var(--accent);color:#fff}
+  nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+  .panel h2{font-size:15px;margin:0 0 10px;letter-spacing:-.01em}
+  .panel h3{font-size:14px;margin:18px 0 8px;color:var(--ink-2)}
+  .hint{color:var(--muted);font-size:13px;margin:6px 0 0}
+
+  label.fld{display:block;font-size:13px;color:var(--ink-2);margin:0 0 4px}
+  select,input[type=text],input[type=number],input[type=date],textarea{
+    width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)
+  }
+  textarea{min-height:150px;font-family:var(--read);line-height:1.6}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > *{flex:1 1 180px;min-width:0}
+
+  button.btn{
+    font:inherit;font-size:15px;padding:11px 16px;border-radius:8px;border:1px solid var(--accent);
+    background:var(--accent);color:#fff;cursor:pointer
+  }
+  button.btn.ghost{background:#fff;color:var(--accent)}
+  button.btn.quiet{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  button.btn.danger{background:#fff;color:var(--err);border-color:#E9C4C0}
+  button.btn.small{font-size:13px;padding:7px 11px}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  button.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  /* Assess */
+  .deck{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+  .deck > div{flex:1 1 200px}
+  .timerbar{
+    position:sticky;top:0;z-index:5;background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap
+  }
+  .clock{font-size:34px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;min-width:96px}
+  .clock.low{color:var(--err)}
+  .progress{flex:1 1 120px;height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--accent);width:0}
+  .cue{flex:1 1 100%;font-size:14px;color:var(--ink-2)}
+  .cue.act{color:var(--warn);font-weight:600}
+  .tally{display:flex;gap:16px;font-size:13px;color:var(--ink-2)}
+  .tally b{font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums;display:block;font-weight:600}
+
+  .passage{
+    font-family:var(--read);font-size:24px;line-height:2.05;
+    padding:6px 2px 10px;max-width:60ch;
+  }
+  .passage .w{
+    display:inline-block;padding:2px 4px;margin:1px 0;border-radius:6px;cursor:pointer;
+    border-bottom:2px solid transparent;
+  }
+  .passage.locked .w{cursor:default}
+  .passage .w.e{background:var(--err-soft);color:var(--err);border-bottom-color:var(--err);text-decoration:line-through;text-decoration-thickness:2px}
+  .passage .w.s{background:var(--sc-soft);color:var(--sc);border-bottom-color:var(--sc)}
+  .passage .w.stopw{box-shadow:inset 0 -3px 0 var(--ink);background:#EDEFEE}
+  .passage .w.past{opacity:.32}
+  .passage .w.prev{border-bottom:2px dotted #CDBBB8;color:#7E7270}
+  .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip.tap{cursor:pointer}
+  .passbadge{font-size:13px;color:var(--ink-2);align-self:center}
+  .passbadge b{color:var(--ink)}
+  .passage .br{height:14px}
+  .passage .w:focus-visible{outline:2px solid var(--accent)}
+  .marking .passage .w:hover{background:#EDEFEE}
+
+  .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap;margin-top:6px}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:5px}
+
+  .results{border:1px solid var(--accent);background:var(--accent-soft);border-radius:var(--radius);padding:14px;margin-top:14px}
+  .scores{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:10px}
+  .score b{display:block;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .score span{font-size:12.5px;color:var(--ink-2)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12.5px;color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .scroll{overflow-x:auto}
+
+  .grp{border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin:14px 0}
+  .grp.need-word{border-left-color:var(--err)}
+  .grp.need-rate{border-left-color:var(--warn)}
+  .grp h4{margin:0 0 2px;font-size:14.5px}
+  .grp p{margin:0 0 6px;font-size:13px;color:var(--ink-2)}
+  .names{font-size:14px}
+  .chip{display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:3px 10px;margin:3px 4px 0 0;font-size:13.5px}
+  .bar{height:8px;background:var(--accent);border-radius:99px;display:inline-block;vertical-align:middle;margin-right:8px}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+
+  .list-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .list-item:last-child{border-bottom:0}
+  .li-main{min-width:0}
+  .li-main strong{font-weight:600}
+  .li-sub{font-size:12.5px;color:var(--muted)}
+
+  table.gb tbody tr:nth-child(even){background:#F7F9F8}
+  table.gb td{padding:11px 8px}
+  table.gb .wcpm{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+  table.gb .no{color:var(--muted);font-variant-numeric:tabular-nums;width:28px}
+  table.gb tr.done td:not(.tick){opacity:.35;text-decoration:line-through}
+  .tick{width:36px;text-align:center;cursor:pointer;user-select:none;color:var(--line);font-size:18px}
+  tr.done .tick{color:var(--accent)}
+  body.bigtype table.gb td{font-size:19px;padding:15px 8px}
+  body.bigtype table.gb .wcpm{font-size:30px}
+  .checkline{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);cursor:pointer}
+  .checkline input{width:17px;height:17px}
+  .chartwrap{margin:6px 0 2px}
+  .chartwrap svg{width:100%;height:auto;display:block;overflow:visible}
+  .statgrid{display:flex;gap:20px;flex-wrap:wrap;margin:4px 0 14px}
+  .statgrid div b{display:block;font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .statgrid div span{font-size:12.5px;color:var(--ink-2)}
+  .verdict{border-left:3px solid var(--accent);padding:8px 0 8px 12px;margin:10px 0 0;font-size:14px}
+  .verdict.off{border-left-color:var(--warn)}
+  .verdict.behind{border-left-color:var(--err)}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;pointer-events:none;z-index:50;transition:.18s}
+  #toast.on{opacity:1;transform:translateX(-50%)}
+  .hidden{display:none !important}
+  @media (max-width:520px){
+    .passage{font-size:21px;line-height:1.95}
+    .clock{font-size:28px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Running Records</h1>
+    <p class="sub">One-minute oral reading fluency checks, scored and grouped.</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="assess" aria-selected="true">Assess</button>
+    <button role="tab" data-tab="growth" aria-selected="false">Growth</button>
+    <button role="tab" data-tab="gradebook" aria-selected="false">Gradebook</button>
+    <button role="tab" data-tab="reports" aria-selected="false">Reports</button>
+    <button role="tab" data-tab="students" aria-selected="false">Students</button>
+    <button role="tab" data-tab="passages" aria-selected="false">Passages</button>
+  </nav>
+
+  <!-- ASSESS -->
+  <section id="tab-assess">
+    <div class="panel">
+      <div class="deck">
+        <div>
+          <label class="fld" for="selStudent">Student</label>
+          <select id="selStudent"></select>
+        </div>
+        <div>
+          <label class="fld" for="selPassage">Passage</label>
+          <select id="selPassage"></select>
+        </div>
+        <div style="flex:0 0 110px">
+          <label class="fld" for="selDur">Read time</label>
+          <select id="selDur">
+            <option value="60" selected>1 minute</option>
+            <option value="90">90 seconds</option>
+            <option value="120">2 minutes</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" id="assessHint"></p>
+    </div>
+
+    <div class="timerbar">
+      <div class="clock" id="clock">1:00</div>
+      <div class="progress"><i id="prog"></i></div>
+      <div class="tally">
+        <div><b id="tErr">0</b>errors</div>
+        <div><b id="tSc">0</b>self‑corrections</div>
+        <div><b id="tPass">1</b>pass</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnStart">Start reading</button>
+        <button class="btn ghost" id="btnRestart">Started over</button>
+        <button class="btn quiet" id="btnUndoRestart">Undo restart</button>
+        <button class="btn ghost" id="btnEndOfPass">Stopped at the end</button>
+        <button class="btn quiet" id="btnFinished">Stop timer</button>
+        <button class="btn quiet" id="btnReset">Clear</button>
+      </div>
+      <div class="cue" id="cue">Pick a student and passage, then start the timer.</div>
+    </div>
+
+    <div class="panel">
+      <div class="passage locked" id="passage"></div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--err)"></i>Tap once — error</span>
+        <span><i class="swatch" style="background:var(--sc)"></i>Tap twice — self‑correction</span>
+        <span><i class="swatch" style="background:#9AA8A4"></i>Tap a third time to clear</span>
+      </div>
+      <div id="results"></div>
+    </div>
+  </section>
+
+  <!-- GROWTH -->
+  <section id="tab-growth" class="hidden">
+    <div class="panel">
+      <div class="row">
+        <div>
+          <label class="fld" for="gwStudent">Student</label>
+          <select id="gwStudent"></select>
+        </div>
+        <div style="flex:0 0 130px">
+          <label class="fld" for="gwGoal">Year-end goal</label>
+          <input type="number" id="gwGoal" min="1" max="300">
+        </div>
+        <div style="flex:0 0 175px">
+          <label class="fld" for="gwDate">Goal date</label>
+          <input type="date" id="gwDate">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label class="checkline" style="flex:0 0 auto"><input type="checkbox" id="gwBench" checked> Show the grade 2 50th percentile track</label>
+      </div>
+      <p class="hint">Grade 2 spring benchmarks: 72 is the 25th percentile, 100 the 50th, 124 the 75th.</p>
+    </div>
+    <div class="panel">
+      <div class="statgrid" id="gwStats"></div>
+      <div class="chartwrap" id="gwChart"></div>
+      <div id="gwVerdict"></div>
+    </div>
+    <div class="panel" id="gwDetailPanel">
+      <h2 id="gwDetailTitle">Every check</h2>
+      <div class="scroll" id="gwDetail"></div>
+    </div>
+  </section>
+
+  <!-- GRADEBOOK -->
+  <section id="tab-gradebook" class="hidden">
+    <div class="panel">
+      <h2>Scores for entry</h2>
+      <div class="row">
+        <div>
+          <label class="fld" for="gbWhich">Which check</label>
+          <select id="gbWhich"></select>
+        </div>
+        <div style="flex:0 0 190px">
+          <label class="fld" for="gbSince">Only checks on or after</label>
+          <input type="date" id="gbSince">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:center">
+        <label class="checkline" style="flex:0 0 auto"><input type="checkbox" id="gbBig"> Large type</label>
+        <label class="checkline" style="flex:0 0 auto"><input type="checkbox" id="gbAcc" checked> Show accuracy</label>
+        <span class="hint" style="flex:1 1 auto;margin:0" id="gbSummary"></span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="scroll" id="gbTable"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn ghost small" id="gbCopyNums" style="flex:0 0 auto">Copy scores only</button>
+        <button class="btn quiet small" id="gbCopyAll" style="flex:0 0 auto">Copy names and scores</button>
+        <button class="btn quiet small" id="gbCsv" style="flex:0 0 auto">Export CSV</button>
+        <button class="btn quiet small" id="gbClearTicks" style="flex:0 0 auto">Clear check marks</button>
+      </div>
+      <p class="hint">Tap a row's circle to check it off as you enter it. Check marks clear when you close the tool.</p>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section id="tab-reports" class="hidden">
+    <div class="panel">
+      <h2>Where the class stands</h2>
+      <p class="hint" style="margin-top:0">Each check is compared to the benchmark window it was given in — a September check against fall norms, a January check against winter. Percentiles are interpolated between the published values below.</p>
+      <div class="scroll" id="classTable"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Grade 2 fluency norms</h2>
+      <div class="scroll" id="normTable"></div>
+      <p class="hint">Hasbrouck &amp; Tindal, 2017 update to compiled ORF norms. Weekly growth is the average words-per-minute gain for students at that percentile.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Suggested groups</h2>
+      <div id="groupsRate"></div>
+      <h3>By instructional need</h3>
+      <div id="groupsNeed"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Error patterns</h2>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:0 0 220px">
+          <label class="fld" for="selPatStudent">Show patterns for</label>
+          <select id="selPatStudent"><option value="">Whole class</option></select>
+        </div>
+      </div>
+      <h3>Words missed most often</h3>
+      <div class="scroll" id="wordPatterns"></div>
+      <h3>What those words have in common</h3>
+      <div id="featurePatterns"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Records</h2>
+      <div class="scroll" id="recordList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost small" id="btnCsv" style="flex:0 0 auto">Export scores as CSV</button>
+        <button class="btn quiet small" id="btnBackup" style="flex:0 0 auto">Download backup</button>
+        <button class="btn quiet small" id="btnRestore" style="flex:0 0 auto">Restore from backup</button>
+        <input type="file" id="fileRestore" accept="application/json" class="hidden">
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDENTS -->
+  <section id="tab-students" class="hidden">
+    <div class="panel">
+      <h2>Class roster</h2>
+      <textarea id="rosterInput" placeholder="One name per line&#10;Ada Lovelace&#10;Ben Carter&#10;Chloe Nguyen" style="min-height:110px;font-family:var(--sans);font-size:15px"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnAddStudents">Add students</button>
+        <button class="btn quiet" id="btnSample">Add a sample class</button>
+      </div>
+      <p class="hint" id="sampleNote">Six made-up students with a year of checks, so you can try the reports before your own data exists. They all share the last name Sample, and one button removes them.</p>
+      <div id="studentList" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- PASSAGES -->
+  <section id="tab-passages" class="hidden">
+    <div class="panel">
+      <h2>Add a passage</h2>
+      <div class="row" style="margin-bottom:10px">
+        <div>
+          <label class="fld" for="pTitle">Title</label>
+          <input type="text" id="pTitle" placeholder="e.g. Milo and the Mitten — Level J">
+        </div>
+        <div style="flex:0 0 200px">
+          <label class="fld" for="pFile">Import a PDF</label>
+          <input type="file" id="pFile" accept="application/pdf" style="padding:7px">
+        </div>
+      </div>
+      <label class="fld" for="pText">Passage text — check it after importing and fix anything the PDF garbled</label>
+      <textarea id="pText" placeholder="Paste or type the passage here. Leave a blank line between paragraphs."></textarea>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:0 0 auto"><button class="btn" id="btnSavePassage">Save passage</button></div>
+        <div style="flex:0 0 auto"><button class="btn quiet" id="btnClearPassage">Clear</button></div>
+        <div style="flex:1 1 auto;align-self:center"><span class="hint" id="pCount"></span></div>
+      </div>
+      <p class="hint">Scanned PDFs with no text layer won't import — paste the text instead.</p>
+    </div>
+    <div class="panel hidden" id="importPanel">
+      <h2>Passages found in that PDF</h2>
+      <p class="hint" style="margin-top:0">Headers, name and date lines, running word counts, and comprehension questions have been stripped out. Check the word count against the one printed on the teacher page before you save.</p>
+      <div id="importList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="btnImportSelected" style="flex:0 0 auto">Add selected passages</button>
+        <button class="btn quiet" id="btnImportCancel" style="flex:0 0 auto">Cancel</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Saved passages</h2>
+      <div id="passageList"></div>
+    </div>
+  </section>
+  <p class="hint" id="storeNote" style="text-align:center;margin:26px 0 0"></p>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- storage ---------- */
+const KEY = "running-records-v1";
+const mem = {};
+function localOK(){
+  try{ const k="__rr_test"; window.localStorage.setItem(k,"1"); window.localStorage.removeItem(k); return true; }
+  catch(e){ return false; }
+}
+const HAS_LOCAL = localOK();
+const store = {
+  async get(k){
+    if(window.storage) return await window.storage.get(k, false);
+    if(HAS_LOCAL){ const v=window.localStorage.getItem(k); return v===null?null:{key:k,value:v}; }
+    return k in mem ? {key:k, value:mem[k]} : null;
+  },
+  async set(k,v){
+    if(window.storage) return await window.storage.set(k, v, false);
+    if(HAS_LOCAL){ window.localStorage.setItem(k,v); return {key:k,value:v}; }
+    mem[k]=v; return {key:k,value:v};
+  }
+};
+
+/* Hasbrouck & Tindal 2017 oral reading fluency norms, grade 2 */
+const NORMS = {
+  fall:   { p90:111, p75:84,  p50:50,  p25:36, p10:23 },
+  winter: { p90:131, p75:109, p50:84,  p25:59, p10:35 },
+  spring: { p90:148, p75:124, p50:100, p25:72, p10:43 }
+};
+const WEEKLY = { p90:1.2, p75:1.3, p50:1.6, p25:1.1, p10:0.6 };
+const WINDOW_LABEL = { fall:"Fall", winter:"Winter", spring:"Spring" };
+function windowFor(date){
+  const m=new Date(date).getMonth();
+  if(m>=7 && m<=10) return "fall";      // Aug–Nov
+  if(m===11 || m<=1) return "winter";   // Dec–Feb
+  return "spring";                      // Mar–Jul
+}
+function percentileOf(w, win){
+  const n=NORMS[win];
+  const pts=[[10,n.p10],[25,n.p25],[50,n.p50],[75,n.p75],[90,n.p90]];
+  if(w<pts[0][1]) return { p:10, below:true, win };
+  if(w>pts[4][1]) return { p:90, above:true, win };
+  for(let i=0;i<pts.length-1;i++){
+    const [pa,va]=pts[i], [pb,vb]=pts[i+1];
+    if(w>=va && w<=vb){
+      const f = vb===va ? 0 : (w-va)/(vb-va);
+      return { p:Math.round(pa+f*(pb-pa)), win };
+    }
+  }
+  return { p:50, win };
+}
+function ordinal(n){
+  const s=["th","st","nd","rd"], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+function pctLabel(o){ return o.below ? "below 10th" : o.above ? "90th+" : ordinal(o.p); }
+function pctTone(o){
+  if(o.below || o.p<25) return "var(--err)";
+  if(o.p<50) return "#C79A2E";
+  return "var(--accent)";
+}
+function pctFor(rec){ return percentileOf(rec.wcpm, windowFor(rec.date)); }
+
+
+const SAMPLE = `Milo and the Mitten
+
+Milo woke up to a cold, bright morning. Snow had fallen all night, and the yard looked soft and white. He pulled on his boots, his hat, and his red mittens, and ran outside to play.
+
+Milo made a snow fort by the fence. He rolled three big snowballs for a snowman. When he stopped to rest, he looked down at his hands. One red mitten was gone.
+
+He looked under the fort. He looked by the fence. He looked all around the yard, but the mitten was not there.
+
+Then Milo saw a small trail of tracks in the snow. He followed the tracks to the porch. Under the steps sat a shivering gray cat, curled up on the red mitten like it was a warm little bed.
+
+Milo smiled. "You can keep it," he said. "I will just have to find you a home, too."`;
+
+function defaultGoalDate(){
+  const now=new Date();
+  const y = now.getMonth()>=6 ? now.getFullYear()+1 : now.getFullYear();
+  return y+"-06-05";
+}
+const DEFAULT_SETTINGS = { goalWcpm:100, goalDate:defaultGoalDate(), showBench:true, goalTouched:false };
+
+let DB = {
+  students: [],
+  passages: [],
+  records: [],
+  settings: Object.assign({}, DEFAULT_SETTINGS)
+};
+
+async function loadDB(){
+  try{
+    const r = await store.get(KEY);
+    if(r && r.value){
+      const d = JSON.parse(r.value);
+      DB = Object.assign(DB, d);
+      DB.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings||{});
+    }
+  }catch(e){ /* first run, or nothing stored */ }
+  if(!DB.passages.length){
+    DB.passages.push({ id:uid(), title:"Milo and the Mitten (sample)", text:SAMPLE });
+  }
+  DB.students.sort(byLastName);
+  if(!DB.settings.goalTouched) DB.settings.goalWcpm = DEFAULT_SETTINGS.goalWcpm;
+}
+let saveTimer=null;
+function saveDB(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{ await store.set(KEY, JSON.stringify(DB)); }
+    catch(e){ toast("Couldn't save — your last change is only on screen."); }
+  }, 120);
+}
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ---------- tiny helpers ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let toastT=null;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2400);
+}
+function nameParts(n){
+  n=String(n||"").trim();
+  if(n.indexOf(",")>-1){
+    const bits=n.split(",");
+    return { last:bits[0].trim(), first:bits.slice(1).join(",").trim() };
+  }
+  const parts=n.split(/\s+/).filter(Boolean);
+  if(parts.length<=1) return { last:parts[0]||"", first:"" };
+  const SUF=/^(jr|sr|ii|iii|iv)\.?$/i;
+  let i=parts.length-1;
+  while(i>0 && SUF.test(parts[i])) i--;
+  return { first:parts.slice(0,i).join(" "), last:parts.slice(i).join(" ") };
+}
+function lastFirst(n){
+  const p=nameParts(n);
+  return p.first ? p.last+", "+p.first : p.last;
+}
+function byLastName(a,b){
+  const A=nameParts(a.name), B=nameParts(b.name);
+  return A.last.localeCompare(B.last) || A.first.localeCompare(B.first);
+}
+function fmtDate(iso){
+  const d=new Date(iso);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+
+/* ---------- text handling ---------- */
+function tokenize(text){
+  const tokens=[];
+  let wi=0;
+  const blocks = String(text).split(/\n\s*\n/);
+  blocks.forEach((block,bi)=>{
+    block.split(/\s+/).filter(Boolean).forEach(raw=>{
+      const isWord = /[A-Za-z0-9]/.test(raw);
+      tokens.push({ raw, word:isWord, wi: isWord ? wi++ : -1 });
+    });
+    if(bi < blocks.length-1) tokens.push({ br:true, word:false, wi:-1 });
+  });
+  return tokens;
+}
+function wordCount(text){ return tokenize(text).filter(t=>t.word).length; }
+function clean(raw){ return String(raw).toLowerCase().replace(/[^a-z0-9']/g,""); }
+
+function syllables(w){
+  w = w.replace(/[^a-z]/g,"");
+  if(!w) return 0;
+  if(w.length<=3) return 1;
+  let s = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,"").replace(/^y/,"");
+  const m = s.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+
+const HFW = new Set(("a about after again all always am an and any are around as ask at ate away be because been before best better big black blue both bring brown but buy by call came can carry clean cold come could cut did do does done dont down draw drink eat eight every fall far fast find first five fly for found four from full funny gave get give go goes going good got green grow had has have he help her here him his hold hot how hurt i if in into is it its jump just keep kind know laugh let light like little live long look made make many may me much must my myself never new no not now of off old on once one only open or other our out over own pick play please pretty pull put ran read red ride right round run said saw say see seven shall she show sing sit six sleep small so some soon start stop take tell ten thank that the their them then there these they think this those three to today together too try two under up upon us use very walk want warm was wash we well went were what when where which white who why will wish with work would write yellow yes you your").split(" "));
+
+function features(raw){
+  const w = clean(raw);
+  const f=[];
+  if(!w) return f;
+  if(HFW.has(w)) f.push("High-frequency word");
+  const syl = syllables(w);
+  if(syl>=3) f.push("Three or more syllables");
+  else if(syl===2) f.push("Two syllables");
+  if(/[aeiou]r(?![aeiou])/.test(w)) f.push("R-controlled vowel");
+  if(/(ai|ay|ea|ee|ie|oa|oe|ue|ui|ei|igh)/.test(w)) f.push("Vowel team");
+  if(/(oi|oy|ou|ow|au|aw|oo)/.test(w)) f.push("Diphthong or oo/aw");
+  if(/[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnprstvz]e$/.test(w)) f.push("Silent e");
+  if(/(sh|ch|th|wh|ph|ck|ng|tch)/.test(w)) f.push("Digraph");
+  if(/^(bl|br|cl|cr|dr|fl|fr|gl|gr|pl|pr|sc|sk|sl|sm|sn|sp|st|sw|tr|tw|scr|spl|spr|str|thr|shr)/.test(w)) f.push("Initial blend");
+  if(/(nd|nt|mp|st|sk|lt|lk|ft|ct|pt)$/.test(w)) f.push("Final blend");
+  if(/(ing|ed|er|est|ly|ful|less|ness|tion|sion|able)$/.test(w) && w.length>4) f.push("Suffix or ending");
+  if(/'/.test(w)) f.push("Contraction");
+  if(w.length>=8) f.push("Long word (8+ letters)");
+  return f;
+}
+
+/* ---------- session state ---------- */
+const S = {
+  phase:"idle",           // idle | running | stopmark | done
+  laps:[{marks:{},stopTok:null}],  // one entry per pass through the passage
+  lap:0,                  // pass currently being read
+  editLap:0,              // pass whose marks taps apply to
+  tokens:[],
+  duration:60,
+  startTs:null,
+  elapsed:0,
+  tick:null
+};
+
+/* ---------- rendering: assess ---------- */
+function currentPassage(){
+  const id=$("#selPassage").value;
+  return DB.passages.find(p=>p.id===id) || null;
+}
+function renderSelectors(){
+  const s=$("#selStudent"), prevS=s.value;
+  s.innerHTML = DB.students.length
+    ? DB.students.map(st=>`<option value="${st.id}">${esc(lastFirst(st.name))}</option>`).join("")
+    : `<option value="">No students yet</option>`;
+  if(prevS && DB.students.some(x=>x.id===prevS)) s.value=prevS;
+
+  const p=$("#selPassage"), prevP=p.value;
+  p.innerHTML = DB.passages.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join("");
+  if(prevP && DB.passages.some(x=>x.id===prevP)) p.value=prevP;
+
+  const ps=$("#selPatStudent"), prevPS=ps.value;
+  ps.innerHTML = `<option value="">Whole class</option>` + DB.students.map(st=>`<option value="${st.id}">${esc(lastFirst(st.name))}</option>`).join("");
+  ps.value = prevPS;
+
+  const pass=currentPassage();
+  $("#assessHint").textContent = pass
+    ? `${wordCount(pass.text)} words in this passage.`
+    : "Add a passage on the Passages tab to get started.";
+}
+
+function renderPassage(){
+  const pass = currentPassage();
+  const el = $("#passage");
+  if(!pass){ el.innerHTML = `<p class="empty">No passage selected.</p>`; S.tokens=[]; return; }
+  S.tokens = tokenize(pass.text);
+  el.innerHTML = S.tokens.map((t,i)=>{
+    if(t.br) return `<div class="br"></div>`;
+    if(!t.word) return `<span class="p">${esc(t.raw)} </span>`;
+    return `<span class="w" data-i="${i}" tabindex="0" role="button">${esc(t.raw)}</span> `;
+  }).join("");
+  paintMarks();
+}
+function lastWordTok(){
+  for(let i=S.tokens.length-1;i>=0;i--) if(S.tokens[i].word) return i;
+  return null;
+}
+function totalWords(){ return S.tokens.filter(t=>t.word).length; }
+function curLap(){ return S.laps[S.editLap] || S.laps[S.laps.length-1]; }
+
+function paintMarks(){
+  const cur=curLap();
+  const isLast = S.editLap===S.laps.length-1;
+  $$("#passage .w").forEach(sp=>{
+    const i = +sp.dataset.i;
+    sp.className = "w";
+    const m = cur.marks[i];
+    if(m==="e") sp.classList.add("e");
+    else if(m==="s") sp.classList.add("s");
+    else if(S.laps.some((L,li)=>li!==S.editLap && L.marks[i])) sp.classList.add("prev");
+    if(isLast && cur.stopTok!=null){
+      if(i===cur.stopTok) sp.classList.add("stopw");
+      if(i>cur.stopTok) sp.classList.add("past");
+    }
+  });
+  updateTally();
+}
+function updateTally(){
+  let e=0,s=0;
+  S.laps.forEach(L=>{
+    Object.keys(L.marks).forEach(k=>{
+      if(L.stopTok!=null && (+k)>L.stopTok) return;
+      if(L.marks[k]==="e") e++; else if(L.marks[k]==="s") s++;
+    });
+  });
+  $("#tErr").textContent=e; $("#tSc").textContent=s;
+  $("#tPass").textContent=S.laps.length;
+  return {e,s};
+}
+
+function setPhase(p){
+  S.phase=p;
+  const pass=$("#passage");
+  pass.classList.toggle("locked", p==="idle");
+  document.body.classList.toggle("marking", p==="running"||p==="done");
+  $("#btnStart").disabled = (p==="running") || !DB.students.length || !currentPassage();
+  $("#btnFinished").disabled = (p!=="running");
+  $("#btnRestart").classList.toggle("hidden", p!=="running");
+  $("#btnUndoRestart").classList.toggle("hidden", !(p==="running" && S.laps.length>1));
+  $("#btnEndOfPass").classList.toggle("hidden", !(p==="stopmark" && S.laps.length>1));
+  $("#btnStart").textContent = (p==="done"||p==="stopmark") ? "Start a new check" : "Start reading";
+  const n=S.lap+1;
+  const cue=$("#cue"); cue.classList.remove("act");
+  if(p==="idle") cue.textContent = DB.students.length ? "Pick a student and passage, then start the timer." : "Add your class on the Students tab first.";
+  if(p==="running") cue.textContent = (S.laps.length>1 ? `Pass ${n}. ` : "") + "Tap each word the student misses. Tap twice if they self-correct. If they reach the end and start over, tap “Started over”.";
+  if(p==="stopmark"){ cue.textContent = `Time. Tap the last word the student read${S.laps.length>1?` on pass ${n}`:""}.`; cue.classList.add("act"); }
+  if(p==="done") cue.textContent = "Tap words to adjust marks, or tap “Change last word” below.";
+}
+
+function restartPass(){
+  if(S.phase!=="running") return;
+  const lt=lastWordTok();
+  if(lt==null) return;
+  S.laps[S.lap].stopTok = lt;
+  S.laps.push({marks:{},stopTok:null});
+  S.lap = S.laps.length-1;
+  S.editLap = S.lap;
+  paintMarks(); setPhase("running");
+  window.scrollTo({top:0,behavior:"smooth"});
+  toast(`Pass ${S.lap+1} started — errors from earlier passes still count.`);
+}
+function undoRestart(){
+  if(S.laps.length<2) return;
+  S.laps.pop();
+  S.lap = S.laps.length-1;
+  S.editLap = S.lap;
+  S.laps[S.lap].stopTok = null;
+  paintMarks(); setPhase(S.phase);
+  toast(`Back on pass ${S.lap+1}.`);
+}
+
+function resetSession(){
+  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0;
+  S.elapsed=0; S.startTs=null;
+  clearInterval(S.tick); S.tick=null;
+  S.duration = +$("#selDur").value;
+  $("#clock").textContent = clockText(S.duration);
+  $("#clock").classList.remove("low");
+  $("#prog").style.width="0%";
+  $("#results").innerHTML="";
+  renderPassage();
+  setPhase("idle");
+}
+function clockText(sec){
+  sec=Math.max(0,Math.round(sec));
+  return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
+}
+function startRead(){
+  if(!currentPassage() || !DB.students.length) return;
+  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0;
+  $("#results").innerHTML="";
+  S.duration = +$("#selDur").value;
+  S.startTs = Date.now();
+  renderPassage();
+  setPhase("running");
+  clearInterval(S.tick);
+  S.tick = setInterval(()=>{
+    const el=(Date.now()-S.startTs)/1000;
+    const left=Math.max(0,S.duration-el);
+    $("#clock").textContent=clockText(left);
+    $("#clock").classList.toggle("low", left<=10);
+    $("#prog").style.width = Math.min(100,(el/S.duration)*100)+"%";
+    if(left<=0){ endRead(S.duration); }
+  },200);
+}
+function endRead(elapsed){
+  clearInterval(S.tick); S.tick=null;
+  S.elapsed=elapsed;
+  $("#clock").textContent="0:00";
+  $("#prog").style.width="100%";
+  beep();
+  setPhase("stopmark");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function beep(){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    const ctx=new C();
+    [0,0.22].forEach(off=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001,ctx.currentTime+off);
+      g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+off+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+off+0.16);
+      o.start(ctx.currentTime+off); o.stop(ctx.currentTime+off+0.18);
+    });
+    if(navigator.vibrate) navigator.vibrate([120,60,120]);
+  }catch(e){}
+}
+
+$("#passage").addEventListener("click", e=>{
+  const sp=e.target.closest(".w"); if(!sp) return;
+  const i=+sp.dataset.i;
+  if(S.phase==="stopmark"){
+    S.editLap=S.laps.length-1;
+    S.laps[S.editLap].stopTok=i;
+    paintMarks(); setPhase("done"); showResults(); return;
+  }
+  if(S.phase==="running"||S.phase==="done"){
+    const L=curLap();
+    const cur=L.marks[i];
+    if(!cur) L.marks[i]="e";
+    else if(cur==="e") L.marks[i]="s";
+    else delete L.marks[i];
+    paintMarks();
+    if(S.phase==="done") showResults();
+  }
+});
+$("#passage").addEventListener("keydown", e=>{
+  if(e.key==="Enter"||e.key===" "){ if(e.target.classList.contains("w")){ e.preventDefault(); e.target.click(); } }
+});
+
+function computeScores(){
+  const N=totalWords();
+  let wordsRead=0, e=0, s=0;
+  const lapWords=[];
+  S.laps.forEach((L,li)=>{
+    const isLast = li===S.laps.length-1;
+    let w;
+    if(L.stopTok!=null) w = S.tokens[L.stopTok].wi + 1;
+    else w = isLast ? 0 : N;
+    lapWords.push(w);
+    wordsRead += w;
+    Object.keys(L.marks).forEach(k=>{
+      if(L.stopTok!=null && (+k)>L.stopTok) return;
+      if(L.marks[k]==="e") e++; else if(L.marks[k]==="s") s++;
+    });
+  });
+  const correct = Math.max(0, wordsRead-e);
+  const mins = (S.elapsed||S.duration)/60;
+  const wcpm = mins>0 ? Math.round(correct/mins) : 0;
+  const acc = wordsRead>0 ? (correct/wordsRead)*100 : 0;
+  return { wordsRead, errors:e, sc:s, correct, wcpm, accuracy:acc,
+           elapsed:S.elapsed||S.duration, passes:S.laps.length, lapWords, passageWords:N };
+}
+function showResults(){
+  const r=computeScores();
+  const accTxt = r.accuracy.toFixed(1)+"%";
+  const flag = r.accuracy>=97 ? "Independent" : r.accuracy>=95 ? "Instructional" : r.accuracy>=90 ? "Hard — instructional edge" : "Frustration level";
+  const breakdown = r.passes>1
+    ? `<p class="hint" style="margin:0 0 10px">${r.lapWords.map((w,i)=>`Pass ${i+1}: ${w} words`).join(" · ")} — ${r.wordsRead} in total across the ${r.passageWords}-word passage.</p>`
+    : "";
+  const lapPicker = r.passes>1
+    ? `<div style="margin-bottom:10px;font-size:13px;color:var(--ink-2)">Editing marks on:
+        ${S.laps.map((L,i)=>`<span class="chip tap ${i===S.editLap?"on":""}" data-lap="${i}">Pass ${i+1}</span>`).join("")}</div>`
+    : "";
+  $("#results").innerHTML = `
+    <div class="results">
+      <div class="scores">
+        <div class="score"><b>${r.wcpm}</b><span>words correct per minute</span></div>
+        <div class="score"><b>${accTxt}</b><span>accuracy — ${flag}</span></div>
+        <div class="score"><b>${r.wordsRead}</b><span>words read</span></div>
+        <div class="score"><b>${r.errors}</b><span>errors</span></div>
+        <div class="score"><b>${r.sc}</b><span>self-corrections</span></div>
+        ${r.passes>1?`<div class="score"><b>${r.passes}</b><span>passes</span></div>`:""}
+      </div>
+      ${breakdown}${lapPicker}
+      <div class="row">
+        <button class="btn" id="btnSaveRec" style="flex:0 0 auto">Save this check</button>
+        <button class="btn quiet small" id="btnRestop" style="flex:0 0 auto;align-self:center">Change last word</button>
+      </div>
+    </div>`;
+  $("#btnSaveRec").addEventListener("click", saveRecord);
+  $("#btnRestop").addEventListener("click", ()=>{
+    S.editLap=S.laps.length-1;
+    S.laps[S.editLap].stopTok=null;
+    paintMarks(); setPhase("stopmark");
+  });
+  $$("#results [data-lap]").forEach(c=>c.addEventListener("click", ()=>{
+    S.editLap=+c.dataset.lap; paintMarks(); showResults();
+  }));
+}
+function saveRecord(){
+  const sid=$("#selStudent").value;
+  if(!sid){ toast("Pick a student first."); return; }
+  const pass=currentPassage();
+  const r=computeScores();
+  if(!r.wordsRead){ toast("Mark the last word read first."); return; }
+  const collect=(kind)=>{
+    const out=[];
+    S.laps.forEach(L=>Object.keys(L.marks).forEach(k=>{
+      if(L.stopTok!=null && (+k)>L.stopTok) return;
+      if(L.marks[k]===kind) out.push(S.tokens[+k].raw);
+    }));
+    return out.filter(Boolean);
+  };
+  DB.records.push({
+    id:uid(), studentId:sid, passageId:pass?pass.id:null,
+    passageTitle: pass?pass.title:"", date:new Date().toISOString(),
+    wordsRead:r.wordsRead, errors:r.errors, sc:r.sc, wcpm:r.wcpm,
+    accuracy:+r.accuracy.toFixed(1), elapsed:r.elapsed,
+    passes:r.passes, passageWords:r.passageWords,
+    missed:collect("e"), selfCorr:collect("s")
+  });
+  saveDB();
+  const name=(DB.students.find(x=>x.id===sid)||{}).name||"Student";
+  toast(`Saved — ${name}, ${r.wcpm} WCPM.`);
+  renderReports(); renderGradebook(); renderGrowth();
+  resetSession();
+}
+
+$("#btnStart").addEventListener("click", ()=>{ if(S.phase==="running") return; startRead(); });
+$("#btnFinished").addEventListener("click", ()=>{
+  if(S.phase!=="running") return;
+  const el=(Date.now()-S.startTs)/1000;
+  endRead(Math.max(1,el));
+});
+$("#btnRestart").addEventListener("click", restartPass);
+$("#btnEndOfPass").addEventListener("click", ()=>{
+  if(S.phase!=="stopmark" || S.laps.length<2) return;
+  S.laps.pop();                       // the pass they never got into
+  S.lap = S.editLap = S.laps.length-1;
+  paintMarks(); setPhase("done"); showResults();
+});
+$("#btnUndoRestart").addEventListener("click", undoRestart);
+$("#btnReset").addEventListener("click", resetSession);
+$("#selPassage").addEventListener("change", ()=>{ renderSelectors(); resetSession(); });
+$("#selDur").addEventListener("change", ()=>{ if(S.phase==="idle") resetSession(); });
+
+/* ---------- students ---------- */
+function renderStudents(){
+  const el=$("#studentList");
+  if(!DB.students.length){ el.innerHTML=`<p class="empty">No students yet. Paste your class list above.</p>`; return; }
+  el.innerHTML = DB.students.map(st=>{
+    const recs=DB.records.filter(r=>r.studentId===st.id);
+    const last=recs[recs.length-1];
+    return `<div class="list-item">
+      <div class="li-main">
+        <strong>${esc(lastFirst(st.name))}</strong>${st.demo?' <span class="li-sub" style="display:inline">sample</span>':''}
+        <div class="li-sub">${recs.length? `${recs.length} check${recs.length>1?"s":""} · latest ${last.wcpm} WCPM, ${last.accuracy}%` : "No checks yet"}</div>
+      </div>
+      <button class="btn danger small" data-del-student="${st.id}">Remove</button>
+    </div>`;
+  }).join("");
+}
+$("#btnAddStudents").addEventListener("click", ()=>{
+  const names=$("#rosterInput").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!names.length){ toast("Type at least one name."); return; }
+  let added=0;
+  names.forEach(n=>{
+    if(DB.students.some(s=>s.name.toLowerCase()===n.toLowerCase())) return;
+    DB.students.push({id:uid(),name:n}); added++;
+  });
+  DB.students.sort(byLastName);
+  $("#rosterInput").value="";
+  saveDB(); renderStudents(); renderSelectors(); renderReports(); renderGradebook(); renderGrowth();
+  toast(added?`Added ${added} student${added>1?"s":""}.`:"Those names are already on the roster.");
+});
+$("#studentList").addEventListener("click", e=>{
+  const b=e.target.closest("[data-del-student]"); if(!b) return;
+  const id=b.dataset.delStudent;
+  const st=DB.students.find(s=>s.id===id);
+  const n=DB.records.filter(r=>r.studentId===id).length;
+  if(!confirm(`Remove ${st.name}${n?` and their ${n} saved check${n>1?"s":""}`:""}?`)) return;
+  DB.students=DB.students.filter(s=>s.id!==id);
+  DB.records=DB.records.filter(r=>r.studentId!==id);
+  gbTicks.delete(id);
+  saveDB(); renderStudents(); renderSelectors(); renderReports(); renderGradebook(); renderGrowth();
+});
+
+/* ---------- sample class ---------- */
+const SAMPLE_DATES = ["2025-09-18","2025-11-13","2026-01-22","2026-03-12","2026-05-14","2026-09-03"];
+const SAMPLE_CLASS = [
+  { name:"Sample, Ada", wcpm:[62,74,86,95,108,118], err:[3,3,2,2,2,1], sc:[2,1,2,1,1,1],
+    miss:["shivering","curled","followed","porch"] },
+  { name:"Sample, Ben", wcpm:[40,49,58,68,80,88], err:[5,4,4,3,3,2], sc:[1,2,1,2,1,2],
+    miss:["snowballs","around","through","because","rolled"] },
+  { name:"Sample, Cruz", wcpm:[45,52,58,62,68,70], err:[9,8,9,7,8,7], sc:[0,1,0,1,1,0],
+    miss:["shivering","curled","snowballs","followed","mitten","brighter","stopped","around"] },
+  { name:"Sample, Dara", wcpm:[13,17,20,24,27,30], err:[3,2,2,2,1,1], sc:[0,0,1,0,1,1],
+    miss:["were","their","because","around","said","would"] },
+  { name:"Sample, Eli", wcpm:[55,66,78,88,102,110], err:[4,3,3,2,4,2], sc:[1,1,2,1,2,1],
+    miss:["shivering","boots","fence","curled"] },
+  { name:"Sample, Faye", wcpm:[20,25,30,34,40,44], err:[4,3,2,2,1,1], sc:[0,1,1,1,2,1],
+    miss:["snowballs","morning","looked","night","around","white"] }
+];
+function hasSample(){ return DB.students.some(s=>s.demo); }
+function addSampleClass(){
+  if(hasSample()){ toast("The sample class is already here."); return; }
+  const pass=DB.passages.find(p=>/sample/i.test(p.title)) || DB.passages[0] || null;
+  const pw = pass ? wordCount(pass.text) : 152;
+  SAMPLE_CLASS.forEach(sp=>{
+    const sid=uid();
+    DB.students.push({ id:sid, name:sp.name, demo:true });
+    SAMPLE_DATES.forEach((d,i)=>{
+      const wcpm=sp.wcpm[i], err=sp.err[i], sc=sp.sc[i];
+      // one check late in the year shows a second pass through a shorter passage
+      const twoPass = sp.name==="Sample, Eli" && i===4;
+      const shortWords=96;
+      const wordsRead=wcpm+err;
+      const missed=[];
+      for(let k=0;k<err;k++) missed.push(sp.miss[k % sp.miss.length]);
+      DB.records.push({
+        id:uid(), studentId:sid, demo:true,
+        passageId: twoPass ? null : (pass?pass.id:null),
+        passageTitle: twoPass ? "Short practice passage" : (pass?pass.title:"Sample passage"),
+        date: new Date(d+"T09:30:00").toISOString(),
+        wordsRead, errors:err, sc, wcpm,
+        accuracy: +((wcpm/wordsRead)*100).toFixed(1),
+        elapsed:60,
+        passes: twoPass ? 2 : 1,
+        passageWords: twoPass ? shortWords : pw,
+        missed, selfCorr:[]
+      });
+    });
+  });
+  DB.students.sort(byLastName);
+  DB.records.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveDB(); refreshEverything();
+  toast("Sample class added — try the Growth and Reports tabs.");
+}
+function removeSampleClass(){
+  const ids=new Set(DB.students.filter(s=>s.demo).map(s=>s.id));
+  DB.students=DB.students.filter(s=>!s.demo);
+  DB.records=DB.records.filter(r=>!r.demo && !ids.has(r.studentId));
+  ids.forEach(id=>gbTicks.delete(id));
+  saveDB(); refreshEverything();
+  toast("Sample class removed.");
+}
+function refreshEverything(){
+  renderStudents(); renderSelectors(); renderReports(); renderGradebook(); renderGrowth();
+  $("#btnSample").textContent = hasSample() ? "Remove the sample class" : "Add a sample class";
+}
+$("#btnSample").addEventListener("click", ()=>{
+  if(hasSample()){
+    if(!confirm("Remove the six sample students and all of their checks? Your own students aren't affected.")) return;
+    removeSampleClass();
+  } else addSampleClass();
+});
+
+/* ---------- passages ---------- */
+function renderPassages(){
+  const el=$("#passageList");
+  if(!DB.passages.length){ el.innerHTML=`<p class="empty">No passages yet.</p>`; return; }
+  el.innerHTML = DB.passages.map(p=>`
+    <div class="list-item">
+      <div class="li-main">
+        <strong>${esc(p.title)}</strong>
+        <div class="li-sub">${wordCount(p.text)} words</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn quiet small" data-edit-passage="${p.id}">Edit</button>
+        <button class="btn danger small" data-del-passage="${p.id}">Delete</button>
+      </div>
+    </div>`).join("");
+}
+let editingPassage=null;
+$("#passageList").addEventListener("click", e=>{
+  const ed=e.target.closest("[data-edit-passage]");
+  const de=e.target.closest("[data-del-passage]");
+  if(ed){
+    const p=DB.passages.find(x=>x.id===ed.dataset.editPassage);
+    editingPassage=p.id; $("#pTitle").value=p.title; $("#pText").value=p.text;
+    $("#btnSavePassage").textContent="Update passage";
+    updateCount(); window.scrollTo({top:0,behavior:"smooth"});
+  }
+  if(de){
+    const p=DB.passages.find(x=>x.id===de.dataset.delPassage);
+    if(!confirm(`Delete “${p.title}”? Saved scores stay, but the text goes.`)) return;
+    DB.passages=DB.passages.filter(x=>x.id!==p.id);
+    saveDB(); renderPassages(); renderSelectors(); renderGradebook(); resetSession();
+  }
+});
+function updateCount(){
+  const n=wordCount($("#pText").value);
+  $("#pCount").textContent = n ? `${n} words` : "";
+}
+$("#pText").addEventListener("input", updateCount);
+$("#btnClearPassage").addEventListener("click", ()=>{
+  editingPassage=null; $("#pTitle").value=""; $("#pText").value="";
+  $("#btnSavePassage").textContent="Save passage"; updateCount();
+});
+$("#btnSavePassage").addEventListener("click", ()=>{
+  const title=$("#pTitle").value.trim() || "Untitled passage";
+  const text=$("#pText").value.trim();
+  if(!text){ toast("Add some passage text first."); return; }
+  if(editingPassage){
+    const p=DB.passages.find(x=>x.id===editingPassage);
+    p.title=title; p.text=text; editingPassage=null;
+    $("#btnSavePassage").textContent="Save passage";
+    toast("Passage updated.");
+  }else{
+    DB.passages.push({id:uid(),title,text});
+    toast("Passage saved.");
+  }
+  $("#pTitle").value=""; $("#pText").value=""; updateCount();
+  saveDB(); renderPassages(); renderSelectors(); renderGradebook();
+});
+
+/* ---------- PDF import ---------- */
+const DROP = [
+  /^name\s*_*\s*(date)?\s*_*$/i,
+  /^date\s*_+/i,
+  /^fluency$/i,
+  /^quick\s*check/i,
+  /^words\s+per\s+line/i,
+  /^comprehension\s+questions?$/i,
+  /benchmark\s+education/i,
+  /grades?\s*k\s*[–—-]\s*6/i,
+  /^©/,
+  /^#\s*\d+$/,
+  /^\d{1,3}$/,
+  /^_+\s*\d*$/,
+  /^grade\s*\d.*\d+\s*l/i,
+  /^passage\b.*words:/i,
+  /^oral\s+reading\s+accuracy/i,
+  /^reading\s+rate/i,
+  /^comprehension\s*#\s*correct/i,
+  /^fluency\s+1\s+2\s+3\s+4/i,
+  /^words:\s*\d+$/i
+];
+function cleanLines(lines){
+  const cut = lines.findIndex(l=>/comprehension\s+questions/i.test(l));
+  const src = cut>-1 ? lines.slice(0,cut) : lines;
+  const out=[];
+  src.forEach(raw=>{
+    let l=String(raw).replace(/\s+/g," ").trim();
+    if(!l) return;
+    l=l.replace(/name\s*_{3,}/ig," ").replace(/date\s*_{3,}/ig," ");
+    l=l.replace(/_{2,}\s*\d*/g," ");
+    l=l.replace(/\s+/g," ").trim();
+    if(!l) return;
+    if(DROP.some(re=>re.test(l))) return;
+    l=l.replace(/^\d{1,2}\s+(?=[A-Z“"'‘(])/,"");
+    l=l.replace(/\s+/g," ").trim();
+    if(!l) return;
+    if(!/[A-Za-z]/.test(l)) return;
+    out.push(l);
+  });
+  return out;
+}
+function pageToPassage(lines, pageNo){
+  const cl=cleanLines(lines);
+  if(!cl.length) return null;
+  let title="", body=cl;
+  const first=cl[0];
+  if(first.length<=48 && !/[.!?]$/.test(first) && cl.length>1){
+    title=first; body=cl.slice(1);
+  }
+  const text=body.join("\n").replace(/\n(?=[a-z,;”"’])/g," ").trim();
+  const words=wordCount(text);
+  if(words<25) return null;
+  return { title: title || `Page ${pageNo}`, text, words, page:pageNo,
+           key: clean(text).slice(0,70) };
+}
+let IMPORTS=[];
+function renderImportList(){
+  $("#importList").innerHTML = IMPORTS.map((p,i)=>`
+    <div class="list-item" style="align-items:flex-start;gap:12px">
+      <label class="checkline" style="margin-top:8px"><input type="checkbox" data-imp="${i}" ${p.pick?"checked":""}></label>
+      <div class="li-main" style="flex:1 1 auto">
+        <input type="text" data-imp-title="${i}" value="${esc(p.title)}" style="font-weight:600">
+        <div class="li-sub" style="margin:4px 0 6px">${p.words} words · page ${p.page}</div>
+        <details><summary style="cursor:pointer;font-size:13px;color:var(--accent)">Preview</summary>
+          <div style="font-family:var(--read);font-size:15px;line-height:1.6;margin-top:8px;white-space:pre-wrap">${esc(p.text)}</div>
+        </details>
+      </div>
+    </div>`).join("");
+  $$("#importList [data-imp]").forEach(cb=>cb.addEventListener("change",()=>{
+    IMPORTS[+cb.dataset.imp].pick=cb.checked;
+  }));
+  $$("#importList [data-imp-title]").forEach(inp=>inp.addEventListener("input",()=>{
+    IMPORTS[+inp.dataset.impTitle].title=inp.value;
+  }));
+}
+$("#btnImportCancel").addEventListener("click", ()=>{
+  IMPORTS=[]; $("#importPanel").classList.add("hidden");
+});
+$("#btnImportSelected").addEventListener("click", ()=>{
+  const picked=IMPORTS.filter(p=>p.pick);
+  if(!picked.length){ toast("Check at least one passage."); return; }
+  picked.forEach(p=>DB.passages.push({ id:uid(), title:(p.title||"Untitled passage").trim(), text:p.text }));
+  IMPORTS=[]; $("#importPanel").classList.add("hidden");
+  saveDB(); renderPassages(); renderSelectors(); renderGradebook();
+  toast(`Added ${picked.length} passage${picked.length>1?"s":""}.`);
+});
+
+$("#pFile").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  if(!window.pdfjsLib){ toast("PDF reader didn't load. Paste the text instead."); return; }
+  toast("Reading PDF…");
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const pages=[];
+    for(let n=1;n<=pdf.numPages;n++){
+      const page=await pdf.getPage(n);
+      const tc=await page.getTextContent();
+      let line="", lastY=null; const lines=[];
+      tc.items.forEach(it=>{
+        const y=it.transform[5];
+        if(lastY!==null && Math.abs(y-lastY)>4){ lines.push(line.trim()); line=""; }
+        line += it.str + " ";
+        if(it.hasEOL){ lines.push(line.trim()); line=""; lastY=null; return; }
+        lastY=y;
+      });
+      if(line.trim()) lines.push(line.trim());
+      pages.push({ no:n, lines, teacher:/words\s+per\s+line/i.test(lines.join(" ")) });
+    }
+
+    // one entry per page, then drop duplicates keeping the cleaner student page
+    const found=[];
+    pages.forEach(pg=>{
+      const p=pageToPassage(pg.lines, pg.no);
+      if(!p) return;
+      p.teacher=pg.teacher;
+      const dup=found.find(x=>x.key===p.key);
+      if(dup){ if(dup.teacher && !p.teacher) Object.assign(dup,p); return; }
+      found.push(p);
+    });
+
+    if(!found.length){
+      toast("No passage text found — this may be a scan. Paste the text instead.");
+      return;
+    }
+    if(found.length===1){
+      $("#pText").value=found[0].text;
+      if(!$("#pTitle").value.trim()) $("#pTitle").value=found[0].title;
+      updateCount();
+      $("#importPanel").classList.add("hidden");
+      toast("Imported. Read it over and fix anything odd.");
+      return;
+    }
+    IMPORTS=found.map(p=>Object.assign(p,{pick:true}));
+    renderImportList();
+    $("#importPanel").classList.remove("hidden");
+    $("#importPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    toast(`Found ${found.length} passages.`);
+  }catch(err){
+    toast("Couldn't read that PDF. Paste the text instead.");
+  }finally{ e.target.value=""; }
+});
+
+/* ---------- reports ---------- */
+function latestFor(sid){
+  const r=DB.records.filter(x=>x.studentId===sid);
+  return r.length ? r[r.length-1] : null;
+}
+function prevFor(sid){
+  const r=DB.records.filter(x=>x.studentId===sid);
+  return r.length>1 ? r[r.length-2] : null;
+}
+function kmeans1d(vals,k){
+  if(vals.length<=k) return vals.map(v=>[v]);
+  const sorted=[...vals].sort((a,b)=>a-b);
+  let cent=[];
+  for(let i=0;i<k;i++) cent.push(sorted[Math.floor((i+0.5)*sorted.length/k)]);
+  let groups=[];
+  for(let it=0; it<40; it++){
+    groups=Array.from({length:k},()=>[]);
+    sorted.forEach(v=>{
+      let bi=0,bd=Infinity;
+      cent.forEach((c,i)=>{ const d=Math.abs(v-c); if(d<bd){bd=d;bi=i;} });
+      groups[bi].push(v);
+    });
+    const nc=groups.map((g,i)=> g.length ? g.reduce((a,b)=>a+b,0)/g.length : cent[i]);
+    if(nc.every((c,i)=>Math.abs(c-cent[i])<0.001)){ cent=nc; break; }
+    cent=nc;
+  }
+  return groups.filter(g=>g.length);
+}
+
+function renderNormTable(){
+  const el=$("#normTable"); if(!el) return;
+  const ps=["p90","p75","p50","p25","p10"];
+  el.innerHTML=`<table>
+    <tr><th>Percentile</th><th class="num">Fall</th><th class="num">Winter</th><th class="num">Spring</th><th class="num">Weekly growth</th></tr>
+    ${ps.map(k=>`<tr>
+      <td>${ordinal(+k.slice(1))}</td>
+      <td class="num">${NORMS.fall[k]}</td>
+      <td class="num">${NORMS.winter[k]}</td>
+      <td class="num">${NORMS.spring[k]}</td>
+      <td class="num">${WEEKLY[k].toFixed(1)}</td>
+    </tr>`).join("")}
+  </table>`;
+}
+
+function renderClassTable(){
+  const el=$("#classTable");
+  const rows=DB.students.map(st=>({st, rec:latestFor(st.id), prev:prevFor(st.id)}))
+    .filter(r=>r.rec)
+    .map(r=>Object.assign(r,{pct:pctFor(r.rec)}))
+    .sort((a,b)=>b.pct.p-a.pct.p || b.rec.wcpm-a.rec.wcpm);
+  if(!rows.length){ el.innerHTML=`<p class="empty">Scores show up here once you save your first check.</p>`; return; }
+  const max=Math.max(...rows.map(r=>r.rec.wcpm), 60);
+  el.innerHTML=`<table>
+    <tr><th>Student</th><th class="num">WCPM</th><th>Compared to grade 2</th><th class="num">Percentile</th><th class="num">Accuracy</th><th class="num">Change</th><th>Window</th></tr>
+    ${rows.map(r=>{
+      const delta = r.prev ? r.rec.wcpm-r.prev.wcpm : null;
+      const tone = pctTone(r.pct);
+      return `<tr>
+        <td>${esc(lastFirst(r.st.name))}</td>
+        <td class="num">${r.rec.wcpm}</td>
+        <td><i class="bar" style="width:${Math.max(4,(r.rec.wcpm/max)*110)}px;background:${tone}"></i></td>
+        <td class="num" style="color:${tone}">${pctLabel(r.pct)}</td>
+        <td class="num">${r.rec.accuracy}%</td>
+        <td class="num">${delta===null?"—":(delta>0?"+":"")+delta}</td>
+        <td>${WINDOW_LABEL[r.pct.win]} · ${fmtDate(r.rec.date)}</td>
+      </tr>`;
+    }).join("")}
+  </table>
+  <p class="hint">Green is at or above the 50th percentile for that window, amber is 25th to 50th, red is below the 25th. Hasbrouck and Tindal suggest a fluency-building program for students 10 or more words below the 50th percentile.</p>`;
+}
+
+function renderGroups(){
+  const withRec=DB.students.map(st=>({st,rec:latestFor(st.id)})).filter(x=>x.rec);
+  const rateEl=$("#groupsRate"), needEl=$("#groupsNeed");
+  if(withRec.length<2){
+    rateEl.innerHTML=`<p class="empty">Save checks for at least two students and groups appear here.</p>`;
+    needEl.innerHTML=""; return;
+  }
+  const k = withRec.length>=8 ? 4 : 3;
+  const clusters = kmeans1d(withRec.map(x=>x.rec.wcpm), k)
+    .sort((a,b)=>Math.max(...b)-Math.max(...a));
+  const used=new Set();
+  rateEl.innerHTML = clusters.map((c,i)=>{
+    const lo=Math.min(...c), hi=Math.max(...c);
+    const members = withRec.filter(x=>{
+      if(used.has(x.st.id)) return false;
+      if(x.rec.wcpm>=lo && x.rec.wcpm<=hi){ used.add(x.st.id); return true; }
+      return false;
+    });
+    if(!members.length) return "";
+    return `<div class="grp">
+      <h4>Group ${String.fromCharCode(65+i)} · ${lo===hi?lo:lo+"–"+hi} WCPM</h4>
+      <p>${members.length} student${members.length>1?"s":""} reading at a similar rate.</p>
+      <div class="names">${members.map(m=>`<span class="chip">${esc(lastFirst(m.st.name))} · ${m.rec.wcpm}</span>`).join("")}</div>
+    </div>`;
+  }).join("");
+
+  const buckets={word:[],intensive:[],strategic:[],ontrack:[]};
+  withRec.forEach(x=>{
+    x.pct=pctFor(x.rec);
+    if(x.rec.accuracy<95) buckets.word.push(x);
+    else if(x.pct.below || x.pct.p<25) buckets.intensive.push(x);
+    else if(x.pct.p<50) buckets.strategic.push(x);
+    else buckets.ontrack.push(x);
+  });
+  const defs=[
+    ["word","need-word","Word-level accuracy first","Accuracy under 95%. Rate practice won't stick yet — these students need decoding and word work at their level before timed rereading."],
+    ["intensive","need-rate","Rate — intensive","Accurate but below the 25th percentile for this window. Daily repeated reading of short, easy text with a partner or with you."],
+    ["strategic","need-rate","Rate — strategic","Accurate and between the 25th and 50th percentile. Two or three repeated readings a week plus phrase-cued practice."],
+    ["ontrack","","At or above the 50th percentile","Shift the focus to expression, phrasing, and comprehension of harder text."]
+  ];
+  needEl.innerHTML = defs.map(([key,cls,title,desc])=>{
+    const m=buckets[key]; if(!m.length) return "";
+    return `<div class="grp ${cls}">
+      <h4>${title}</h4>
+      <p>${desc}</p>
+      <div class="names">${m.map(x=>`<span class="chip">${esc(lastFirst(x.st.name))} · ${x.rec.wcpm} WCPM, ${pctLabel(x.pct)}</span>`).join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderPatterns(){
+  const sid=$("#selPatStudent").value;
+  const recs = DB.records.filter(r=>!sid || r.studentId===sid);
+  const wordEl=$("#wordPatterns"), featEl=$("#featurePatterns");
+  if(!recs.length){ wordEl.innerHTML=`<p class="empty">No saved checks yet.</p>`; featEl.innerHTML=""; return; }
+
+  const byWord={};
+  recs.forEach(r=>{
+    (r.missed||[]).forEach(raw=>{
+      const w=clean(raw); if(!w) return;
+      byWord[w]=byWord[w]||{count:0,students:new Set(),display:raw};
+      byWord[w].count++; byWord[w].students.add(r.studentId);
+    });
+  });
+  const words=Object.entries(byWord).sort((a,b)=>b[1].students.size-a[1].students.size || b[1].count-a[1].count).slice(0,20);
+  if(!words.length){ wordEl.innerHTML=`<p class="empty">No errors recorded — nice.</p>`; }
+  else{
+    wordEl.innerHTML=`<table>
+      <tr><th>Word</th><th class="num">Times missed</th>${sid?"":"<th class=\"num\">Students</th><th>Who</th>"}</tr>
+      ${words.map(([w,d])=>{
+        const names=[...d.students].map(id=>(DB.students.find(s=>s.id===id)||{}).name).filter(Boolean);
+        return `<tr><td>${esc(w)}</td><td class="num">${d.count}</td>${sid?"":`<td class="num">${d.students.size}</td><td>${esc(names.join(", "))}</td>`}</tr>`;
+      }).join("")}
+    </table>`;
+  }
+
+  const byFeat={};
+  let totalMissed=0;
+  recs.forEach(r=>(r.missed||[]).forEach(raw=>{
+    totalMissed++;
+    features(raw).forEach(f=>{ byFeat[f]=byFeat[f]||{n:0,ex:new Set()}; byFeat[f].n++; if(byFeat[f].ex.size<4) byFeat[f].ex.add(clean(raw)); });
+  }));
+  const feats=Object.entries(byFeat).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
+  if(!feats.length){ featEl.innerHTML=`<p class="empty">Nothing to analyze yet.</p>`; return; }
+  const top=feats[0][1].n;
+  featEl.innerHTML = feats.map(([f,d])=>`
+    <div style="margin:9px 0">
+      <div style="display:flex;justify-content:space-between;font-size:14px">
+        <span>${esc(f)}</span><span style="color:var(--muted)">${d.n} of ${totalMissed} errors</span>
+      </div>
+      <i class="bar" style="width:${Math.max(6,(d.n/top)*100)}%;display:block;margin:4px 0 2px"></i>
+      <div class="li-sub">for example: ${esc([...d.ex].join(", "))}</div>
+    </div>`).join("")
+    + `<p class="hint">These are pattern hints from the spelling of the missed words, not a diagnosis — use them to decide what to listen for next time.</p>`;
+}
+
+function renderRecords(){
+  const el=$("#recordList");
+  if(!DB.records.length){ el.innerHTML=`<p class="empty">No checks saved yet.</p>`; return; }
+  const rows=[...DB.records].reverse().slice(0,60);
+  el.innerHTML=`<table>
+    <tr><th>Date</th><th>Student</th><th>Passage</th><th class="num">WCPM</th><th class="num">Acc.</th><th class="num">Err.</th><th class="num">Passes</th><th></th></tr>
+    ${rows.map(r=>{
+      const n=(DB.students.find(s=>s.id===r.studentId)||{}).name||"—";
+      return `<tr>
+        <td>${fmtDate(r.date)}</td><td>${esc(n)}</td><td>${esc(r.passageTitle||"—")}</td>
+        <td class="num">${r.wcpm}</td><td class="num">${r.accuracy}%</td><td class="num">${r.errors}</td>
+        <td class="num">${r.passes||1}</td>
+        <td class="num"><button class="btn danger small" data-del-rec="${r.id}">Delete</button></td>
+      </tr>`;
+    }).join("")}
+  </table>`;
+}
+$("#recordList").addEventListener("click", e=>{
+  const b=e.target.closest("[data-del-rec]"); if(!b) return;
+  if(!confirm("Delete this check?")) return;
+  DB.records=DB.records.filter(r=>r.id!==b.dataset.delRec);
+  saveDB(); renderReports(); renderStudents(); renderGradebook(); renderGrowth();
+});
+
+function renderReports(){ renderNormTable(); renderClassTable(); renderGroups(); renderPatterns(); renderRecords(); }
+
+/* ---------- growth ---------- */
+const DAY=86400000;
+function goalCfg(){
+  const g=+DB.settings.goalWcpm||80;
+  const d=new Date((DB.settings.goalDate||defaultGoalDate())+"T00:00:00");
+  return { goal:g, date:isNaN(d) ? new Date(defaultGoalDate()+"T00:00:00") : d };
+}
+function recordsFor(sid){
+  return DB.records.filter(r=>r.studentId===sid)
+    .slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+function trendOf(points){
+  if(points.length<2) return null;
+  const xs=points.map(p=>p.t/DAY), ys=points.map(p=>p.y);
+  const n=xs.length, mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  for(let i=0;i<n;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+  if(!den) return null;
+  const slope=num/den;                 // wcpm per day
+  return { slope, at:t=>my+slope*(t/DAY-mx) };
+}
+function niceTicks(t0,t1,count){
+  const out=[];
+  for(let i=0;i<count;i++) out.push(t0+((t1-t0)*i)/(count-1));
+  return out;
+}
+function benchTrack(cfg){
+  const y=cfg.date.getFullYear(), start = cfg.date.getMonth()<=6 ? y-1 : y;
+  return [
+    { t:new Date(start,8,15).getTime(), y:NORMS.fall.p50,   lab:"Fall" },
+    { t:new Date(start+1,0,15).getTime(), y:NORMS.winter.p50, lab:"Winter" },
+    { t:new Date(start+1,4,15).getTime(), y:NORMS.spring.p50, lab:"Spring" }
+  ];
+}
+function growthChart(points, cfg, bench){
+  if(!points.length) return `<p class="empty">No checks recorded yet.</p>`;
+  const W=720,H=330,padL=40,padR=58,padT=22,padB=36;
+  const all=points.concat(bench||[]);
+  const t0=Math.min(points[0].t, cfg.date.getTime()-120*DAY, ...(bench?bench.map(b=>b.t):[]));
+  const t1=Math.max(cfg.date.getTime(), points[points.length-1].t+3*DAY, ...(bench?bench.map(b=>b.t):[]));
+  const span=Math.max(t1-t0, 30*DAY);
+  const yMax=Math.max(cfg.goal*1.3, Math.max(...all.map(p=>p.y))*1.2, 40);
+  const X=t=>padL+((t-t0)/span)*(W-padL-padR);
+  const Y=v=>H-padB-(v/yMax)*(H-padT-padB);
+  const step=yMax>160?40:20;
+  let g="";
+  for(let v=0; v<=yMax; v+=step){
+    g+=`<line x1="${padL}" x2="${W-padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
+        <text x="${padL-8}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`;
+  }
+  const ticks=niceTicks(t0,t1,5).map(t=>{
+    const d=new Date(t);
+    return `<text x="${X(t).toFixed(1)}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.toLocaleDateString(undefined,{month:"short",year:"2-digit"})}</text>`;
+  }).join("");
+
+  const gy=Y(cfg.goal);
+  const goalLine=`<line x1="${padL}" x2="${W-padR}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="${W-padR+7}" y="${(gy+4).toFixed(1)}" font-size="12" fill="var(--accent)" font-weight="600">${cfg.goal}</text>
+    <text x="${W-padR+7}" y="${(gy+19).toFixed(1)}" font-size="10.5" fill="var(--muted)">goal</text>`;
+
+  let benchEls="";
+  if(bench && bench.length){
+    const d=bench.map((b,i)=>`${i?"L":"M"}${X(b.t).toFixed(1)},${Y(Math.min(b.y,yMax)).toFixed(1)}`).join(" ");
+    benchEls=`<path d="${d}" fill="none" stroke="#B9C6C2" stroke-width="2" stroke-linejoin="round"/>`+
+      bench.map(b=>`<circle cx="${X(b.t).toFixed(1)}" cy="${Y(Math.min(b.y,yMax)).toFixed(1)}" r="3.5" fill="#B9C6C2"/>`).join("")+
+      `<text x="${X(bench[bench.length-1].t).toFixed(1)}" y="${(Y(Math.min(bench[bench.length-1].y,yMax))-11).toFixed(1)}" text-anchor="end" font-size="11" fill="#8FA09B">50th percentile</text>`;
+  }
+
+  const tr=trendOf(points);
+  let trend="";
+  if(tr){
+    const a=Math.max(0,tr.at(points[0].t)), b=Math.max(0,tr.at(cfg.date.getTime()));
+    trend=`<line x1="${X(points[0].t).toFixed(1)}" y1="${Y(Math.min(a,yMax)).toFixed(1)}"
+      x2="${X(cfg.date.getTime()).toFixed(1)}" y2="${Y(Math.min(b,yMax)).toFixed(1)}"
+      stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 5" opacity=".85"/>`;
+  }
+  const path=points.map((p,i)=>`${i?"L":"M"}${X(p.t).toFixed(1)},${Y(Math.min(p.y,yMax)).toFixed(1)}`).join(" ");
+  const line=`<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const dots=points.map(p=>{
+    const cx=X(p.t), cy=Y(Math.min(p.y,yMax));
+    const met=p.y>=cfg.goal;
+    return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="${met?"var(--accent)":"#fff"}" stroke="var(--accent)" stroke-width="2.5"/>
+      <text x="${cx.toFixed(1)}" y="${(cy-13).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${p.y}</text>`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Words correct per minute over time against a goal of ${cfg.goal}">
+    ${g}${ticks}${goalLine}${benchEls}${trend}${line}${dots}
+    <text x="${padL}" y="14" font-size="11" fill="var(--muted)">words correct per minute</text>
+  </svg>`;
+}
+
+function classMonthlyPoints(){
+  const by={};
+  DB.records.forEach(r=>{
+    const d=new Date(r.date);
+    const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    (by[k]=by[k]||[]).push(r.wcpm);
+  });
+  return Object.keys(by).sort().map(k=>{
+    const [y,m]=k.split("-").map(Number);
+    const vals=by[k];
+    return { t:new Date(y,m-1,15).getTime(), y:Math.round(vals.reduce((a,b)=>a+b,0)/vals.length), n:vals.length };
+  });
+}
+
+function renderGrowth(){
+  const sel=$("#gwStudent"), prev=sel.value;
+  sel.innerHTML=`<option value="">Whole class average</option>`+
+    DB.students.map(st=>`<option value="${st.id}">${esc(lastFirst(st.name))}</option>`).join("");
+  if(prev==="" || DB.students.some(s=>s.id===prev)) sel.value=prev;
+
+  const cfg=goalCfg();
+  const sid=sel.value;
+  const points = sid
+    ? recordsFor(sid).map(r=>({ t:new Date(r.date).getTime(), y:r.wcpm, rec:r }))
+    : classMonthlyPoints();
+
+  const bench = $("#gwBench").checked ? benchTrack(cfg) : null;
+  $("#gwChart").innerHTML = growthChart(points, cfg, bench);
+  const statsEl=$("#gwStats"), vEl=$("#gwVerdict");
+
+  if(!points.length){
+    statsEl.innerHTML=""; vEl.innerHTML="";
+    $("#gwDetail").innerHTML=`<p class="empty">${sid?"No checks saved for this student yet.":"No checks saved yet."}</p>`;
+    $("#gwDetailTitle").textContent = sid ? "Every check" : "Class summary";
+    return;
+  }
+
+  const first=points[0], last=points[points.length-1];
+  const gain=last.y-first.y;
+  const weeks=Math.max(1,(last.t-first.t)/(7*DAY));
+  const perWeek = points.length>1 ? gain/weeks : null;
+  const weeksLeft=Math.max(0,(cfg.date-Date.now())/(7*DAY));
+  const needed = weeksLeft>0 ? (cfg.goal-last.y)/weeksLeft : null;
+  const tr=trendOf(points);
+  const projected = tr ? Math.max(0,Math.round(tr.at(cfg.date.getTime()))) : null;
+
+  const lastPct = sid && last.rec ? pctFor(last.rec) : null;
+  statsEl.innerHTML=`
+    <div><b>${last.y}</b><span>most recent</span></div>
+    ${lastPct?`<div><b style="color:${pctTone(lastPct)}">${pctLabel(lastPct)}</b><span>${WINDOW_LABEL[lastPct.win].toLowerCase()} percentile</span></div>`:""}
+    <div><b>${first.y}</b><span>first check</span></div>
+    <div><b>${gain>0?"+":""}${gain}</b><span>change so far</span></div>
+    ${perWeek!==null?`<div><b>${perWeek>0?"+":""}${perWeek.toFixed(1)}</b><span>per week so far</span></div>`:""}
+    <div><b>${Math.max(0,cfg.goal-last.y)}</b><span>to reach ${cfg.goal}</span></div>
+    ${projected!==null?`<div><b>${projected}</b><span>projected by ${cfg.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</span></div>`:""}`;
+
+  let cls="",msg="";
+  if(last.y>=cfg.goal){
+    cls=""; msg=`Already at or past the ${cfg.goal} WCPM year-end goal. Shift the emphasis to phrasing, expression, and comprehension in harder text.`;
+  }else if(projected===null){
+    msg=`One check so far. Reaching ${cfg.goal} by ${cfg.date.toLocaleDateString(undefined,{month:"long",day:"numeric"})} means gaining about ${needed?needed.toFixed(1):"—"} words per week from here. A second check will show whether that's happening.`;
+  }else if(projected>=cfg.goal){
+    msg=`On pace. Growth of ${perWeek.toFixed(1)} words per week — the published average for a grade 2 student at the 50th percentile is ${WEEKLY.p50} — projects to about ${projected} WCPM by the goal date, ${projected-cfg.goal} above the ${cfg.goal} target.`;
+  }else if(projected>=cfg.goal*0.85){
+    cls="off"; msg=`Slightly behind pace. Growth of ${perWeek.toFixed(1)} words per week — against a typical ${WEEKLY.p50} for grade 2 — projects to about ${projected}. Reaching ${cfg.goal} needs roughly ${needed.toFixed(1)} words per week over the ${Math.round(weeksLeft)} weeks left.`;
+  }else{
+    cls="behind"; msg=`Off pace. Growth of ${perWeek.toFixed(1)} words per week, against a typical ${WEEKLY.p50} for grade 2, projects to about ${projected} — well short of ${cfg.goal}. Closing that gap needs roughly ${needed.toFixed(1)} words per week, which is more than double typical growth and calls for a more intensive plan.`;
+  }
+  vEl.innerHTML=`<div class="verdict ${cls}">${msg}${sid?"":" These are class averages, so a shifting mix of students who were assessed each month can move the line on its own."}</div>`;
+
+  if(sid){
+    $("#gwDetailTitle").textContent="Every check";
+    const recs=recordsFor(sid);
+    $("#gwDetail").innerHTML=`<table>
+      <tr><th>Date</th><th>Window</th><th>Passage</th><th class="num">WCPM</th><th class="num">Change</th><th class="num">Percentile</th><th class="num">Accuracy</th></tr>
+      ${recs.map((r,i)=>{
+        const d=i? r.wcpm-recs[i-1].wcpm : null;
+        const pc=pctFor(r);
+        return `<tr><td>${fmtDate(r.date)}</td><td>${WINDOW_LABEL[pc.win]}</td><td>${esc(r.passageTitle||"—")}</td>
+          <td class="num">${r.wcpm}</td><td class="num">${d===null?"—":(d>0?"+":"")+d}</td>
+          <td class="num" style="color:${pctTone(pc)}">${pctLabel(pc)}</td>
+          <td class="num">${r.accuracy}%</td></tr>`;
+      }).join("")}
+    </table>`;
+  }else{
+    $("#gwDetailTitle").textContent="Every student's progress toward the goal";
+    const rows=DB.students.map(st=>{
+      const rs=recordsFor(st.id);
+      if(!rs.length) return null;
+      const pts=rs.map(r=>({t:new Date(r.date).getTime(), y:r.wcpm}));
+      const t=trendOf(pts);
+      const proj=t?Math.max(0,Math.round(t.at(cfg.date.getTime()))):null;
+      return { st, first:rs[0].wcpm, last:rs[rs.length-1].wcpm, n:rs.length, proj };
+    }).filter(Boolean).sort((a,b)=>(b.proj??b.last)-(a.proj??a.last));
+    if(!rows.length){ $("#gwDetail").innerHTML=`<p class="empty">No checks saved yet.</p>`; return; }
+    $("#gwDetail").innerHTML=`<table>
+      <tr><th>Student</th><th class="num">Checks</th><th class="num">First</th><th class="num">Latest</th><th class="num">Change</th><th class="num">Projected</th><th>Pace</th></tr>
+      ${rows.map(r=>{
+        const d=r.last-r.first;
+        const pace = r.proj===null ? "—" : r.proj>=cfg.goal ? "On pace" : r.proj>=cfg.goal*0.85 ? "Slightly behind" : "Off pace";
+        const tone = r.proj===null ? "var(--muted)" : r.proj>=cfg.goal ? "var(--accent)" : r.proj>=cfg.goal*0.85 ? "var(--warn)" : "var(--err)";
+        return `<tr><td>${esc(lastFirst(r.st.name))}</td><td class="num">${r.n}</td>
+          <td class="num">${r.first}</td><td class="num">${r.last}</td>
+          <td class="num">${d>0?"+":""}${d}</td>
+          <td class="num">${r.proj===null?"—":r.proj}</td>
+          <td style="color:${tone}">${pace}</td></tr>`;
+      }).join("")}
+    </table>
+    <p class="hint">Projections extend each student's own trend line to ${cfg.date.toLocaleDateString(undefined,{month:"long",day:"numeric"})}. With only two or three checks they swing a lot — treat them as a rough signal, not a prediction.</p>`;
+  }
+}
+$("#gwStudent").addEventListener("change", renderGrowth);
+$("#gwBench").addEventListener("change", ()=>{ DB.settings.showBench=$("#gwBench").checked; saveDB(); renderGrowth(); });
+$("#gwGoal").addEventListener("change", ()=>{
+  DB.settings.goalWcpm=Math.max(1,+$("#gwGoal").value||100);
+  DB.settings.goalTouched=true;
+  $("#gwGoal").value=DB.settings.goalWcpm; saveDB(); renderGrowth();
+});
+$("#gwDate").addEventListener("change", ()=>{
+  DB.settings.goalDate=$("#gwDate").value||defaultGoalDate();
+  $("#gwDate").value=DB.settings.goalDate;
+  $("#gwBench").checked=DB.settings.showBench!==false; saveDB(); renderGrowth();
+});
+
+/* ---------- gradebook ---------- */
+const gbTicks = new Set();
+function gbRecordFor(sid){
+  const which=$("#gbWhich").value;
+  const sinceVal=$("#gbSince").value;
+  const since = sinceVal ? new Date(sinceVal+"T00:00:00") : null;
+  let recs=DB.records.filter(r=>r.studentId===sid);
+  if(which) recs=recs.filter(r=>r.passageId===which);
+  if(since) recs=recs.filter(r=>new Date(r.date)>=since);
+  return recs.length ? recs[recs.length-1] : null;
+}
+function gbRows(){
+  return DB.students.slice().sort(byLastName).map(st=>({ st, rec:gbRecordFor(st.id) }));
+}
+function renderGradebook(){
+  const sel=$("#gbWhich"), prev=sel.value;
+  sel.innerHTML = `<option value="">Most recent check</option>` +
+    DB.passages.map(p=>`<option value="${p.id}">${esc(p.title)}</option>`).join("");
+  if(prev && (prev==="" || DB.passages.some(p=>p.id===prev))) sel.value=prev;
+
+  const el=$("#gbTable");
+  if(!DB.students.length){ el.innerHTML=`<p class="empty">Add your class on the Students tab and scores will line up here.</p>`; $("#gbSummary").textContent=""; return; }
+  const rows=gbRows();
+  const showAcc=$("#gbAcc").checked;
+  const scored=rows.filter(r=>r.rec).length;
+  $("#gbSummary").textContent = `${scored} of ${rows.length} students have a score in this view.`;
+  el.innerHTML=`<table class="gb">
+    <thead><tr><th></th><th class="no">#</th><th>Student</th><th class="num">WCPM</th>${showAcc?'<th class="num">Accuracy</th>':""}<th>Date</th></tr></thead>
+    <tbody>
+    ${rows.map((r,i)=>`<tr data-sid="${r.st.id}" class="${gbTicks.has(r.st.id)?"done":""}">
+      <td class="tick" data-tick="${r.st.id}">${gbTicks.has(r.st.id)?"●":"○"}</td>
+      <td class="no">${i+1}</td>
+      <td>${esc(lastFirst(r.st.name))}</td>
+      <td class="num wcpm">${r.rec ? r.rec.wcpm : "—"}</td>
+      ${showAcc?`<td class="num">${r.rec ? r.rec.accuracy+"%" : "—"}</td>`:""}
+      <td>${r.rec ? fmtDate(r.rec.date) : ""}</td>
+    </tr>`).join("")}
+    </tbody></table>`;
+}
+$("#gbTable").addEventListener("click", e=>{
+  const t=e.target.closest("[data-tick]"); if(!t) return;
+  const id=t.dataset.tick;
+  if(gbTicks.has(id)) gbTicks.delete(id); else gbTicks.add(id);
+  renderGradebook();
+});
+["#gbWhich","#gbSince","#gbAcc"].forEach(s=>$(s).addEventListener("change", renderGradebook));
+$("#gbBig").addEventListener("change", e=>document.body.classList.toggle("bigtype", e.target.checked));
+$("#gbClearTicks").addEventListener("click", ()=>{ gbTicks.clear(); renderGradebook(); toast("Check marks cleared."); });
+
+function copyText(txt, msg){
+  const done=()=>toast(msg);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>fallback());
+  } else fallback();
+  function fallback(){
+    const ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); done(); }
+    catch(err){ toast("Couldn't copy — use Export CSV instead."); }
+    ta.remove();
+  }
+}
+$("#gbCopyNums").addEventListener("click", ()=>{
+  const rows=gbRows();
+  if(!rows.length){ toast("No students yet."); return; }
+  copyText(rows.map(r=>r.rec?r.rec.wcpm:"").join("\n"), "Scores copied in roster order.");
+});
+$("#gbCopyAll").addEventListener("click", ()=>{
+  const rows=gbRows();
+  if(!rows.length){ toast("No students yet."); return; }
+  const showAcc=$("#gbAcc").checked;
+  const head=["Student","WCPM"].concat(showAcc?["Accuracy"]:[]).join("\t");
+  const body=rows.map(r=>[lastFirst(r.st.name), r.rec?r.rec.wcpm:""].concat(showAcc?[r.rec?r.rec.accuracy+"%":""]:[]).join("\t"));
+  copyText([head].concat(body).join("\n"), "Copied — paste into a spreadsheet.");
+});
+$("#gbCsv").addEventListener("click", ()=>{
+  const rows=gbRows();
+  if(!rows.length){ toast("No students yet."); return; }
+  const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const lines=[["Last name","First name","WCPM","Accuracy %","Passage","Date"].map(q).join(",")]
+    .concat(rows.map(r=>{
+      const p=nameParts(r.st.name);
+      return [p.last,p.first, r.rec?r.rec.wcpm:"", r.rec?r.rec.accuracy:"",
+              r.rec?r.rec.passageTitle:"", r.rec?new Date(r.rec.date).toISOString().slice(0,10):""].map(q).join(",");
+    }));
+  download("fluency-scores.csv", lines.join("\n"), "text/csv");
+});
+
+$("#selPatStudent").addEventListener("change", renderPatterns);
+
+/* ---------- export ---------- */
+function download(name, content, type){
+  const blob=new Blob([content],{type});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},400);
+}
+$("#btnCsv").addEventListener("click", ()=>{
+  if(!DB.records.length){ toast("Nothing to export yet."); return; }
+  const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const head=["Date","Student","Passage","Seconds","Passes","Words read","Errors","Self-corrections","WCPM","Accuracy %","Words missed"];
+  const lines=[head.map(q).join(",")].concat(DB.records.map(r=>{
+    const n=(DB.students.find(s=>s.id===r.studentId)||{}).name||"";
+    return [new Date(r.date).toISOString().slice(0,10),n,r.passageTitle||"",Math.round(r.elapsed),r.passes||1,
+      r.wordsRead,r.errors,r.sc,r.wcpm,r.accuracy,(r.missed||[]).join(" ")].map(q).join(",");
+  }));
+  download("running-records.csv", lines.join("\n"), "text/csv");
+});
+$("#btnBackup").addEventListener("click", ()=>{
+  download("running-records-backup.json", JSON.stringify(DB,null,2), "application/json");
+});
+$("#btnRestore").addEventListener("click", ()=>$("#fileRestore").click());
+$("#fileRestore").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!d.students||!d.records) throw new Error("bad file");
+    if(!confirm("Replace everything currently saved with this backup?")) return;
+    DB=Object.assign({settings:Object.assign({},DEFAULT_SETTINGS)}, d);
+    DB.settings=Object.assign({},DEFAULT_SETTINGS,DB.settings||{});
+    DB.students.sort(byLastName);
+    saveDB(); renderAll(); toast("Backup restored.");
+  }catch(err){ toast("That file isn't a Running Records backup."); }
+  finally{ e.target.value=""; }
+});
+
+/* ---------- tabs ---------- */
+$$("nav.tabs button").forEach(b=>b.addEventListener("click", ()=>{
+  $$("nav.tabs button").forEach(x=>x.setAttribute("aria-selected", x===b ? "true":"false"));
+  ["assess","growth","gradebook","reports","students","passages"].forEach(t=>{
+    $("#tab-"+t).classList.toggle("hidden", t!==b.dataset.tab);
+  });
+  if(b.dataset.tab==="reports") renderReports();
+  if(b.dataset.tab==="gradebook") renderGradebook();
+  if(b.dataset.tab==="growth") renderGrowth();
+  window.scrollTo({top:0});
+}));
+
+/* ---------- boot ---------- */
+function renderAll(){
+  $("#gwGoal").value=DB.settings.goalWcpm;
+  $("#gwDate").value=DB.settings.goalDate;
+  $("#gwBench").checked=DB.settings.showBench!==false;
+  renderSelectors(); renderStudents(); renderPassages(); renderReports(); renderGradebook(); renderGrowth(); resetSession();
+  $("#btnSample").textContent = hasSample() ? "Remove the sample class" : "Add a sample class";
+}
+(async function(){
+  await loadDB();
+  renderAll();
+  const note=$("#storeNote");
+  if(note){
+    note.textContent = (window.storage || HAS_LOCAL)
+      ? "Everything you enter is saved in this browser on this device. Nothing is uploaded anywhere. Download a backup now and then from the Reports tab."
+      : "This browser is blocking storage, so your work will be lost when you close the tab. Download a backup before you finish, or open the file directly instead of inside another page.";
+  }
+})();
+})();
+</script>
+<link rel="stylesheet" href="../suite-theme.css">
+<script src="../suite-sync.js"></script>
+<script src="../suite-nav.js" defer></script>
+<script src="../suite-boot.js" defer></script>
