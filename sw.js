@@ -5,7 +5,7 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v16";
+const CACHE = "classroom-suite-v21";
 
 const SHELL = [
   "./",
@@ -60,7 +60,14 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
-  const sameOrigin = new URL(req.url).origin === self.location.origin;
+  const url = new URL(req.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  /* Sync talks to APIs over GET. Those must never be answered from the cache,
+     or a device would merge against yesterday's copy of the file and quietly
+     undo the other device's work. Left to the browser entirely. Google's font
+     host is deliberately not in here — those we do want cached for offline. */
+  if (/^(www\.googleapis\.com|oauth2\.googleapis\.com|accounts\.google\.com|api\.github\.com)$/.test(url.hostname)) return;
 
   /* Page loads go to the network first, cache second. Cache-first here would
      mean a page that has moved keeps being served from the old cache, with no

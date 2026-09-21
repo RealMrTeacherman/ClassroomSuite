@@ -134,12 +134,14 @@
       btn.innerHTML = '<span class="dot"></span><b class="lbl">Sync</b>';
       var dot = btn.querySelector(".dot"), lbl = btn.querySelector(".lbl");
       window.SuiteSync.onState(function (st, dt) {
-        dot.className = "dot " + (st === "connected" ? "ok" : st === "needsPermission" ? "warn" : st === "error" ? "err" : "");
-        lbl.textContent = st === "connected" ? "Synced" : st === "needsPermission" ? "Reconnect"
-          : st === "error" ? "Sync error" : st === "unsupported" ? "Local only" : "Sync";
+        dot.className = "dot " + (st === "connected" ? "ok" : st === "needsPermission" || st === "syncing" ? "warn" : st === "error" ? "err" : "");
+        lbl.textContent = st === "connected" ? "Synced" : st === "needsPermission" ? "Sign in"
+          : st === "syncing" ? "Syncing" : st === "error" ? "Sync error"
+          : st === "unsupported" ? "Local only" : "Sync";
         btn.title = st === "connected" ? "Synced with " + dt
           : st === "needsPermission" ? "Click to allow access to the synced file again"
-          : st === "unsupported" ? "This browser cannot write to a file directly"
+          : st === "syncing" ? "Talking to the repository"
+          : st === "unsupported" ? "Nothing is syncing on this device"
           : st === "error" ? dt : "Click to connect a file";
       });
       btn.onclick = function () { syncMenu(); };
@@ -193,31 +195,77 @@
 
   function backupMenu() {
     var S = window.SuiteSync;
-    sheet("Move data between devices",
-      "Safari cannot hold a live link to a file, so this moves it by hand. One file, all three tools.",
-      [
-        { label: "Save a backup", hint: "share it to Drive, Files or another device", run: function () {
-            S.exportFile().then(function (r) {
-              if (r.how === "cancelled") return;
-              say(r.how === "share" ? "Shared " + r.name + "." : "Saved " + r.name + " to your downloads.");
-            }).catch(function (e) { say("Could not save: " + (e.message || e)); });
-          } },
-        { label: "Load a backup", hint: "replaces what is on this device", run: function () {
-            S.importFile().then(function (changed) {
-              if (!changed.length) { say("Nothing in that file was newer."); return; }
-              say("Loaded. Reloading to pick it up.");
-              setTimeout(function () { location.reload(); }, 900);
-            }).catch(function (e) {
-              if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
-            });
-          } }
-      ]);
+    var opts = [];
+
+    if (S.backend === "folder") {
+      opts.push({ label: "Check the folder now", hint: S.folderName, run: function () {
+        S.syncNow().then(function (changed) {
+          say(changed && changed.length ? "Picked up changes. Reloading." : "Nothing new in the folder.");
+          if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
+        }).catch(function (e) { say("Could not read the folder: " + (e.message || e)); });
+      } });
+    } else if (!S.folderSupported && !S.backend) {
+      /* the phone's whole job: hand the file to the desktop's watched folder */
+      opts.push({ label: "Send to my desktop", hint: "share it into the handoff folder", run: function () {
+        S.exportFile().then(function (r) {
+          if (r.how === "cancelled") return;
+          say(r.how === "share" ? "Sent. Drop it in the handoff folder and the desktop takes it from there."
+            : "Saved " + r.name + ". Put it in the handoff folder.");
+        }).catch(function (e) { say("Could not send: " + (e.message || e)); });
+      } });
+    }
+    if (S.backend === "drive" || S.backend === "github") {
+      var where = S.backend === "drive"
+        ? (S.drive.email || S.drive.fileName + " in your Drive")
+        : S.github.owner + "/" + S.github.repo;
+      opts.push({ label: "Sync now", hint: where, run: function () {
+        S.syncNow().then(function (changed) {
+          var m = S.lastMerge;
+          if (m && m.conflicts) say("Synced. " + m.conflicts + " edited in two places; this device kept.");
+          else say(changed && changed.length ? "Synced \u2014 picked up changes. Reloading." : "Synced \u2014 already up to date.");
+          if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
+        }).catch(function (e) { say("Sync failed: " + (e.message || e)); });
+      } });
+    } else if (S.folderSupported) {
+      opts.push({ label: "Set up syncing", hint: "watch a handoff folder", run: function () {
+        /* the form lives in the gradebook's Setup tab; all three tools share
+           one origin, so setting it up there sets it up for all of them */
+        location.href = base() + "gradebook/#setup";
+      } });
+    }
+
+    if (!(!S.folderSupported && !S.backend)) opts.push({ label: "Save a backup", hint: "share it to Drive, Files or another device", run: function () {
+      S.exportFile().then(function (r) {
+        if (r.how === "cancelled") return;
+        say(r.how === "share" ? "Shared " + r.name + "." : "Saved " + r.name + " to your downloads.");
+      }).catch(function (e) { say("Could not save: " + (e.message || e)); });
+    } });
+    opts.push({ label: "Load a backup", hint: "replaces what is on this device", run: function () {
+      S.importFile().then(function (changed) {
+        if (!changed.length) { say("Nothing in that file was newer."); return; }
+        say("Loaded. Reloading to pick it up.");
+        setTimeout(function () { location.reload(); }, 900);
+      }).catch(function (e) {
+        if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
+      });
+    } });
+
+    sheet(S.backend ? "Syncing" : "Move data between devices",
+      S.backend === "drive" ? "Every device signed in to the same Google account stays in step."
+        : S.backend === "github" ? "Every device set up with the repository stays in step."
+        : "Nothing is syncing on this device yet.",
+      opts);
   }
 
   function syncMenu() {
     var S = window.SuiteSync;
     if (!S) return;
-    if (!S.supported) { backupMenu(); return; }
+    if (S.backend === "drive" && S.state === "needsPermission") {
+      S.signInDrive().then(function () { say("Signed in \u2014 syncing again."); })
+        .catch(function (e) { say("Could not sign in: " + (e.message || e)); });
+      return;
+    }
+    if (!S.supported || S.backend === "github" || S.backend === "drive") { backupMenu(); return; }
     if (S.state === "needsPermission") {
       S.ensurePermission().then(function (ok) {
         if (ok) S.pull(false).then(function () { say("Reconnected."); });
