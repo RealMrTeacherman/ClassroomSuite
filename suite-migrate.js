@@ -28,12 +28,28 @@
   /* Turn one subject's stepper into an open field, keeping whatever has
      already been recorded as the text it used to display.
 
-     The first version of this handled only `ul`, so a `uwd` subject would
-     have had its unit, week and day thrown away and replaced with an empty
-     string. posToText covers all three schemas now. Devices that already ran
-     the Science pass keep their flag and are not touched again. */
-  function toFreeText(id, flag) {
-    if (done()[flag]) return;
+     This one is NOT flagged, and that is deliberate. Flagged migrations run
+     once and trust that they worked; this one had two ways to be wrongly
+     marked done — an older build marked the Science pass complete in cases
+     where it had converted nothing, and a service worker serving a cached
+     copy of this file meant the Writing pass never ran at all while the flag
+     machinery happily believed otherwise. Checking the actual state on every
+     load costs nothing and cannot silently no-op.
+
+     Re-running is safe because the planner has no schema selector: there is
+     no way to set a block back to a stepper from the interface, so this is
+     never fighting a deliberate choice. If one is ever wanted back, add the
+     id to suite:migrations as "open-text-optout": ["writing"] and this
+     leaves it alone.
+
+     The first version handled only `ul`, so a `uwd` subject had its unit,
+     week and day replaced with an empty string. posToText covers all three. */
+  function optedOut(id) {
+    var d = done()["open-text-optout"];
+    return Array.isArray(d) && d.indexOf(id) >= 0;
+  }
+  function toFreeText(id) {
+    if (optedOut(id)) return;
     try {
       var raw = localStorage.getItem(S_KEY);
       if (!raw) return;                       /* planner has not saved yet; try again next boot */
@@ -41,14 +57,12 @@
       if (!Array.isArray(st.subjects)) return;
       var sb = null;
       st.subjects.forEach(function (x) { if (x && x.id === id) sb = x; });
-      if (!sb) { mark(flag); return; }        /* he removed the subject; leave it removed */
+      if (!sb || sb.schema === "free") return;   /* already an open field, or he removed it */
 
       var was = sb.schema;
-      if (was !== "free") {
-        sb.schema = "free";
-        sb.start = { text: "" };
-        localStorage.setItem(S_KEY, JSON.stringify(st));
-      }
+      sb.schema = "free";
+      sb.start = { text: "" };
+      localStorage.setItem(S_KEY, JSON.stringify(st));
 
       var days = JSON.parse(localStorage.getItem(D_KEY) || "{}");
       var changed = false;
@@ -60,7 +74,6 @@
       });
       if (changed) localStorage.setItem(D_KEY, JSON.stringify(days));
     } catch (e) { return; }
-    mark(flag);
   }
 
   /* Health and SEL is real classroom time and he plans it, so it needs its own
@@ -103,7 +116,7 @@
   /* Science and Social Studies covers too much variety to be "Lesson 4", and
      Writing runs on its own rhythm rather than the curriculum's unit, week
      and day. Both are open fields he types into. */
-  toFreeText("science", "science-free-text");
-  toFreeText("writing", "writing-free-text");
+  toFreeText("science");
+  toFreeText("writing");
   addHealthSel();
 })();
