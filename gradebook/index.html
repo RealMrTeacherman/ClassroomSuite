@@ -3207,7 +3207,16 @@ function syncCardHTML() {
   if (SS.folderSupported) {
     h += '<h3 style="margin-top:14px">Watch a handoff folder <span class="tag on" style="margin-left:6px">recommended</span></h3>' +
       '<p class="hint">Pick a folder inside your Google Drive folder on this computer. This watches it, and anything your phone drops in gets merged within a few seconds. Nothing to press at this end.</p>' +
-      '<p class="hint" style="margin-top:6px">No API, no sign-in and no OAuth client, so there is nothing for an administrator to block. Drive is only moving a file, which is what it already does. A folder on a USB stick or a network share works just as well.</p>' +
+      '<p class="hint" style="margin-top:6px">No API, no sign-in and no OAuth client, so there is nothing for an administrator to block. Drive is only moving a file, which is what it already does.</p>' +
+      '<details style="margin-top:8px"><summary class="small" style="cursor:pointer">The picker is not showing my Google Drive</summary>' +
+      '<p class="hint" style="margin-top:6px">The picker shows folders on this computer. Drive appears among them only if <strong>Google Drive for Desktop</strong> is installed and signed in \u2014 that is the thing that makes Drive look like an ordinary folder. Where to find it:</p>' +
+      '<ul class="hint" style="margin:6px 0 0 18px">' +
+      '<li><strong>Windows:</strong> a drive letter under This PC, usually <code class="std">G:\\My Drive</code>.</li>' +
+      '<li><strong>Mac:</strong> <em>Google Drive</em> in the Finder sidebar of the picker. Its real path is inside <code class="std">~/Library</code>, which Finder hides by default \u2014 use the sidebar shortcut, or press \u2318 \u21e7 . to unhide it.</li>' +
+      '<li><strong>Chromebook:</strong> Google Drive is in the picker\u2019s sidebar already, with nothing to install.</li>' +
+      "</ul>" +
+      '<p class="hint" style="margin-top:8px">If Drive for Desktop is not installed and you cannot install it, <strong>use your Downloads folder instead</strong>. Send from the phone to Drive as usual, then open Drive in a browser here and download the file: it lands in Downloads, and this picks it up and tidies it away within seconds. One click rather than none, and nothing to install.</p>' +
+      '<p class="hint" style="margin-top:6px">Any folder both machines can reach works the same way \u2014 OneDrive, Dropbox, a network share, a USB stick. Nothing here is specific to Drive.</p></details>' +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectFolder()">Choose a folder</button>' +
       '<span class="hint">Chrome or Edge on a computer. Your phone does not need this \u2014 it just shares a file in.</span></div>' +
       '<div class="divider"></div>';
