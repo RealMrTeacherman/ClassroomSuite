@@ -41,5 +41,43 @@
     mark("science-free-text");
   }
 
+  /* Health and SEL is real classroom time and he plans it, so it needs its own
+     editable block. A block in the planner is a subject in `lp:settings:v2`,
+     which is data — so this is a migration rather than a change to his file.
+
+     Free-text schema, like Science/SS and WIN: Health and SEL does not march
+     through numbered units, and a wrong guess at a unit scheme would make the
+     block annoying rather than useful.
+
+     Flagged, so if he deletes the block later it stays deleted. If settings
+     have not been written yet this returns without marking, and picks it up on
+     a later load once the planner has saved them — the same shape as the
+     migration above. */
+  function addHealthSel() {
+    if (done()["health-sel-subject"]) return;
+    try {
+      var raw = localStorage.getItem(S_KEY);
+      if (!raw) return;                       /* planner has not saved yet; try again next boot */
+      var st = JSON.parse(raw);
+      if (!Array.isArray(st.subjects)) return;
+      if (st.subjects.some(function (x) { return x.id === "health"; })) { mark("health-sel-subject"); return; }
+
+      var block = {
+        id: "health", name: "Health / SEL", curriculum: "",
+        schema: "free", color: "#6E5A9B", start: { text: "" }, on: true
+      };
+      /* sits with Science/SS rather than at the end, since it is the same
+         kind of block and they read together */
+      var at = -1;
+      st.subjects.forEach(function (x, i) { if (x.id === "science") at = i; });
+      if (at >= 0) st.subjects.splice(at + 1, 0, block);
+      else st.subjects.push(block);
+
+      localStorage.setItem(S_KEY, JSON.stringify(st));
+    } catch (e) { return; }
+    mark("health-sel-subject");
+  }
+
   scienceToFreeText();
+  addHealthSel();
 })();

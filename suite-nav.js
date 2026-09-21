@@ -109,6 +109,13 @@
       a.innerHTML = '<span class="ic">' + p.icon + '</span><b class="lbl">' + p.label + "</b>";
       nav.appendChild(a);
     });
+    var themeBtn = document.createElement("button");
+    themeBtn.type = "button";
+    themeBtn.id = "suitetheme";
+    themeBtn.innerHTML = '<span class="ic">\u25A7</span><b class="lbl">Look</b>';
+    themeBtn.onclick = toggleTheme;
+    nav.appendChild(themeBtn);
+
     installBtn = document.createElement("button");
     installBtn.type = "button";
     installBtn.innerHTML = '<span class="ic">\u2913</span><b class="lbl">Install</b>';
@@ -255,6 +262,27 @@
         : S.backend === "github" ? "Every device set up with the repository stays in step."
         : "Nothing is syncing on this device yet.",
       opts);
+  }
+
+  /* ---------- look ---------- */
+  var THEME_KEY = "suite:theme:v1";
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "textured" ? "textured" : "quiet";
+  }
+  function setTheme(t) {
+    if (t === "textured") document.documentElement.setAttribute("data-theme", "textured");
+    else document.documentElement.removeAttribute("data-theme");
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { }
+    paintTheme();
+  }
+  function toggleTheme() { setTheme(currentTheme() === "textured" ? "quiet" : "textured"); }
+  function paintTheme() {
+    var b = document.getElementById("suitetheme");
+    if (!b) return;
+    var on = currentTheme() === "textured";
+    b.title = on ? "Switch to the quiet look" : "Switch to the textured look";
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.querySelector(".ic").textContent = on ? "\u25A6" : "\u25A7";
   }
 
   function syncMenu() {

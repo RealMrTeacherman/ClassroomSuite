@@ -8,7 +8,7 @@
    of them exactly as it was.
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Zilla+Slab:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
 
 :root {
   /* --- the palette, named once --- */
@@ -157,4 +157,377 @@ body {
     padding-right: env(safe-area-inset-right, 0px);
   }
   header, .timerbar { top: env(safe-area-inset-top, 0px); }
+}
+
+/* ==========================================================================
+   TEXTURED THEME  —  [data-theme="textured"]
+
+   Woven slate for chrome, manila card for panels, ruled paper for notes and
+   passages, pressed wells for tracks and meters. Every texture is a gradient
+   and every edge is a shadow, so there are no image files: nothing extra to
+   fetch, nothing to cache, and it works offline exactly as the quiet look does.
+
+   Type carries most of the tangible feel. Zilla Slab for headings, numerals
+   and marks — a slab takes a letterpress shadow well and makes a 1-4 read as
+   stamped rather than printed. Source Sans 3 for body and controls, which
+   stays legible at arm's length when you are standing over a table.
+
+   Three rules held throughout, each with a test in test-desktop-unchanged.js:
+
+   1. Colour never carries meaning on its own. Every mark keeps its numeral,
+      and nothing here removes one.
+   2. Letterpress shadows are one pixel at low alpha. They turn to mush at two,
+      and contrast is checked against the surface the text actually sits on,
+      not against the page.
+   3. Print stays flat. Texture and gloss on a Synergy entry sheet would be a
+      disaster, so the whole theme lives inside @media screen and cannot reach
+      print at all.
+   ========================================================================== */
+@media screen {
+  [data-theme="textured"] {
+    /* Sampled from the original materials sheet. The four surfaces it names
+       are: woven slate for chrome, manila card for panels, ruled paper for
+       passages and notes, and a pressed well for tracks and meters.
+
+       Two things I had wrong before reading it. "Slate" here is a dark
+       green-black, not a mid grey and not a brown — it is nearly the darkest
+       thing on the page. And the manila card is a near-white cream, barely
+       lighter than the ground: the card is separated by its border and
+       shadow, not by tone. Making the ground a dark tan to force that
+       separation was the error behind two rounds of this. */
+    --suite-paper: #EEE9DD;
+    --suite-paper-2: #E9E4D8;
+    --suite-paper-hi: #F4F1E7;
+    --suite-panel: #F6F2E6;
+    --suite-well: #E0D8C3;
+    --suite-sheet: #FFFDF6;
+
+    /* headings are a slate green, body a warm brown: two inks, not one */
+    --suite-ink: #514A38;
+    --suite-ink-head: #313C3B;
+    --suite-ink-2: #615946;
+    /* the sheet's muted caps sit at 4.33:1 on a card and 4.00 on the ground.
+       This is the nearest value that clears 4.5 on both. */
+    --suite-ink-3: #6C6450;
+    --suite-line: rgba(58, 52, 34, .2);
+    --suite-line-2: rgba(58, 52, 34, .3);
+    --suite-accent: #34615B;
+    --suite-accent-2: #22463F;
+    --suite-accent-soft: #E0EBE0;
+
+    /* the cover: woven slate. Three values, nothing else reads them. */
+    --suite-slate: #2C3633;
+    --suite-slate-2: #232A29;
+    --suite-slate-edge: #151A19;
+
+    --suite-radius: 9px;
+    --suite-radius-sm: 6px;
+    --suite-shadow: 0 1px 0 rgba(255, 255, 250, .8) inset, 0 1px 3px rgba(40, 36, 22, .22), 0 6px 14px rgba(40, 36, 22, .12);
+    --suite-shadow-sm: 0 1px 0 rgba(255, 255, 250, .8) inset, 0 1px 2px rgba(40, 36, 22, .2);
+    --suite-shadow-float: 0 1px 0 rgba(255, 255, 250, .7) inset, 0 4px 12px rgba(40, 36, 22, .34);
+
+    --suite-sans: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --suite-serif: 'Zilla Slab', Georgia, 'Times New Roman', serif;
+
+    /* the gradebook names its own variables; re-point those too */
+    --paper: var(--suite-paper);
+    --panel: var(--suite-panel);
+    --panel-t: rgba(246, 242, 230, .94);
+    --line-strong: rgba(58, 52, 34, .38);
+    --shadow: var(--suite-shadow);
+    --shadow-sm: var(--suite-shadow-sm);
+    --shadow-float: var(--suite-shadow-float);
+    --serif: var(--suite-serif);
+    --s1-bg: #F5E3DA; --s2-bg: #F4EBD2; --s3-bg: #E2EBDF; --s4-bg: #E0E8F0;
+  }
+
+  /* --- the ground: light woven cloth ---
+     The weave threads are near-equal light and dark so it reads as texture
+     rather than tint, and the vertical wash only lifts the top. The earlier
+     version darkened towards 460px, which meant everything below the fold
+     sat in shadow for no reason. */
+  [data-theme="textured"] body {
+    background-color: var(--suite-paper);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255, 255, 248, .5) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(0deg, rgba(58, 52, 34, .045) 0 1px, transparent 1px 4px);
+    background-repeat: repeat, repeat, no-repeat;
+    color: var(--suite-ink);
+    font-family: var(--suite-sans);
+  }
+  [data-theme="textured"] h1,
+  [data-theme="textured"] h2,
+  [data-theme="textured"] h3 { color: var(--suite-ink-head); }
+  [data-theme="textured"] h1,
+  [data-theme="textured"] h2,
+  [data-theme="textured"] h3,
+  [data-theme="textured"] .num,
+  [data-theme="textured"] .mark.v1,
+  [data-theme="textured"] .mark.v2,
+  [data-theme="textured"] .mark.v3,
+  [data-theme="textured"] .mark.v4,
+  [data-theme="textured"] .mark.vnone,
+  [data-theme="textured"] .scale button,
+  [data-theme="textured"] .clock {
+    font-family: var(--suite-serif);
+  }
+
+  /* --- chrome: woven slate, light type, a hard edge --- */
+  [data-theme="textured"] header.app,
+  [data-theme="textured"] header:not(.top),
+  [data-theme="textured"] .timerbar {
+    background-color: var(--suite-slate);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, .045) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, .10) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, var(--suite-slate), var(--suite-slate-2)) !important;
+    border-bottom: 1px solid var(--suite-slate-edge) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .13) inset, 0 3px 8px rgba(20, 16, 10, .34);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    color: #FBF9F1;
+  }
+  /* on slate the letterpress inverts: the shadow goes below, not above */
+  [data-theme="textured"] header.app .brandrow h1,
+  [data-theme="textured"] header .hbar,
+  [data-theme="textured"] header.app h1 {
+    color: #F4F1E6;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
+  }
+  [data-theme="textured"] header.app .meta,
+  [data-theme="textured"] header.app .saveflag,
+  [data-theme="textured"] nav.tabs { gap: 3px; padding-top: 2px; }
+  [data-theme="textured"] nav.tabs button {
+    color: #C4BDA9;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 7px 7px 0 0;
+    padding-bottom: 9px;
+    margin-bottom: -1px;
+  }
+  [data-theme="textured"] nav.tabs button:hover {
+    color: #FBF9F1;
+    background: rgba(255, 246, 226, .09);
+  }
+  [data-theme="textured"] header:not(.top) .hbar,
+  [data-theme="textured"] header:not(.top) .hbar h1,
+  [data-theme="textured"] header:not(.top) .hbar p,
+  [data-theme="textured"] header:not(.top) .hbar a,
+  [data-theme="textured"] header:not(.top) .brand h1 {
+    color: #F4F1E6;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
+  }
+  [data-theme="textured"] header:not(.top) .brand span,
+  [data-theme="textured"] header:not(.top) .hbar .sub {
+    color: #BCB5A1;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+  }
+  /* the planner's brand mark is an element called .mark too, and it is a logo
+     rather than a score. Keep the score treatment off it. */
+  [data-theme="textured"] .brand .mark {
+    background-image: none;
+    border: 0;
+    box-shadow: none;
+  }
+  /* the open tab is a piece of the manila lifted out of the cover, joined to
+     the page below rather than floating on the bar */
+  [data-theme="textured"] nav.tabs button[aria-selected="true"] {
+    background-image: linear-gradient(180deg, #F9F6EC, #F1EDDF);
+    border-color: var(--suite-slate-edge);
+    color: #313C3B;
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 -2px 4px rgba(20, 14, 6, .22);
+  }
+  [data-theme="textured"] .segmented {
+    background: var(--suite-well);
+    border-color: rgba(40, 36, 22, .34);
+    box-shadow: 0 1px 3px rgba(40, 36, 22, .3) inset;
+  }
+  [data-theme="textured"] .segmented button { color: #6C6450; text-shadow: 0 1px 0 rgba(255, 255, 250, .7); }
+  [data-theme="textured"] .segmented button {
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+  }
+  [data-theme="textured"] .segmented button[aria-pressed="true"] {
+    background-image: linear-gradient(180deg, #FDFBF4, #F0EBDE);
+    border-color: rgba(40, 36, 22, .38);
+    color: #313C3B;
+    text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 1px 2px rgba(20, 14, 6, .3);
+  }
+
+  /* Inside a card the surface is lighter, so the muted grey can be too. Custom
+     properties inherit, so this reaches every hint, caption and secondary line
+     in a panel without naming any of them, and anything sitting on the bare
+     ground keeps the darker value. */
+  [data-theme="textured"] .card,
+  [data-theme="textured"] .panel,
+  [data-theme="textured"] .sheet,
+  [data-theme="textured"] .tile,
+  [data-theme="textured"] .box,
+  [data-theme="textured"] .group {
+    --suite-ink-3: #6C6450;
+    --ink-3: #6C6450;
+    --muted: #6C6450;
+  }
+
+  /* --- panels: manila card, lifted off the ground --- */
+  [data-theme="textured"] .card,
+  [data-theme="textured"] .panel,
+  [data-theme="textured"] .sheet,
+  [data-theme="textured"] .tile,
+  [data-theme="textured"] .box,
+  [data-theme="textured"] .group {
+    background-image: linear-gradient(180deg, #F9F6EC, #F3EFE1);
+    border: 1px solid rgba(58, 46, 30, .38) !important;
+    box-shadow: var(--suite-shadow-sm) !important;
+  }
+
+  /* --- letterpress, one pixel, low alpha --- */
+  [data-theme="textured"] main h2,
+  [data-theme="textured"] main h3,
+  [data-theme="textured"] th,
+  [data-theme="textured"] label,
+  [data-theme="textured"] .tag,
+  [data-theme="textured"] .hint,
+  [data-theme="textured"] .gname {
+    text-shadow: 0 1px 0 rgba(255, 252, 242, .8);
+  }
+
+  /* --- controls: bone, raised --- */
+  /* The chrome has its own controls — tabs and the subject switch — and they
+     are not bone buttons. Excluding them here is what stops a row of tabs
+     rendering as a row of pushbuttons. */
+  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button),
+  [data-theme="textured"] .btn {
+    font-family: var(--suite-sans);
+    background-image: linear-gradient(180deg, #FDFBF4, #EEE9DC);
+    background-color: #F5F1E6;
+    border: 1px solid rgba(58, 46, 30, .46);
+    border-radius: var(--suite-radius-sm);
+    color: var(--suite-ink);
+    text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 1px 2px rgba(35, 27, 16, .28);
+  }
+  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button):hover:not(:disabled),
+  [data-theme="textured"] .btn:hover:not(:disabled) { background-image: linear-gradient(180deg, #FFFFFA, #E6E0D0); }
+  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button):active:not(:disabled),
+  [data-theme="textured"] .btn:active:not(:disabled) {
+    background-image: linear-gradient(180deg, #E4DECE, #F5F1E6);
+    box-shadow: 0 2px 5px rgba(35, 27, 16, .34) inset;
+  }
+  [data-theme="textured"] .btn.primary,
+  [data-theme="textured"] button.primary {
+    background-image: linear-gradient(180deg, #3F726A, #2A544E);
+    border-color: #1B3C36;
+    color: #F3FAF8;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .26) inset, 0 1px 2px rgba(35, 27, 16, .36);
+  }
+  [data-theme="textured"] .btn.danger,
+  [data-theme="textured"] button.danger {
+    background-image: linear-gradient(180deg, #A8503A, #833B28);
+    border-color: #632A1B;
+    color: #FFF4F0;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .42);
+  }
+
+  /* --- the 1-4 chips: bone and raised until pressed, then stamped ---
+     This is the one loud element. Unpressed they read as bone with a bevel;
+     pressed they take the mark's colour with a gloss and an inner shadow, so
+     a marked row is scannable from across the room. The numeral never goes
+     away, so the colour is never the only thing saying which mark it is. */
+  [data-theme="textured"] .scale button {
+    background-image: linear-gradient(180deg, #FDFBF4, #EBE5D8);
+    border: 1px solid rgba(58, 52, 34, .42);
+    color: #5F5847;
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(255, 253, 246, .9);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .95) inset, 0 1px 2px rgba(35, 27, 16, .26);
+  }
+  [data-theme="textured"] .scale button[aria-pressed="true"] {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(0, 0, 0, .18));
+    color: #FFFBF2;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
+    box-shadow: 0 1px 3px rgba(20, 14, 6, .5) inset, 0 1px 0 rgba(255, 253, 246, .5);
+  }
+  /* Mark 2 is a gold, and gold is light: a white numeral on it comes out at
+     3.85:1, which is under the bar. Deepening the gloss on that one chip
+     alone carries it to 5.3 without touching the mark colour itself. */
+  [data-theme="textured"] .scale button[data-v="2"][aria-pressed="true"] {
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .26));
+  }
+  [data-theme="textured"] .mark.v1,
+  [data-theme="textured"] .mark.v2,
+  [data-theme="textured"] .mark.v3,
+  [data-theme="textured"] .mark.v4 {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .5), rgba(0, 0, 0, .06));
+    border: 1px solid rgba(58, 46, 30, .3);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .6) inset, 0 1px 1px rgba(35, 27, 16, .22);
+    font-weight: 600;
+  }
+  [data-theme="textured"] .mark.vnone {
+    background-image: none;
+    background-color: rgba(58, 46, 30, .05);
+    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
+  }
+
+  /* --- ruled paper: notes and reading passages --- */
+  [data-theme="textured"] textarea,
+  [data-theme="textured"] .passage,
+  [data-theme="textured"] .reading,
+  [data-theme="textured"] input.note {
+    background-color: var(--suite-sheet);
+    background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
+    background-attachment: local;
+    line-height: 26px;
+    border: 1px solid rgba(58, 46, 30, .4);
+    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
+  }
+
+  /* --- pressed wells: fields, tracks and meters are cut into the surface --- */
+  [data-theme="textured"] input[type="text"],
+  [data-theme="textured"] input[type="date"],
+  [data-theme="textured"] input[type="number"],
+  [data-theme="textured"] input[type="password"],
+  [data-theme="textured"] select {
+    font-family: var(--suite-sans);
+    background-image: linear-gradient(180deg, var(--suite-well), #FCFAF2 8px);
+    border: 1px solid rgba(58, 52, 34, .4);
+    border-radius: var(--suite-radius-sm);
+    box-shadow: 0 1px 3px rgba(35, 27, 16, .2) inset;
+  }
+  [data-theme="textured"] .wbar,
+  [data-theme="textured"] .track,
+  [data-theme="textured"] progress,
+  [data-theme="textured"] .meter,
+  [data-theme="textured"] .segmented {
+    background-color: var(--suite-well);
+    border-radius: 99px;
+    box-shadow: 0 1px 3px rgba(35, 27, 16, .38) inset, 0 1px 0 rgba(255, 253, 246, .6);
+  }
+  [data-theme="textured"] .bar {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .36), rgba(0, 0, 0, .14));
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .3) inset;
+  }
+
+  /* the corner switcher belongs to the chrome, not the page */
+  [data-theme="textured"] #suitenav,
+  [data-theme="textured"] #suitesheet {
+    background-image: linear-gradient(180deg, var(--suite-slate), var(--suite-slate-2)) !important;
+    border: 1px solid var(--suite-slate-edge) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .13) inset, 0 4px 14px rgba(20, 16, 10, .5) !important;
+    color: #FBF9F1;
+  }
+  [data-theme="textured"] #suitenav a,
+  [data-theme="textured"] #suitenav button,
+  [data-theme="textured"] #suitesheet > b,
+  [data-theme="textured"] #suitesheet button { color: #EFEADD; }
+  [data-theme="textured"] #suitesheet > i,
+  [data-theme="textured"] #suitesheet button em { color: #A9A294; }
+  [data-theme="textured"] #suitenav a[aria-current="page"] { background: rgba(255, 255, 255, .13); }
 }
