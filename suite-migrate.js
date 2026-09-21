@@ -11,34 +11,56 @@
     try { localStorage.setItem(FLAG, JSON.stringify(d)); } catch (e) { }
   }
 
-  /* Science and Social Studies covers too much variety to be "Lesson 4", so it
-     moves to the planner's free-text schema. Anything already recorded keeps
-     its wording rather than being thrown away. */
-  function scienceToFreeText() {
-    if (done()["science-free-text"]) return;
-    var changed = false;
+  /* Reading a position back as text.
+     Matches the planner's own fmt() wording, so a day that used to show
+     "U2 · W1 · D3" still says exactly that once the block is free text. */
+  function posToText(schema, p) {
+    if (!p) return "";
+    if (p.text != null) return String(p.text);
+    if (schema === "uwd" && p.unit != null) {
+      return "U" + p.unit + " \u00b7 W" + (p.week || 1) + " \u00b7 D" + (p.day || 1);
+    }
+    if (schema === "ul" && p.unit != null) return "U" + p.unit + " \u00b7 L" + (p.lesson || 1);
+    if (p.lesson != null) return "L" + p.lesson;
+    return "";
+  }
+
+  /* Turn one subject's stepper into an open field, keeping whatever has
+     already been recorded as the text it used to display.
+
+     The first version of this handled only `ul`, so a `uwd` subject would
+     have had its unit, week and day thrown away and replaced with an empty
+     string. posToText covers all three schemas now. Devices that already ran
+     the Science pass keep their flag and are not touched again. */
+  function toFreeText(id, flag) {
+    if (done()[flag]) return;
     try {
       var raw = localStorage.getItem(S_KEY);
-      if (!raw) return;                       /* nothing saved yet; the default already says free */
+      if (!raw) return;                       /* planner has not saved yet; try again next boot */
       var st = JSON.parse(raw);
-      var sci = (st.subjects || []).find(function (x) { return x.id === "science"; });
-      if (sci && sci.schema !== "free") {
-        sci.schema = "free";
-        sci.start = { text: "" };
+      if (!Array.isArray(st.subjects)) return;
+      var sb = null;
+      st.subjects.forEach(function (x) { if (x && x.id === id) sb = x; });
+      if (!sb) { mark(flag); return; }        /* he removed the subject; leave it removed */
+
+      var was = sb.schema;
+      if (was !== "free") {
+        sb.schema = "free";
+        sb.start = { text: "" };
         localStorage.setItem(S_KEY, JSON.stringify(st));
-        changed = true;
       }
+
       var days = JSON.parse(localStorage.getItem(D_KEY) || "{}");
+      var changed = false;
       Object.keys(days).forEach(function (k) {
-        var e = days[k] && days[k].entries && days[k].entries.science;
-        if (!e || !e.pos) return;
-        if (e.pos.text != null) return;
-        e.pos = { text: e.pos.lesson ? "Lesson " + e.pos.lesson : "" };
+        var e = days[k] && days[k].entries && days[k].entries[id];
+        if (!e || !e.pos || e.pos.text != null) return;
+        e.pos = { text: posToText(was, e.pos) };
         changed = true;
       });
       if (changed) localStorage.setItem(D_KEY, JSON.stringify(days));
     } catch (e) { return; }
-    mark("science-free-text");
+    mark(flag);
   }
 
   /* Health and SEL is real classroom time and he plans it, so it needs its own
@@ -78,6 +100,10 @@
     mark("health-sel-subject");
   }
 
-  scienceToFreeText();
+  /* Science and Social Studies covers too much variety to be "Lesson 4", and
+     Writing runs on its own rhythm rather than the curriculum's unit, week
+     and day. Both are open fields he types into. */
+  toFreeText("science", "science-free-text");
+  toFreeText("writing", "writing-free-text");
   addHealthSel();
 })();
