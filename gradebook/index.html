@@ -1909,6 +1909,10 @@ function renderSetup() {
   const el = document.getElementById("panel-setup");
   let html = '<div class="stack">';
 
+  /* Also here, not only on Students: this is where the roster is managed, and
+     a notice nobody walks past is a notice nobody reads. */
+  html += duplicateNoticeHTML();
+
   html += syncCardHTML();
 
   html += '<div class="card pad"><h2>Class</h2><div class="row" style="margin-top:8px">' +

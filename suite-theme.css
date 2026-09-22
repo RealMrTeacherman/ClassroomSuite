@@ -146,12 +146,18 @@ body {
    label is spelled out, Gradebook through Synced — and it sat on top of the
    last row of whatever was on screen. With a class of 29 that is the bottom
    student's "no work" button and note field, permanently covered by a pill
-   that swallows the tap. It reads as the gradebook refusing to take a mark
-   rather than as a layout fault, which is exactly what it was reported as.
-   The switcher is fixed at every width, so the clearance belongs at every
-   width. */
-.wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
-main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+   that swallows the tap.
+
+   It is on `body`, not on `.wrap` and `main`. Those were the obvious targets
+   and they were wrong: the planner wraps its *header* contents in a
+   `.wrap` too, so 96px of padding landed inside the header and left a band
+   of empty slate under the tabs about as tall as the header itself. `body`
+   is the one box that is the page in all four tools, and none of them
+   constrain its height, so extending it simply lets the last row scroll
+   clear of the switcher. */
+body {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+}
 
 /* All three tools ask for viewport-fit=cover, which hands the full screen over
    and puts the status bar and the home indicator on top of the page. Holding
@@ -416,7 +422,24 @@ main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   /* The chrome has its own controls — tabs and the subject switch — and they
      are not bone buttons. Excluding them here is what stops a row of tabs
      rendering as a row of pushbuttons. */
-  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button),
+  /* `:not(:where(...))`, not `:not(...)`, and the difference is the whole
+     reason a pressed mark chip looked exactly like an unpressed one.
+
+     `:not()` takes the specificity of its most specific argument, and
+     `nav.tabs button` is (0,1,2). Two of them on top of
+     `[data-suite-theme="textured"] button` gave this rule (0,3,4) — which
+     outranks the gradebook's own `.scale button[data-v="1"][aria-pressed="true"]`
+     at (0,3,1), the theme's pressed-chip rule at the same (0,3,1), and every
+     button variant below at (0,3,0). So every button in this theme came out
+     bone whatever its state or class: the 1-4 scale never took a mark colour,
+     and brass, primary and destructive never appeared at all. It read as the
+     gradebook not registering the tap, which is what it was reported as, and
+     the marks were being recorded the whole time — switching to the quiet
+     look showed them.
+
+     `:where()` contributes no specificity, so the same elements are excluded
+     and the rule drops to (0,1,1), under everything that needs to beat it. */
+  [data-suite-theme="textured"] button:not(:where(nav.tabs button, .segmented button)),
   [data-suite-theme="textured"] .btn {
     font-family: var(--suite-sans);
     background-image: linear-gradient(180deg, #FDFBF4, #EEE9DC);
@@ -427,9 +450,9 @@ main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
     text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
     box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 1px 2px rgba(35, 27, 16, .28);
   }
-  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button):hover:not(:disabled),
+  [data-suite-theme="textured"] button:not(:where(nav.tabs button, .segmented button)):hover:not(:disabled),
   [data-suite-theme="textured"] .btn:hover:not(:disabled) { background-image: linear-gradient(180deg, #FFFFFA, #E6E0D0); }
-  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button):active:not(:disabled),
+  [data-suite-theme="textured"] button:not(:where(nav.tabs button, .segmented button)):active:not(:disabled),
   [data-suite-theme="textured"] .btn:active:not(:disabled) {
     background-image: linear-gradient(180deg, #E4DECE, #F5F1E6);
     box-shadow: 0 2px 5px rgba(35, 27, 16, .34) inset;
