@@ -108,6 +108,20 @@ body {
   * { transition: none !important; animation: none !important; }
 }
 
+/* ---- The planner's day arrows hold still ------------------------------
+   Off today, the planner adds a Today button after the › arrow. The date
+   block between the arrows is flex:1, so that button took its room from
+   the date and shoved › about 80px to the left — and Today landed exactly
+   where › had been. The second press of the same spot went back to today,
+   so the arrows appeared to swap between today and tomorrow and never got
+   further. The logic was right all along; the target moved.
+
+   Visual order only: Today now sits between the date and ›, so both arrows
+   are pinned to the ends of the row whatever else appears. The planner's
+   markup is untouched. Keyboard order stays ‹, ›, Today, as in the DOM. */
+.datenav .arrow[data-nav="1"] { order: 2; }
+.datenav .todaybtn { order: 1; }
+
 /* ==========================================================================
    Mobile layer.
 
@@ -721,4 +735,33 @@ body {
     outline: 2px solid var(--suite-ink);
     outline-offset: 3px;
   }
+}
+
+/* ---- Textured theme: the running-records tool's own surfaces ---------- */
+@media screen {
+  /* The pale tab ink is written for tabs sitting on slate chrome, which is
+     where the gradebook's are. The running-records tool's tabs sit on a
+     manila card inside the page column, where that ink measured 1.68:1.
+     Scoped to a tab row that is a direct child of .wrap, which is only that
+     tool; the gradebook's row is inside its header and keeps the pale ink. */
+  [data-suite-theme="textured"] .wrap > nav.tabs button:not([aria-selected="true"]) {
+    color: #615946;
+    text-shadow: 0 1px 0 rgba(255, 253, 246, .7);
+  }
+  [data-suite-theme="textured"] .wrap > nav.tabs button:not([aria-selected="true"]):hover {
+    color: #313C3B;
+    background: rgba(40, 36, 22, .06);
+  }
+  /* The theme turns the timer bar into slate chrome but its counts and cue
+     kept their brown card ink: 1.4 to 1.8:1, in the one strip you read at a
+     glance while a child is reading. Light inks, each checked on slate. */
+  [data-suite-theme="textured"] .timerbar .tally,
+  [data-suite-theme="textured"] .timerbar .cue {
+    color: #D9D2BE;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+  }
+  [data-suite-theme="textured"] .timerbar .tally b { color: #FBF9F1; }
+  [data-suite-theme="textured"] .timerbar .cue.act { color: #F2C66D; }
+  [data-suite-theme="textured"] .timerbar .clock.low { color: #F4A08C; }
+  [data-suite-theme="textured"] .timerbar .progress { background: rgba(255, 255, 255, .16); }
 }

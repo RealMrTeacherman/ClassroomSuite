@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EDF0F2">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="../icon-192.png">
 <link rel="apple-touch-icon" href="../icon-192.png">
 <style>
 /* The font request lives in suite-theme.css, which asks for these two
@@ -618,6 +619,20 @@ let UI = {
   log: []
 };
 
+/* The day a timestamp falls on *here*. The running-records tool stamps a
+   reading with toISOString(), which is UTC, and taking its first ten
+   characters put anything entered after about 5pm Pacific on the next day —
+   and one on the evening of Nov 30 into the winter window. A bare date is
+   already a local day and is taken as written; so is a stamp with no zone,
+   which the browser reads as local anyway. */
+function localDayOf(v) {
+  const s = String(v == null ? "" : v).trim();
+  if (/^\d{4}-\d{2}-\d{2}T.*(Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+    const d = new Date(s);
+    if (!isNaN(d)) return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  return s.slice(0, 10);
+}
 function todayISO() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function load() {
   try { const raw = window.localStorage.getItem(KEY); if (raw) S = hydrate(JSON.parse(raw)); }
@@ -1420,7 +1435,7 @@ function toISO(v) {
   const s = String(v).trim();
   if (!s) return "";
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-    const p = s.slice(0, 10).split("-");
+    const p = localDayOf(s).split("-");
     return p[0] + "-" + String(Number(p[1])).padStart(2, "0") + "-" + String(Number(p[2])).padStart(2, "0");
   }
   let m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
@@ -1433,7 +1448,7 @@ function toISO(v) {
     return isNaN(d) ? "" : d.toISOString().slice(0, 10);
   }
   const d = new Date(s);
-  return isNaN(d) ? "" : d.toISOString().slice(0, 10);
+  return isNaN(d) ? "" : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 /* iReady writes placements two ways: relative ("1 Grade Level Below") and
    absolute ("Grade 1", "Late K", "Emerging K"). Both need to become a number. */
@@ -2256,12 +2271,20 @@ function importOrfRoster() {
 function syncFromOrf(silent) {
   const db = readOrfDB();
   if (!db) { if (!silent) toast("No ORF tool data found in this browser"); return 0; }
-  let added = 0, unmatched = 0;
+  let added = 0, unmatched = 0, redated = 0;
   db.records.forEach(rec => {
-    if (S.orf.some(r => r.srcId === rec.id)) return;
+    const had = S.orf.find(r => r.srcId === rec.id);
+    if (had) {
+      /* A reading brought in by an older build carries the UTC day. Move it
+         only if it still holds exactly that value, so a date corrected by
+         hand is never touched. Converges: it is wrong every time it is seen. */
+      const utc = String(rec.date || "").slice(0, 10), local = localDayOf(rec.date);
+      if (had.date === utc && local !== utc && /^\d{4}-\d{2}-\d{2}$/.test(local)) { had.date = local; redated++; }
+      return;
+    }
     const st = orfStudentToLocal(rec.studentId, db);
     if (!st) { unmatched++; return; }
-    const d = String(rec.date || "").slice(0, 10);
+    const d = localDayOf(rec.date);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
     S.orf.push({
       id: uid(), srcId: rec.id, sid: st.id, date: d,
@@ -2274,7 +2297,7 @@ function syncFromOrf(silent) {
     });
     added++;
   });
-  if (added) syncOrfScores(); else save();
+  if (added || redated) syncOrfScores(); else save();
   if (!silent) {
     toast(added ? "Brought in " + added + " new reading" + (added === 1 ? "" : "s") + (unmatched ? " \u00b7 " + unmatched + " unmatched" : "")
                 : "Already up to date" + (unmatched ? " \u00b7 " + unmatched + " unmatched" : ""));
@@ -2596,10 +2619,10 @@ function orfImport() {
     if (!st) { missed++; return; }
     const w = Number(String(o[m.wcpm]).replace(/[^0-9.\-]/g, ""));
     if (!isFinite(w) || w <= 0) { bad++; return; }
-    let d = String(o[m.date] || "").slice(0, 10);
+    let d = localDayOf(o[m.date]);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
       const parsed = new Date(o[m.date]);
-      d = isNaN(parsed) ? todayISO() : parsed.toISOString().slice(0, 10);
+      d = isNaN(parsed) ? todayISO() : localDayOf(parsed.toISOString());
     }
     const srcId = o.id || o.recordId || null;
     if (srcId && S.orf.some(r => r.srcId === srcId)) return;

@@ -5,7 +5,7 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v40-7b563ca6";
+const CACHE = "classroom-suite-v41-e43c0726";
 
 const SHELL = [
   "./",
@@ -42,6 +42,19 @@ const SHELL = [
    over, and the previous one keeps serving the old site forever. That failure
    is invisible from the page, so a single stale path could freeze every future
    update. Individual adds mean a missing file costs only that file. */
+/* How long a page load waits on the network before the cached copy answers. */
+const NAV_WAIT_MS = 4000;
+
+/* The cached copy of a page: the page itself (ignoring any query), then that
+   folder's index.html, then the launcher. Resolves undefined if none. */
+function cachedPage(req) {
+  const u = new URL(req.url);
+  u.search = ""; u.hash = "";
+  return caches.match(req, { ignoreSearch: true })
+    .then(hit => hit || (u.pathname.endsWith("/") ? caches.match(new URL("index.html", u).href) : undefined))
+    .then(hit => hit || caches.match("index.html"));
+}
+
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -72,24 +85,39 @@ self.addEventListener("fetch", e => {
 
   /* Page loads go to the network first, cache second. Cache-first here would
      mean a page that has moved keeps being served from the old cache, with no
-     way to notice from inside the app. Offline still works: the network throws
-     and the cached copy answers. */
+     way to notice from inside the app.
+
+     Network-first used to wait on the network for as long as the browser
+     would, and school Wi-Fi that is connected but not passing traffic can
+     hold a page blank for most of a minute before the cache is ever asked.
+     Now the cache answers if the network has not within NAV_WAIT_MS; the
+     network request carries on and refreshes the cache for the next load.
+     A cache miss keeps waiting for the network, so nothing gets worse.
+
+     The old fallback also never worked as written: `caches.match()` returns
+     a promise, which is always truthy, so `|| Response.error()` could not
+     be reached, and a tool missing from the cache fell back to the
+     gradebook. It now tries the page, then that folder's index.html, then
+     the launcher. */
   if (req.mode === "navigate") {
-    e.respondWith(
-      fetch(req)
-        .then(res => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then(c => c.put(req, copy)).catch(() => { });
-          }
-          return res;
-        })
-        .catch(() =>
-          caches.match(req).then(hit =>
-            hit || caches.match("gradebook/index.html") || Response.error()
-          )
-        )
-    );
+    const net = fetch(req).then(res => {
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => { });
+      }
+      return res;
+    });
+    e.waitUntil(net.catch(() => { }));
+    e.respondWith(new Promise(resolve => {
+      let done = false;
+      const finish = r => { if (!done && r) { done = true; resolve(r); } };
+      const timer = setTimeout(() => { cachedPage(req).then(finish); }, NAV_WAIT_MS);
+      net.then(res => { clearTimeout(timer); finish(res); })
+        .catch(() => {
+          clearTimeout(timer);
+          cachedPage(req).then(hit => finish(hit || Response.error()));
+        });
+    }));
     return;
   }
 

@@ -447,7 +447,7 @@
       "#subprint{display:none}" +
       "@media print{body[data-subprint] > *{display:none !important}" +
       "body[data-subprint] > #subprint{display:block !important}}" +
-      "#subbtn{position:fixed;right:20px;bottom:64px;z-index:2147482999;display:flex;align-items:center;gap:6px;" +
+      "#subbtn{position:fixed;right:20px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:2147482999;display:flex;align-items:center;gap:6px;" +
       "padding:9px 16px;border-radius:999px;border:1px solid rgba(16,24,32,.1);background:rgba(255,255,255,.92);" +
       "box-shadow:0 2px 10px rgba(16,24,32,.12);cursor:pointer;color:#14202A;" +
       "font:600 13px 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}" +
