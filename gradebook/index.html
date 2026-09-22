@@ -109,8 +109,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .btn:hover{background:#F7F9FA}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none}
 .btn.primary:hover{background:var(--accent-2)}
+/* Notices: something worth a look, or something that went fine. A rule down
+   the left rather than a fill, so a page of them still reads as paper. */
+.notice{display:flex;gap:9px;align-items:baseline;padding:9px 12px;border:1px solid var(--line);
+  border-radius:var(--radius-sm);background:var(--panel);margin:10px 0}
+.notice b{font-weight:600}
+.notice.warn{border-left:4px solid var(--s2)}
+.notice.ok{border-left:4px solid var(--accent)}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--accent);box-shadow:none;font-weight:500}
 .btn.ghost:hover{background:var(--accent-soft)}
+/* Brass: a bulk action that is consequential but not destructive. Dark ink on
+   the gold, not white — white on this gold is 2.6:1 and the ink is 8.1:1. */
+.btn.brass{background:var(--s2);border-color:var(--s2);color:#2A2012;box-shadow:none;font-weight:600}
+.btn.brass:hover{filter:brightness(1.06)}
 .btn.danger{color:var(--s1);border-color:var(--s1);background:var(--panel);box-shadow:none}
 .btn.danger:hover{background:var(--s1-bg)}
 .btn.sm{padding:5px 10px;font-size:12.5px}
@@ -786,7 +797,7 @@ function renderEnter() {
     html += '<div class="card"><div class="pad" style="padding-bottom:8px"><div class="sectionhead" style="margin:0">' +
       "<h2>" + esc(std.lbl) + "</h2><span class=\"spacer\"></span>" +
       '<span class="hint" style="max-width:320px">Tap a number. It saves as you go. Tap the same number again to clear.</span>' +
-      '<button class="btn primary" onclick="logRestAsMissing()">Log the rest as not turned in</button>' +
+      '<button class="btn brass" onclick="logRestAsMissing()">Log the rest as not turned in</button>' +
       (UI.lastMissingBatch && UI.lastMissingBatch.length ? '<button class="btn sm" onclick="undoMissingBatch()">Undo those ' + UI.lastMissingBatch.length + "</button>" : "") +
       "</div></div>";
     html += '<div id="rosterlist">';
@@ -1228,8 +1239,15 @@ function renderGroups() {
   ireadyGrowthFlags(subj).forEach(f => flags.push(f));
   html += '<div class="divider"></div><h2>Worth a look</h2>';
   if (!flags.length) {
-    html += '<div class="card empty">Nothing flagged. Come back after a few more entries.</div>';
+    html += '<div class="notice ok"><b>Nothing flagged.</b><span>Come back after a few more entries.</span></div>';
   } else {
+    const slipping = flags.filter(f => f.t === "down").length;
+    html += '<div class="notice warn"><b>Worth a look</b><span>' +
+      (slipping
+        ? slipping + " student" + (slipping === 1 ? "" : "s") + " slipped on a standard" +
+          (flags.length > slipping ? ", and " + (flags.length - slipping) + " other flag" + (flags.length - slipping === 1 ? "" : "s") : "")
+        : flags.length + " flag" + (flags.length === 1 ? "" : "s") + " to read") +
+      ".</span></div>";
     html += '<div class="card"><table><thead><tr><th>Student</th><th>What stands out</th></tr></thead><tbody>' +
       flags.slice(0, 30).map(f => '<tr><td><span class="tag flag" style="padding:1px 8px;border-radius:12px">' + (f.t === "down" ? "Slipping" : f.t === "mix" ? "Mismatch" : f.t === "growth" ? "Flat growth" : "Thin data") + "</span> " + esc(f.who) + "</td><td>" + esc(f.why) + "</td></tr>").join("") +
       "</tbody></table></div>";
@@ -1274,7 +1292,8 @@ function renderStudents() {
   if (!roster.find(s => s.id === UI.studentSel)) UI.studentSel = roster[0].id;
   const st = S.students.find(s => s.id === UI.studentSel);
 
-  let html = '<div class="stack"><div class="card pad"><div class="row">' +
+  /* surfaced here, where the roster is, rather than left for report cards */
+  let html = '<div class="stack">' + duplicateNoticeHTML() + '<div class="card pad"><div class="row">' +
     '<label class="fld">Student<select id="st-sel">' + roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.studentSel ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
     '<span style="flex:1"></span><button class="btn sm" onclick="printStudent()">Print this student</button></div></div>';
 
@@ -2798,6 +2817,69 @@ function mergeStudents(fromId, toId) {
 
   S.students = S.students.filter(s => s.id !== fromId);
   return res;
+}
+
+/* Names that are probably the same child, but not certainly.
+
+   `findDuplicatePairs` handles the two cases it can be sure about: a record
+   with only one name that matches a full one, and the exact same full name
+   twice. Those get merged automatically because there is nothing to weigh up.
+
+   This is the third case, and it must never merge on its own. A roster
+   imported twice in different formats gives you "Mateo Cortes-Vargas" and
+   "Mateo Cortes-Vargas Cortes-Vargas" — the second surname is a maternal
+   surname the other export dropped, and it is one child. But the same shape
+   is also two brothers, or a child and a cousin in the same class, and
+   merging those silently loses a term of marks with no obvious sign that
+   anything happened. So: same first name, and one surname contains the whole
+   of the other as a word, and then a human decides. */
+function likelyDuplicates() {
+  const full = S.students.filter(s => String(s.first || "").trim() && String(s.last || "").trim());
+  const out = [], paired = {};
+  const words = s => normName(s).length ? String(s).toLowerCase().split(/[^a-z]+/).filter(Boolean) : [];
+  full.forEach((a, i) => {
+    full.slice(i + 1).forEach(b => {
+      if (normName(a.first) !== normName(b.first)) return;
+      const la = normName(a.last), lb = normName(b.last);
+      if (la === lb) return;                       /* already handled as an exact repeat */
+      const wa = words(a.last), wb = words(b.last);
+      const shorter = wa.length <= wb.length ? wa : wb;
+      const longer = wa.length <= wb.length ? wb : wa;
+      /* every word of the shorter surname appears in the longer one */
+      if (!shorter.length || !shorter.every(w => longer.includes(w))) return;
+      const key = [a.id, b.id].sort().join("|");
+      if (paired[key]) return;
+      paired[key] = true;
+      /* keep whichever carries more data, offer to fold the other into it */
+      const keep = dataCount(a.id) >= dataCount(b.id) ? a : b;
+      const drop = keep === a ? b : a;
+      out.push({ keep: keep, drop: drop, why: "one surname contains the other" });
+    });
+  });
+  return out;
+}
+function duplicateNoticeHTML() {
+  const pairs = likelyDuplicates();
+  if (!pairs.length) return "";
+  return pairs.map(p =>
+    '<div class="notice warn"><b>Possibly the same student</b><span>' +
+    esc(fullName(p.drop)) + " (" + dataCount(p.drop.id) + " mark" + (dataCount(p.drop.id) === 1 ? "" : "s") + ") and " +
+    esc(fullName(p.keep)) + " (" + dataCount(p.keep.id) + ") \u2014 " + p.why +
+    ". If they are two children, leave this alone.</span>" +
+    '<span style="flex:1"></span>' +
+    '<button class="btn sm" onclick="mergeLikely(\'' + p.drop.id + "','" + p.keep.id + '\')">Merge into ' + esc(fullName(p.keep)) + "</button></div>"
+  ).join("");
+}
+function mergeLikely(dropId, keepId) {
+  const drop = S.students.find(s => s.id === dropId), keep = S.students.find(s => s.id === keepId);
+  if (!drop || !keep) { toast("Those students are no longer here"); return; }
+  if (!confirm("Move everything from " + fullName(drop) + " into " + fullName(keep) + "?\n\nYou can undo this from Setup.")) return;
+  try { window.localStorage.setItem(PREMERGE_KEY, JSON.stringify(S)); } catch (e) { }
+  const r = mergeStudents(dropId, keepId);
+  S.mergeLog = [fullName(drop) + " \u2192 " + fullName(keep) +
+    " (" + r.moved + " moved" + (r.dropped ? ", " + r.dropped + " duplicate marks dropped" : "") + ")"];
+  save(); render();
+  toast("Merged \u00b7 undo from Setup");
 }
 
 function autoMergeDuplicates(silent) {

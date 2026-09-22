@@ -139,11 +139,19 @@ body {
 }
 
 /* The corner switcher floats over the bottom of the page, so every tool needs
-   room under its last row, plus whatever the phone's home bar takes. */
-@media (max-width: 760px) {
-  .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
-  main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
-}
+   room under its last row, plus whatever the phone's home bar takes.
+
+   This was behind `max-width: 760px`, so the clearance only ever existed on a
+   phone. On a desktop the switcher is not smaller, it is *wider* — every
+   label is spelled out, Gradebook through Synced — and it sat on top of the
+   last row of whatever was on screen. With a class of 29 that is the bottom
+   student's "no work" button and note field, permanently covered by a pill
+   that swallows the tap. It reads as the gradebook refusing to take a mark
+   rather than as a layout fault, which is exactly what it was reported as.
+   The switcher is fixed at every width, so the clearance belongs at every
+   width. */
+.wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
 
 /* All three tools ask for viewport-fit=cover, which hands the full screen over
    and puts the status bar and the home indicator on top of the page. Holding
@@ -228,6 +236,12 @@ body {
 
     --suite-sans: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
     --suite-serif: 'Zilla Slab', Georgia, 'Times New Roman', serif;
+    /* Zilla Slab is the heading and numeral face, per the art board's own
+       legend. `--read` is the running-records passage, which is body text
+       read aloud under a timer, so it takes the body face instead. Setting
+       it here rather than leaving it to inherit from --suite-serif is the
+       whole fix; flip it back to var(--suite-serif) if the slab is wanted. */
+    --read: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
     /* the gradebook names its own variables; re-point those too */
     --paper: var(--suite-paper);
@@ -435,6 +449,35 @@ body {
     color: #FFF4F0;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .42);
   }
+  /* Brass: the fifth button on the art board's parts panel, and the only one
+     that was never built. It is for a bulk action that is consequential but
+     not destructive — "log the rest as not turned in" writes a mark against
+     every student you have not got to yet, which is not a bone button's job
+     and is not a red one either. The face is dark on gold rather than light:
+     white on this gold lands at 2.6:1, and the ink carries it to 8.1. */
+  [data-suite-theme="textured"] .btn.brass,
+  [data-suite-theme="textured"] button.brass {
+    background-image: linear-gradient(180deg, #D8A63C, #B4831F);
+    border-color: #8A6315;
+    color: #2A2012;
+    text-shadow: 0 1px 0 rgba(255, 246, 216, .5);
+    box-shadow: 0 1px 0 rgba(255, 249, 226, .5) inset, 0 1px 2px rgba(35, 27, 16, .34);
+  }
+  [data-suite-theme="textured"] .btn.brass:hover:not(:disabled),
+  [data-suite-theme="textured"] button.brass:hover:not(:disabled) {
+    background-image: linear-gradient(180deg, #E4B24A, #A87818);
+  }
+
+  /* Notices: the two strips at the foot of the parts panel. One is a thing
+     worth looking at, one is a thing that went fine. Both carry a rule down
+     the left rather than a fill, so a page of them still reads as paper. */
+  [data-suite-theme="textured"] .notice {
+    background-color: var(--suite-sheet);
+    border: 1px solid rgba(58, 46, 30, .3);
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .7) inset, 0 1px 2px rgba(35, 27, 16, .16);
+  }
+  [data-suite-theme="textured"] .notice.warn { border-left: 4px solid var(--suite-m2); }
+  [data-suite-theme="textured"] .notice.ok { border-left: 4px solid var(--suite-accent); }
 
   /* --- the 1-4 chips: bone and raised until pressed, then stamped ---
      This is the one loud element. Unpressed they read as bone with a bevel;
@@ -478,8 +521,6 @@ body {
 
   /* --- ruled paper: notes and reading passages --- */
   [data-suite-theme="textured"] textarea,
-  [data-suite-theme="textured"] .passage,
-  [data-suite-theme="textured"] .reading,
   [data-suite-theme="textured"] input.note {
     background-color: var(--suite-sheet);
     background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
@@ -489,11 +530,49 @@ body {
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
 
+  /* The reading passage is ruled paper too, but it is not a note and it
+     cannot take the note's measurements.
+
+     Two things were wrong here. The pitch: the rules repeat every 26px and
+     the line-height was forced to 26px to match, but the passage is set at
+     24px with a line-height of 2.05 and every word is an inline-block with
+     its own padding, so the line boxes land around 40px apart whatever this
+     rule says. The rules and the text could not line up, and the result is
+     stripes behind the text rather than paper under it. The pitch is now the
+     passage's own line box, so they sit on the lines.
+
+     And the face: `--read` resolved to `--suite-serif`, which this theme
+     re-points to Zilla Slab. The art board is explicit that Zilla Slab is
+     for "headings, numerals, marks" and that Source Sans 3 is the one that
+     "stays legible at small sizes" — and of everything in the suite, the
+     passage a seven-year-old reads aloud against a stopwatch is the last
+     text that should be set in a display slab. */
+  [data-suite-theme="textured"] .passage,
+  [data-suite-theme="textured"] .reading {
+    background-color: var(--suite-sheet);
+    background-image: repeating-linear-gradient(180deg, transparent 0 48px, rgba(96, 116, 130, .28) 48px 49px);
+    background-attachment: local;
+    line-height: 49px;
+    border: 1px solid rgba(58, 46, 30, .4);
+    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
+  }
+  /* the words are inline-blocks, so their own box drives the line: keep it
+     inside the 49px so the text sits on the rule rather than drifting off it */
+  [data-suite-theme="textured"] .passage .w {
+    margin: 0;
+    padding: 0 4px;
+  }
+
   /* --- pressed wells: fields, tracks and meters are cut into the surface --- */
   [data-suite-theme="textured"] input[type="text"],
   [data-suite-theme="textured"] input[type="date"],
   [data-suite-theme="textured"] input[type="number"],
   [data-suite-theme="textured"] input[type="password"],
+  /* An <input> with no type attribute is a text input, but `input[type="text"]`
+     does not match one: the attribute has to be written out. Every untyped
+     field in the suite was therefore getting no treatment at all and keeping
+     whatever its own tool gave it. */
+  [data-suite-theme="textured"] input:not([type]),
   [data-suite-theme="textured"] select {
     font-family: var(--suite-sans);
     background-image: linear-gradient(180deg, var(--suite-well), #FCFAF2 8px);
@@ -501,6 +580,27 @@ body {
     border-radius: var(--suite-radius-sm);
     box-shadow: 0 1px 3px rgba(35, 27, 16, .2) inset;
   }
+
+  /* The planner's free-text field is the untyped input above, and it is the
+     one place a dark slab was left standing in a room of bone and paper.
+     The planner styles it as a lit instrument readout — `--screen`, an inset
+     black shadow, mono type — which is right in the planner's own looks and
+     wrong here: this is "what we did today", a note in the teacher's words,
+     and the art board has exactly one surface for those. The sibling
+     `.readout` next to it was already coming out bone, because it is a
+     <button> and the button rule caught it; this is the same field finally
+     matching it. */
+  [data-suite-theme="textured"] input.freein {
+    background-color: var(--suite-sheet);
+    background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
+    background-attachment: local;
+    font-family: var(--suite-sans);
+    font-size: 14px;
+    color: var(--suite-ink);
+    border: 1px solid rgba(58, 46, 30, .4);
+    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
+  }
+  [data-suite-theme="textured"] input.freein::placeholder { color: var(--suite-ink-3); }
   [data-suite-theme="textured"] .wbar,
   [data-suite-theme="textured"] .track,
   [data-suite-theme="textured"] progress,
