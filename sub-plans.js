@@ -47,7 +47,21 @@
         { start: "1:00", end: "1:30", title: "Science / Social Studies", days: "MTRF", subject: "science", detail: "", emergency: "" },
         { start: "1:30", end: "1:55", title: "Specials 1", days: "MTRF", subject: "", detail: "", emergency: "" },
         { start: "1:55", end: "2:20", title: "Specials 2", days: "MTRF", subject: "", detail: "", emergency: "" },
-        { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "MTRF", subject: "", detail: "", emergency: "" }
+        { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "MTRF", subject: "", detail: "", emergency: "" },
+        /* Wednesday is an early-release day with its own shape. It used to
+           have no blocks at all, so a Wednesday sub plan printed an empty
+           schedule. */
+        { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "8:15", end: "8:30", title: "Phonics", days: "W", subject: "phonics", detail: "", emergency: "" },
+        { start: "8:30", end: "9:00", title: "Reading", days: "W", subject: "reading", detail: "", emergency: "" },
+        { start: "9:00", end: "9:15", title: "Structured break", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "9:15", end: "9:45", title: "Math", days: "W", subject: "math", detail: "", emergency: "" },
+        { start: "9:45", end: "10:30", title: "Assembly / Enrichment / World Wednesday", days: "W", subject: "enrich", detail: "", emergency: "" },
+        { start: "10:30", end: "11:00", title: "WIN time", days: "W", subject: "win", detail: "", emergency: "" },
+        { start: "11:00", end: "11:40", title: "Recess & lunch", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "11:40", end: "12:20", title: "GID and Class Store", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "12:20", end: "12:45", title: "Core Arts — Health/SEL", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "12:45", end: "", title: "Dismissal", days: "W", subject: "", detail: "", emergency: "" }
       ]
     };
   }
@@ -200,10 +214,23 @@
     return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()] +
       ", " + d.getDate() + " " + MONTHS[d.getMonth()];
   }
+  /* The planner's own clock rule: 12-hour with no am/pm, and a school day
+     never starts before 7, so anything under 7 is the afternoon. */
+  function clock(t) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "").trim());
+    if (!m) return 1e9;
+    var h = +m[1]; if (h < 7) h += 12;
+    return h * 60 + (+m[2]);
+  }
+  /* In clock order. A block added in the editor lands at the bottom of the
+     list, which printed it after dismissal. Array sort is stable, so blocks
+     that share a start time keep the order they were written in. */
   function blocksFor(iso) {
     var k = dayKeyOf(iso);
-    return S.blocks.filter(function (b) { return !b.days || b.days.indexOf(k) >= 0; });
+    return S.blocks.filter(function (b) { return !b.days || b.days.indexOf(k) >= 0; })
+      .slice().sort(function (a, b) { return clock(a.start) - clock(b.start); });
   }
+  function when(b) { return b.end ? esc(b.start) + " – " + esc(b.end) : esc(b.start); }
   function lessonFor(iso, subjectId) {
     var lp = planner();
     if (!lp || !subjectId) return null;
@@ -217,10 +244,18 @@
     else if (p.unit && p.lesson) where = "Unit " + p.unit + " · Lesson " + p.lesson;
     else if (p.lesson) where = "Lesson " + p.lesson;
     else if (p.text) where = String(p.text);
+    var free = !!(sb && sb.schema === "free");
     return {
       name: sb ? sb.name : subjectId,
-      curriculum: sb && sb.curriculum ? sb.curriculum : "",
-      where: where, note: e.note || ""
+      /* A free-text subject's "curriculum" is a description of the block
+         (WIN's reads "Reading M/Th · Math T/F"), which is wrong on a
+         Wednesday. Its name is the honest label. */
+      label: free ? (sb ? sb.name : subjectId) : (sb && sb.curriculum ? sb.curriculum : (sb ? sb.name : subjectId)),
+      where: where, note: e.note || "",
+      /* Skip in the planner means the lesson is not happening. The sub plan
+         used to print its position anyway. */
+      taught: e.taught !== false,
+      free: free
     };
   }
   function dayNote(iso) {
@@ -228,6 +263,36 @@
     if (!lp) return "";
     var rec = lp.days[iso];
     return rec && rec.notes ? String(rec.notes) : "";
+  }
+  function dayFlags(iso) {
+    var lp = planner();
+    if (!lp) return [];
+    var rec = lp.days[iso];
+    return rec && Array.isArray(rec.flags) ? rec.flags.filter(function (f) { return f && f !== "Sub"; }) : [];
+  }
+  function justToday(iso) {
+    var note = dayNote(iso), flags = dayFlags(iso), h = "";
+    if (!note && !flags.length) return "";
+    if (flags.length) h += "<p><b>Heads up today:</b> " + esc(flags.join(" · ")) + "</p>";
+    if (note) h += nl(note);
+    return '<div class="box">' + h + "</div>";
+  }
+  /* A free-text subject on a day that has not been saved is suggested from
+     the last day it was taught — the planner carries the text forward. For
+     WIN or the Wednesday block that is last week's plan, printed as today's.
+     Uses the planner's own sub() and lastTaught(), reached by name the same
+     way as draft above; on the gradebook they do not exist and this is null. */
+  function carriedOver(iso, subjectId) {
+    try {
+      if (!isDraftDay(iso)) return null;
+      var sb = sub(subjectId);
+      if (!sb || sb.schema !== "free") return null;
+      var l = lessonFor(iso, subjectId);
+      if (!l || !l.where || !l.taught) return null;
+      var prev = lastTaught(sb, iso);
+      if (prev && prev.pos && String(prev.pos.text || "") === l.where) return { name: sb.name, from: prev.from };
+    } catch (e) { }
+    return null;
   }
   function noSchool(iso) {
     var lp = planner();
@@ -285,18 +350,28 @@
       if (S.trusted) h += "<p><b>Students who can tell you how things run:</b> " + esc(S.trusted) + "</p>";
     }
     if (S.arrival) h += "<h2>Arrival</h2><p>" + nl(S.arrival) + "</p>";
-    var note = dayNote(iso);
-    if (note) h += '<h2>Just for this day</h2><div class="box">' + nl(note) + "</div>";
+    var today = justToday(iso);
+    if (today) h += "<h2>Just for this day</h2>" + today;
 
     h += "<h2>The day, block by block</h2>";
     var blocks = blocksFor(iso);
     if (!blocks.length) h += "<p>No blocks are set for a " + esc(DAYS[new Date(iso + "T12:00:00").getDay()]) + ".</p>";
+    /* A subject note is written once per day but Reading has three blocks,
+       so it printed three times. It goes on the first block for the subject,
+       the way the planner's own timeline does it. */
+    var noted = {};
     blocks.forEach(function (b) {
       var l = lessonFor(iso, b.subject), sp = specialFor(iso, b.title);
-      h += '<div class="blk"><div class="t">' + esc(b.start) + " – " + esc(b.end) + "</div>";
+      h += '<div class="blk"><div class="t">' + when(b) + "</div>";
       h += '<div class="h">' + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</div>";
-      if (l && l.where) h += '<span class="w"><b>' + esc(l.curriculum || l.name) + "</b> &middot; " + esc(l.where) + "</span>";
-      if (l && l.note) h += "<p><b>My note:</b> " + esc(l.note) + "</p>";
+      if (l && !l.taught) {
+        h += '<p class="muted"><b>Not happening today.</b> ' + esc(l.name) + " is skipped in my plan for this day" +
+          (today ? " &mdash; see Just for this day." : ".") + "</p></div>";
+        return;
+      }
+      if (l && l.where) h += '<span class="w"><b>' + esc(l.label) + "</b> &middot; " + esc(l.where) + "</span>";
+      if (l && l.note && !noted[b.subject]) { noted[b.subject] = true; h += "<p><b>My note:</b> " + nl(l.note) + "</p>"; }
+      if (l && l.free && !l.where && !l.note) h += '<p class="muted">Nothing is written for this block today.</p>';
       if (b.detail) h += "<p>" + nl(b.detail) + "</p>";
       if (b.emergency) h += '<div class="em"><b>If you cannot find it:</b> ' + nl(b.emergency) + "</div>";
       h += "</div>";
@@ -323,13 +398,16 @@
     h += '<h2>The day</h2><table><thead><tr><th style="width:15%">Time</th><th style="width:32%">What</th><th>Where it is</th></tr></thead><tbody>';
     blocksFor(iso).forEach(function (b) {
       var l = lessonFor(iso, b.subject), sp = specialFor(iso, b.title);
-      h += "<tr><td>" + esc(b.start) + "–" + esc(b.end) + "</td><td><b>" + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</b></td><td>" +
-        (l && l.where ? esc((l.curriculum ? l.curriculum + " · " : "") + l.where) : '<span class="muted">—</span>') +
-        (b.emergency ? '<br><span class="muted">Stuck? ' + esc(firstSentence(b.emergency)) + "</span>" : "") + "</td></tr>";
+      var off = !!(l && !l.taught);
+      var cell = off ? '<span class="muted">Not happening today</span>'
+        : l && l.where ? esc(l.label + " · " + l.where)
+        : '<span class="muted">—</span>';
+      h += "<tr><td>" + (b.end ? esc(b.start) + "–" + esc(b.end) : esc(b.start)) + "</td><td><b>" + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</b></td><td>" +
+        cell + (b.emergency && !off ? '<br><span class="muted">Stuck? ' + esc(firstSentence(b.emergency)) + "</span>" : "") + "</td></tr>";
     });
     h += "</tbody></table>";
-    var note = dayNote(iso);
-    if (note) h += '<h2>Today only</h2><div class="box">' + nl(note) + "</div>";
+    var today = justToday(iso);
+    if (today) h += "<h2>Today only</h2>" + today;
     h += '<div class="two" style="margin-top:14pt">';
     if (S.watch.length) {
       h += '<div><h2 style="margin-top:0">Keep an eye on</h2>' +
@@ -441,6 +519,16 @@
           ? ' <button class="b" data-act="savefirst" style="margin-left:6px">Save the day now</button>'
           : "") +
         "</p>";
+    }
+
+    var carried = blocks.map(function (b) { return b.subject; })
+      .filter(function (id, i, a) { return id && a.indexOf(id) === i; })
+      .map(function (id) { return carriedOver(curDate, id); }).filter(Boolean);
+    if (carried.length) {
+      h += '<p class="hint" style="border-left:3px solid #C98A1B;padding-left:9px;margin-top:8px">' +
+        carried.map(function (c) {
+          return "<b>" + esc(c.name) + "</b> still shows what you wrote on " + esc(pretty(c.from));
+        }).join("; ") + " &mdash; the planner carries open blocks forward. Change it in the planner if today is different.</p>";
     }
 
     if (!hasContent()) {
