@@ -27,5 +27,20 @@
       "purpose": "maskable"
     }
   ],
-  "orientation": "any"
+  "orientation": "any",
+  "id": "./",
+  "shortcuts": [
+    {
+      "name": "New running record",
+      "short_name": "New record",
+      "url": "./",
+      "icons": [
+        {
+          "src": "../fluency-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

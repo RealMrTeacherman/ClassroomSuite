@@ -5,7 +5,7 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v31";
+const CACHE = "classroom-suite-v32-39acc067";
 
 const SHELL = [
   "./",
@@ -107,12 +107,22 @@ self.addEventListener("fetch", e => {
       }).catch(() => hit);
 
       if (hit) { net.catch(() => { }); return hit; }
-      return net.then(res => res || (sameOrigin ? caches.match("gradebook/index.html") : Response.error()));
+      /* An asset that is neither cached nor reachable fails, and that is the
+         honest answer. It used to fall back to gradebook/index.html, which
+         meant a missing suite-sync.js came back as a page of HTML with a
+         JavaScript content type: the browser then threw a syntax error
+         somewhere in the markup, which says nothing at all about the real
+         problem. The HTML fallback belongs on a navigation, and it is still
+         there; it does not belong here. */
+      return net.then(res => res || Response.error());
     })
   );
 });
 
-/* Lets a page force the waiting worker to take over without a second reload. */
+/* Lets a page force the waiting worker to take over without a second reload,
+   and lets it ask which build it is actually running. "Did my change deploy?"
+   was only answerable from DevTools; now the Setup tab can print it. */
 self.addEventListener("message", e => {
-  if (e.data === "skipWaiting") self.skipWaiting();
+  if (e.data === "skipWaiting") { self.skipWaiting(); return; }
+  if (e.data === "version" && e.source) e.source.postMessage({ suiteVersion: CACHE });
 });

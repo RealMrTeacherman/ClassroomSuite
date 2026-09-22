@@ -9,7 +9,12 @@
 
   function banner(msg, actionLabel, onAction) {
     var b = document.createElement("div");
-    b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:64px;z-index:2147483001;" +
+    b.setAttribute("role", "status");
+    b.setAttribute("aria-live", "polite");
+    /* every other floating element in the suite clears the home indicator;
+       this one did not, so on a notched phone it sat in the strip */
+    b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);" +
+      "bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:2147483001;" +
       "background:#14202A;color:#fff;padding:10px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;" +
       "font:13.5px/1.4 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;" +
       "box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:min(560px,92vw)";
@@ -26,6 +31,9 @@
     x.style.cssText = "border:0;background:transparent;color:#9FB2B5;font-size:17px;cursor:pointer;padding:0 2px";
     x.onclick = function () { b.remove(); };
     b.appendChild(x);
+    var old = document.getElementById("suitebanner");
+    if (old) old.remove();
+    b.id = "suitebanner";
     document.body.appendChild(b);
     return b;
   }

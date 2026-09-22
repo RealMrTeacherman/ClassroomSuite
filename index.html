@@ -46,5 +46,12 @@ code{background:rgba(16,24,32,.06);border-radius:4px;padding:1px 6px;font-family
   <footer>Open one and use the <b>Install</b> button in the corner switcher to add it to your dock or home screen. Bookmark <code>gradebook/</code> rather than this page for everyday use.</footer>
 </main>
 <script src="suite-nav.js" defer></script>
+<script>
+/* The launcher registered no service worker, so opening this page first on a
+   new device left the suite uncached until one of the three tools was
+   opened. It carries no data of its own, so it does not load suite-sync.js —
+   there is nothing here to sync. */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () { });
+</script>
 </body>
 </html>

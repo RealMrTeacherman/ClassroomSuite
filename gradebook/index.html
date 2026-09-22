@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="../icon-192.png">
 <style>
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&display=swap");
+/* The font request lives in suite-theme.css, which asks for these two
+   families and three more. This copy was a second, fully duplicated
+   round trip to fonts.googleapis.com on every load. */
 :root{
   --paper:#EDF0F2;
   --panel:#FFFFFF;
@@ -501,6 +503,9 @@ const DEFAULT_RC = [
    STATE
    ============================================================ */
 const KEY = "gb2_standards_v1";
+/* what was here immediately before the last restore, so a mis-picked
+   file is recoverable. Not synced: it is this device's undo, not data. */
+const PRE_RESTORE = "gb2:preRestore:v1";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const byCode = {}; CATALOG.forEach(s => byCode[s.c] = s);
 
@@ -571,7 +576,8 @@ function blankState() {
       orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 },
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
-      ireadyAutoScore: true, ireadyInReport: false, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null }
+      ireadyAutoScore: true, ireadyInReport: false, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
+      noMapPrompts: false }
   };
 }
 let S = blankState();
@@ -668,11 +674,56 @@ if (_sf) _sf.addEventListener("click", () => {
   if (st === "needsPermission") SuiteSync.ensurePermission().then(ok => { if (ok) SuiteSync.pull(false).then(() => { reloadFromStorage(); render(); }); });
   else if (st === "off" || st === "unsupported") gotoTab("setup");
 });
-/* the corner switcher sends every tool here to set syncing up, since the
-   three share an origin and so share the setting */
+/* The corner switcher sends every tool here to set syncing up, since the
+   three share an origin and so share the setting.
+
+   The hash also carries parameters, which is what lets one tool hand work to
+   another: `#enter?std=2.NBT.B.5&date=2026-09-21&ctx=Reveal%20U3%20L2` opens
+   the entry screen already pointed at that assignment. An assignment is not
+   a stored thing — it is the marks sharing a standard, a date and a context —
+   so those three values are the whole of what has to travel. Unknown
+   parameters are ignored, and a bare `#setup` behaves exactly as before. */
+function parseHash() {
+  const raw = (location.hash || "").replace(/^#/, "");
+  if (!raw) return { tab: "", params: {} };
+  const cut = raw.indexOf("?");
+  const tab = cut < 0 ? raw : raw.slice(0, cut);
+  const params = {};
+  if (cut >= 0) {
+    raw.slice(cut + 1).split("&").forEach(pair => {
+      if (!pair) return;
+      const eq = pair.indexOf("=");
+      const k = decodeURIComponent(eq < 0 ? pair : pair.slice(0, eq));
+      const v = eq < 0 ? "" : decodeURIComponent(pair.slice(eq + 1).replace(/\+/g, " "));
+      if (k) params[k] = v;
+    });
+  }
+  return { tab: tab, params: params };
+}
 function openTabFromHash() {
-  const t = (location.hash || "").replace("#", "");
-  if (t && document.getElementById("panel-" + t)) gotoTab(t);
+  const { tab, params } = parseHash();
+  if (!tab || !document.getElementById("panel-" + tab)) return;
+
+  /* Set the subject before the tab renders: the Math/ELA/Both switch decides
+     which standards the entry screen will even offer, so arriving with a
+     standard the current switch excludes would silently drop it. */
+  if (params.subject && ["Math", "ELA", "All"].includes(params.subject)) {
+    UI.subject = params.subject;
+    S.settings.subject = UI.subject;
+    paintSubjSwitch();
+  } else if (params.std && byCode[params.std]) {
+    const want = byCode[params.std].s;
+    if (UI.subject !== "All" && UI.subject !== want) {
+      UI.subject = want;
+      S.settings.subject = UI.subject;
+      paintSubjSwitch();
+    }
+  }
+  if (params.std && byCode[params.std]) UI.enterStd = params.std;
+  if (params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)) UI.enterDate = params.date;
+  if (params.ctx != null) UI.enterCtx = params.ctx;
+  if (params.student) UI.enterStudent = params.student;
+  gotoTab(tab);
 }
 window.addEventListener("hashchange", openTabFromHash);
 function paintSubjSwitch() {
@@ -759,6 +810,9 @@ function renderEnter() {
   }
 
   html += missingCardHTML();
+
+  /* asked where the answer is known, not on a settings screen months later */
+  html += mappingPromptHTML(UI.enterStd, UI.enterDate);
 
   if (UI.log.length) {
     html += '<div class="card pad"><div class="sectionhead"><h3>Just entered</h3><span class="spacer"></span><button class="btn sm" onclick="undoLast()">Undo last</button></div>' +
@@ -1757,6 +1811,81 @@ function printStudent() {
 /* ============================================================
    TAB 6 — SETUP
    ============================================================ */
+function hasPreRestore() {
+  try { return !!localStorage.getItem(PRE_RESTORE); } catch (e) { return false; }
+}
+function undoRestore() {
+  let prev = null;
+  try { prev = localStorage.getItem(PRE_RESTORE); } catch (e) { }
+  if (!prev) { toast("There is nothing to undo"); return; }
+  if (!confirm("Put this device back to how it was before the last restore?\n\nWhatever the restore brought in will be replaced.")) return;
+  try {
+    S = hydrate(JSON.parse(prev));
+    if (S.settings.subject) UI.subject = S.settings.subject;
+    paintSubjSwitch();
+    save();
+    localStorage.removeItem(PRE_RESTORE);
+    render();
+    toast("Put back to before the restore");
+  } catch (e) { toast("That could not be undone"); }
+}
+
+function paintHealth() {
+  const el = document.getElementById("health");
+  if (!el) return;
+  const rows = [];
+  const S_ = window.SuiteSync;
+
+  if (S_) {
+    /* A key on this origin that is in neither the synced list nor the
+       deliberately-excluded one is a key that silently never travels. That
+       used to be a comment asking the next person to remember. */
+    const stray = S_.auditKeys ? S_.auditKeys() : [];
+    if (stray.length) {
+      rows.push('<b style="color:var(--s1)">Not syncing:</b> ' + stray.map(esc).join(", ") +
+        ' \u2014 these are saved on this device only. Add them to KEYS in suite-sync.js, or to NEVER_SYNC with a reason.');
+    }
+    if (S_.baseDurable === false) {
+      rows.push('<b style="color:var(--s1)">The merge base cannot be saved on this device.</b> ' +
+        "Without it, anything edited in two places resolves in this device's favour rather than being merged. Freeing up storage fixes it.");
+    }
+    if (S_.lastOk) {
+      const mins = Math.floor((Date.now() - Date.parse(S_.lastOk)) / 60000);
+      const when = mins < 1 ? "just now" : mins < 60 ? mins + " minutes ago"
+        : mins < 1440 ? Math.floor(mins / 60) + " hours ago" : Math.floor(mins / 1440) + " days ago";
+      rows.push("Last completed sync: " + when + (mins > 1440 ? " \u2014 worth checking" : ""));
+    }
+    const days = S_.tokenDays;
+    if (typeof days === "number") {
+      if (days <= 0) rows.push('<b style="color:var(--s1)">The GitHub token has expired.</b> Generate a new fine-grained token and reconnect above.');
+      else if (days <= 14) rows.push('<b style="color:var(--s2)">The GitHub token expires in ' + days + " day" + (days === 1 ? "" : "s") + ".</b> Generate a new one before it does, or syncing simply stops.");
+      else rows.push("GitHub token expires in " + days + " days.");
+    }
+  }
+
+  if (navigator.storage && navigator.storage.estimate) {
+    navigator.storage.estimate().then(q => {
+      if (!q || !q.quota) return;
+      const pct = Math.round((q.usage / q.quota) * 100);
+      const mb = (q.usage / 1048576).toFixed(1);
+      const line = document.getElementById("health-quota");
+      if (line) line.innerHTML = "Storage used: " + mb + " MB (" + pct + "% of what this browser allows)" +
+        (pct > 80 ? ' \u2014 <b style="color:var(--s1)">running low</b>' : "");
+    }).catch(() => {});
+  }
+  rows.push('<span id="health-quota">Storage used: checking\u2026</span>');
+  rows.push('<span id="health-build">Build: checking\u2026</span>');
+
+  el.innerHTML = rows.map(r => '<div style="padding:2px 0">' + r + "</div>").join("");
+
+  if (window.SuiteBuild) {
+    window.SuiteBuild.version().then(v => {
+      const line = document.getElementById("health-build");
+      if (line) line.textContent = "Build: " + (v || "not served by a service worker on this device");
+    });
+  }
+}
+
 function renderSetup() {
   const el = document.getElementById("panel-setup");
   let html = '<div class="stack">';
@@ -1842,11 +1971,34 @@ function renderSetup() {
     '<p class="hint">Everything lives in this browser only \u2014 nothing is uploaded. Back it up regularly, and move it between computers with these buttons.</p>' +
     '<div class="row" style="margin-top:10px"><button class="btn" onclick="exportJSON()">Save a backup file</button>' +
     '<label class="btn" style="display:inline-flex">Restore from backup<input type="file" id="imp" accept=".json" hidden></label>' +
-    '<span style="flex:1"></span><button class="btn danger" onclick="wipe()">Erase everything</button></div></div>';
+    '<span style="flex:1"></span><button class="btn danger" onclick="wipe()">Erase everything</button></div>';
+  if (hasPreRestore()) {
+    html += '<p class="hint" style="margin-top:10px">A restore replaced what was on this device. ' +
+      'The previous state is still here until the next restore.</p>' +
+      '<div class="row"><button class="btn" onclick="undoRestore()">Undo the last restore</button></div>';
+  }
+  html += '</div>';
+
+  html += '<div class="card pad"><h2>Planning prompts</h2>' +
+    '<label class="row" style="gap:8px"><input type="checkbox" id="set-mapprompts"' +
+    (S.settings.noMapPrompts ? '' : ' checked') + '>' +
+    '<span class="small">When a mark lands on a date the planner says a unit was taught, offer to link that standard to that unit.</span></label>' +
+    '<p class="hint">This is how the unit \u2192 standards map on the Planning tab gets filled in: a tap at a time, where you already know the answer. Nothing is ever written without the tap.</p></div>';
+
+  /* ---------- how healthy is this actually ----------
+     Three things that used to be knowable only from DevTools, or not at all:
+     which build this device is running, whether anything on this origin is
+     quietly not syncing, and whether the merge base is being kept. Each has
+     cost a debugging session at least once. */
+  html += '<div class="card pad"><h2>This device</h2>' +
+    '<div id="health" class="small muted">Checking\u2026</div></div>';
 
   html += "</div>";
   el.innerHTML = html;
+  paintHealth();
 
+  const mp = document.getElementById("set-mapprompts");
+  if (mp) mp.onchange = e => { S.settings.noMapPrompts = !e.target.checked; save(); };
   document.getElementById("set-teacher").oninput = e => { S.settings.teacher = e.target.value; save(); };
   document.getElementById("set-year").oninput = e => { S.settings.year = e.target.value; save(); };
   document.getElementById("show-subs").onchange = e => { S.settings.showSubs = e.target.checked; save(); renderSetup(); };
@@ -1884,11 +2036,22 @@ function renderSetup() {
     const rd = new FileReader();
     rd.onload = () => {
       try {
-        S = hydrate(JSON.parse(rd.result));
+        const parsed = JSON.parse(rd.result);
+        /* Restoring replaces a year of work from a file picker, in one click,
+           with no way back. Keep what was here first: it costs one write and
+           it is the difference between a mis-picked file being a shrug and
+           being the end of the year's records. */
+        let snapshot = null;
+        try { snapshot = localStorage.getItem(KEY); } catch (e2) { }
+        S = hydrate(parsed);
         if (S.settings.subject) UI.subject = S.settings.subject;
         paintSubjSwitch();
         autoMergeDuplicates(true);
-        save(); render();
+        save();
+        if (snapshot) {
+          try { localStorage.setItem(PRE_RESTORE, snapshot); } catch (e2) { }
+        }
+        render();
         toast("Backup restored" + (S.mergeLog && S.mergeLog.length ? " \u00b7 merged " + S.mergeLog.length + " duplicate students" : ""));
       } catch (err) { toast("That file could not be read"); }
     };
@@ -3379,6 +3542,81 @@ function standardsTaughtOn(dateISO) {
     });
   });
   return out;
+}
+
+/* ---------- learning the mapping instead of asking for it ----------
+   The unit → standards map is deliberately empty: only he knows what his
+   Reveal and Benchmark units cover, and a plausible wrong guess would
+   quietly corrupt the coverage and reteach views. But an empty map means
+   both of those views are dead, and filling roughly seventy rows in one
+   sitting is why it stayed empty.
+
+   It does not have to be one sitting. The planner already records which
+   unit was taught on which date; entering a mark records a standard on a
+   date. Where those two overlap and the map has nothing, there is an
+   obvious question to ask, and answering it is one tap. The judgment stays
+   his — nothing is ever written without the tap — but the work is spread
+   across the year and happens where he already is. */
+function unitTaughtOn(dateISO) {
+  const lp = readPlanner();
+  if (!lp) return [];
+  const rec = (lp.days || {})[dateISO];
+  if (!rec || rec.noSchool || !rec.entries) return [];
+  const out = [];
+  Object.keys(rec.entries).forEach(sid => {
+    const e = rec.entries[sid];
+    if (!e || !e.taught) return;
+    const u = unitOf(e.pos);
+    if (!u) return;
+    const sb = lp.subjects.find(x => x.id === sid);
+    if (!sb || (sb.schema !== "uwd" && sb.schema !== "ul")) return;
+    out.push({ sbId: sid, name: sb.name || sid, unit: u });
+  });
+  return out;
+}
+/* the one suggestion worth making right now, or null */
+function mappingSuggestion(code, dateISO) {
+  if (!code || !dateISO || !byCode[code]) return null;
+  if (S.settings.noMapPrompts) return null;
+  const units = unitTaughtOn(dateISO);
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i];
+    /* only ever offer a subject whose catalog side matches the standard, so
+       a maths unit is never offered for an ELA code */
+    if (subjCatalog(u.sbId) !== byCode[code].s) continue;
+    if (unitStandards(u.sbId, u.unit).includes(code)) continue;
+    return { sbId: u.sbId, name: u.name, unit: u.unit, code: code };
+  }
+  return null;
+}
+function mappingPromptHTML(code, dateISO) {
+  const s = mappingSuggestion(code, dateISO);
+  if (!s) return "";
+  return '<div class="card pad" id="mapprompt" style="margin-top:10px;border-color:var(--accent)">' +
+    '<div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">' +
+    '<span class="small">The planner has <b>' + esc(s.name) + " unit " + s.unit +
+    "</b> taught on this date. Does it cover <code class=\"std\">" + esc(s.code) + "</code>?</span>" +
+    '<span style="flex:1"></span>' +
+    '<button class="btn sm primary" onclick="linkUnit(\'' + esc(s.sbId) + "'," + s.unit + ",'" + esc(s.code) + "')\">Yes, link it</button>" +
+    '<button class="btn sm" onclick="dismissMapPrompt()">Not now</button>' +
+    '<button class="btn sm" onclick="stopMapPrompts()" title="You can turn these back on in Setup">Stop asking</button>' +
+    "</div></div>";
+}
+function linkUnit(sbId, unit, code) {
+  const cur = unitStandards(sbId, unit).slice();
+  if (!cur.includes(code)) cur.push(code);
+  setUnitStandards(sbId, unit, cur);
+  toast("Linked " + code + " to unit " + unit + ".");
+  render();
+}
+function dismissMapPrompt() {
+  const el = document.getElementById("mapprompt");
+  if (el) el.remove();
+}
+function stopMapPrompts() {
+  S.settings.noMapPrompts = true; save();
+  toast("Stopped. Turn these back on in Setup.");
+  dismissMapPrompt();
 }
 
 /* ============================================================

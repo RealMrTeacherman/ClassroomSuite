@@ -17,12 +17,40 @@
     "lp:me:v1",
     "lp:pending:v1",
     "running-records-v1",   /* oral reading fluency */
-    "suite:subplan:v1"      /* sub plan standing notes */
+    "suite:subplan:v1",     /* sub plan standing notes */
+    /* Migration flags have to travel. They are not preferences: they record a
+       decision ("Health/SEL was deliberately deleted", "leave Writing on its
+       stepper"), and a device that has not run a migration yet has an empty
+       flag map. Left per-device, a phone that had never opened the planner
+       would see no `health` subject, conclude the migration had not run, add
+       the block back, and sync that back over the deletion. */
+    "suite:migrations"
   ];
+  /* Keys that are deliberately NOT synced, each for a stated reason. Anything
+     on the origin that is in neither list is a mistake, and `auditKeys()`
+     reports it rather than letting it fail silently. */
+  var NEVER_SYNC = {
+    "suite:gh:v1": "holds the GitHub token; it must never travel to another device",
+    "suite:gd:v1": "holds the Drive client id and file id, which are per-device",
+    "suite:theme:v1": "which look this device uses is a preference, not data",
+    "suite:device:v1": "this device's own name",
+    "suite:syncBase:v1": "the merge base; superseded by IndexedDB, kept for migration",
+    "suite:folderSeen:v1": "drops this device has already absorbed",
+    "suite:lastSync": "this device's clock on the last round",
+    "suite:lastOk": "when this device last completed a round",
+    "suite:ghExp": "when this device's token expires"
+  };
+  var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   var HANDLE_DB = "suite_sync", HANDLE_KEY = "handle";
   var SUPPORTED = !!window.showSaveFilePicker;
 
-  var handle = null, lastMtime = 0, writeTimer = null, pollTimer = null;
+  var handle = null, lastMtime = 0, writeTimer = null, pollTimer = null, fileBusy = false;
+  /* A write that lands while a round is already in flight used to be dropped
+     on the floor: every backend returned early on its busy flag and nothing
+     re-queued it. It recovered on the next poll, so it was a delay rather
+     than a loss, but a delay of up to twenty-five seconds on the last thing
+     you typed before shutting the lid is not worth keeping. */
+  var pushPending = false;
   var state = SUPPORTED ? "off" : "unsupported";
   var detail = "";
   var listeners = [];
@@ -125,42 +153,79 @@
     }).catch(function () { set("error", "permission check failed"); return false; });
   }
 
-  /* ---------- read / write ---------- */
-  function pull(force) {
+  /* ---------- read / write ----------
+     This backend used to be the odd one out: it compared one timestamp and
+     then replaced whole keys. That is fine with a single machine, which is
+     all it was written for, but the moment two desktops share the file
+     through Drive for Desktop it means a morning of marks can be overwritten
+     wholesale with nothing reported. It now runs the same three-way merge as
+     the repository, Drive and folder backends. */
+  function fileRound(opts) {
+    opts = opts || {};
     if (!handle) return Promise.resolve([]);
+    if (fileBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
+    fileBusy = true;
     return ensure(false).then(function (ok) {
       if (!ok) return [];
       return handle.getFile().then(function (f) {
-        if (!force && f.lastModified <= lastMtime) return [];
+        var moved = f.lastModified > lastMtime;
+        if (!moved && !opts.force && !opts.push) return [];
         return f.text().then(function (text) {
-          if (!text.trim()) return [];
-          var payload = normalise(JSON.parse(text));
-          if (!payload) { set("error", "that file is not a classroom backup"); return []; }
+          var remoteKeys = null;
+          if (text.trim()) {
+            var payload = null;
+            try { payload = normalise(JSON.parse(text)); } catch (e) { payload = null; }
+            if (!payload) { set("error", "that file is not a classroom backup"); return []; }
+            remoteKeys = payload.keys;
+          }
           lastMtime = f.lastModified;
-          if (!force && payload.updatedAt && localStamp() && payload.updatedAt <= localStamp()) return [];
-          var changed = apply(payload);
-          set("connected", handle.name);
-          return changed;
+          var localKeys = snapshot().keys;
+
+          if (!remoteKeys) {              /* empty or brand new: seed it */
+            return fileWrite(localKeys).then(function () {
+              writeBase(localKeys);
+              return [];
+            });
+          }
+          var merged = mergeKeys(readBase(), localKeys, remoteKeys);
+          lastReport = merged.report;
+          var changed = [];
+          if (merged.report.changedLocally.length) {
+            changed = apply({ keys: merged.keys, updatedAt: new Date().toISOString() });
+          }
+          if (!merged.report.changedRemotely.length) {
+            writeBase(merged.keys);
+            markOk();
+            set("connected", handle.name);
+            if (changed.length) notifyChanged(changed);
+            return changed;
+          }
+          return fileWrite(merged.keys).then(function () {
+            writeBase(merged.keys);
+            if (changed.length) notifyChanged(changed);
+            return changed;
+          });
         });
       });
-    }).catch(function () { set("error", "could not read the file"); return []; });
+    }).catch(function () { set("error", "could not read the file"); return []; })
+      .then(function (r) { fileBusy = false; drainPending(); return r; });
   }
-  function doWrite() {
-    return ensure(false).then(function (ok) {
-      if (!ok) return false;
-      var payload = snapshot();
-      return handle.createWritable().then(function (w) {
-        return w.write(JSON.stringify(payload, null, 1)).then(function () { return w.close(); });
-      }).then(function () {
-        setLocalStamp(payload.updatedAt);
-        return handle.getFile();
-      }).then(function (f) {
-        lastMtime = f.lastModified;
-        set("connected", handle.name);
-        return true;
-      });
-    }).catch(function () { set("error", "could not write the file"); return false; });
+  function fileWrite(keys) {
+    var payload = { suite: 1, updatedAt: new Date().toISOString(), keys: keys };
+    return handle.createWritable().then(function (w) {
+      return w.write(JSON.stringify(payload, null, 1)).then(function () { return w.close(); });
+    }).then(function () {
+      setLocalStamp(payload.updatedAt);
+      return handle.getFile();
+    }).then(function (f) {
+      lastMtime = f.lastModified;
+      markOk();
+      set("connected", handle.name);
+      return true;
+    });
   }
+  function pull(force) { return fileRound({ force: !!force }); }
+  function doWrite() { return fileRound({ push: true }).then(function () { return true; }); }
   function push(now) {
     if (!handle) return Promise.resolve(false);
     clearTimeout(writeTimer);
@@ -211,6 +276,11 @@
   function notifyChanged(changed) { changeHandlers.forEach(function (f) { try { f(changed); } catch (e) { } }); }
 
   function init() {
+    /* The base has to be in hand before the first round: a round that runs
+       without it resolves every disagreement in this device's favour. */
+    return loadBase().then(initBackend);
+  }
+  function initBackend() {
     if (FOLDER_SUPPORTED) {
       return idbGet(FOLDER_HANDLE_KEY).then(function (h) {
         if (!h) return initRest();
@@ -430,7 +500,23 @@
       Object.keys(m || {}).forEach(function (k) { if (KEYS.indexOf(k) >= 0) names[k] = 1; });
     });
     Object.keys(names).forEach(function (k) {
-      var m = merge3(parseOr((baseKeys || {})[k]), parseOr((localKeys || {})[k]), parseOr((remoteKeys || {})[k]), report);
+      var lv = (localKeys || {})[k], rv = (remoteKeys || {})[k];
+      /* A whole top-level key missing here is not a decision.
+         These seven are the containers — the roster, the plans, the running
+         records — and nothing in any tool deletes one on purpose. What does
+         make one vanish is eviction: iOS Safari clears a site's local
+         storage after about a week without a visit, and the phone sits in a
+         drawer over spring break. The base can easily outlive it, since
+         IndexedDB is evicted on a different schedule, and then the merge
+         would read the gap as "deleted here, untouched there" and take the
+         whole gradebook out on every other device. Absence of the container
+         is no opinion; take whatever the other side has. */
+      if (lv === undefined && rv !== undefined) {
+        out[k] = rv;
+        report.changedLocally.push(k);
+        return;
+      }
+      var m = merge3(parseOr((baseKeys || {})[k]), parseOr(lv), parseOr(rv), report);
       if (m === undefined) return;
       out[k] = JSON.stringify(m);
       if (out[k] !== (localKeys || {})[k]) report.changedLocally.push(k);
@@ -439,16 +525,70 @@
     return { keys: out, report: report };
   }
 
-  function readBase() {
-    try { return JSON.parse(localStorage.getItem(BASE_KEY) || "null") || {}; }
-    catch (e) { return {}; }
+  /* The base lives in IndexedDB, not local storage.
+     It is a full second copy of everything the suite holds, and local storage
+     is five megabytes on iOS — so on the device where the base matters most
+     it was the first thing to be dropped when the year filled up. That is not
+     the harmless degradation the old comment here claimed. Without a base
+     every scalar difference reads as a both-sides edit, every one of those
+     resolves to whatever is on this device, and a phone quietly overwrites
+     each setting the desktop had changed. Measured, not assumed:
+
+       with a base:    the other device's edit is taken, 0 conflicts
+       with no base:   the other device's edit is discarded, 1 conflict
+
+     IndexedDB has room for it. The in-memory copy is the authority during a
+     round so the merge itself can stay synchronous; the store is written
+     behind it. If even that fails, `baseDurable` goes false and the pill
+     says so rather than letting the suite lose edits in silence. */
+  var BASE_IDB = "syncBase";
+  var baseCache = null, baseDurable = true, baseLoaded = false;
+
+  function loadBase() {
+    if (baseLoaded) return Promise.resolve(baseCache || {});
+    return idbGet(BASE_IDB).then(function (v) {
+      baseLoaded = true;
+      if (v && typeof v === "object") { baseCache = v; return baseCache; }
+      /* a base written by an earlier build: carry it over, then stop paying
+         for it in local storage */
+      var legacy = {};
+      try { legacy = JSON.parse(localStorage.getItem(BASE_KEY) || "null") || {}; }
+      catch (e) { legacy = {}; }
+      baseCache = legacy;
+      if (Object.keys(legacy).length) idbSet(BASE_IDB, legacy);
+      try { localStorage.removeItem(BASE_KEY); } catch (e) { }
+      return baseCache;
+    }).catch(function () { baseLoaded = true; baseCache = {}; return baseCache; });
   }
+  function readBase() { return baseCache || {}; }
   function writeBase(keys) {
-    /* The base doubles what the suite stores. If that will not fit — iOS is
-       the tight one — carry on without it: the merge then falls back to
-       treating anything unknown as a change, which is safe, just chattier. */
-    try { localStorage.setItem(BASE_KEY, JSON.stringify(keys)); return true; }
-    catch (e) { try { localStorage.removeItem(BASE_KEY); } catch (e2) { } return false; }
+    baseCache = keys;
+    idbSet(BASE_IDB, keys).then(function (okWrite) {
+      if (okWrite) {
+        if (!baseDurable) { baseDurable = true; emit(); }
+        return;
+      }
+      if (baseDurable) { baseDurable = false; emit(); }
+    });
+    return true;
+  }
+
+  /* Every key on this origin should be either synced or deliberately not.
+     The old comment asking the next person to remember to add new keys to
+     KEYS was the suite's quietest failure: a key left out simply never
+     travels, and nothing says so. This turns that into something the Setup
+     tab can show. */
+  function auditKeys() {
+    var stray = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || !KEY_PREFIXES.test(k)) continue;
+        if (KEYS.indexOf(k) >= 0 || NEVER_SYNC[k]) continue;
+        stray.push(k);
+      }
+    } catch (e) { }
+    return stray;
   }
 
   /* ============================================================
@@ -468,6 +608,7 @@
      never written into the synced file and never travels to another device.
      ============================================================ */
   var GH_KEY = "suite:gh:v1";
+  var GHEXP_KEY = "suite:ghExp";
   var DEVICE_KEY = "suite:device:v1";
   var gh = null, ghEtag = "", ghSha = "", ghTimer = null, ghBusy = false;
 
@@ -518,7 +659,27 @@
       "X-GitHub-Api-Version": "2022-11-28"
     }, opts.headers || {});
     opts.cache = "no-store";
-    return fetch(url, opts);
+    return fetch(url, opts).then(function (res) {
+      /* A fine-grained token expires, a year at most and often sooner, and
+         GitHub says when on every authenticated response. Catching it here
+         is what lets the Setup tab warn a fortnight out instead of the sync
+         simply stopping one morning in March with a 401 nobody reads. */
+      try {
+        var exp = res.headers.get("github-authentication-token-expiration");
+        if (exp) localStorage.setItem(GHEXP_KEY, exp);
+      } catch (e) { }
+      return res;
+    });
+  }
+  /* days until the token expires, or null when GitHub did not say */
+  function ghTokenDays() {
+    try {
+      var raw = localStorage.getItem(GHEXP_KEY);
+      if (!raw) return null;
+      var t = Date.parse(raw.replace(/ UTC$/, "Z").replace(" ", "T"));
+      if (!t) return null;
+      return Math.floor((t - Date.now()) / 86400000);
+    } catch (e) { return null; }
   }
   function ghProblem(res) {
     if (res.status === 401) return "the token was rejected — it may have expired or been revoked";
@@ -575,7 +736,8 @@
   /* One round: read, merge against the base, write back whatever moved. */
   function ghSync(opts) {
     opts = opts || {};
-    if (!gh || ghBusy) return Promise.resolve([]);
+    if (!gh) return Promise.resolve([]);
+    if (ghBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
     ghBusy = true;
     if (!opts.quiet) set("syncing", "");
     var localKeys = snapshot().keys;
@@ -588,7 +750,7 @@
         /* nothing there yet, so this device seeds it */
         return ghWrite({ suite: 1, updatedAt: new Date().toISOString(), keys: localKeys },
           "Start classroom data from " + deviceName()).then(function () {
-            writeBase(localKeys);
+            writeBase(localKeys); markOk();
             set("connected", gh.owner + "/" + gh.repo);
             return [];
           });
@@ -602,7 +764,7 @@
       }
       var mustWrite = merged.report.changedRemotely.length > 0;
       if (!mustWrite) {
-        writeBase(merged.keys);
+        writeBase(merged.keys); markOk();
         set("connected", gh.owner + "/" + gh.repo);
         if (changed.length) notifyChanged(changed);
         return changed;
@@ -611,7 +773,7 @@
       if (merged.report.conflicts) note += " (" + merged.report.conflicts + " kept from this device)";
       return ghWrite({ suite: 1, updatedAt: new Date().toISOString(), keys: merged.keys }, note)
         .then(function () {
-          writeBase(merged.keys);
+          writeBase(merged.keys); markOk();
           set("connected", gh.owner + "/" + gh.repo);
           if (changed.length) notifyChanged(changed);
           return changed;
@@ -625,7 +787,7 @@
       }
       set("error", e.message || String(e));
       return [];
-    }).then(function (r) { ghBusy = false; return r; });
+    }).then(function (r) { ghBusy = false; drainPending(); return r; });
   }
 
   var lastReport = null;
@@ -659,7 +821,10 @@
   function ghDisconnect(keepToken) {
     clearInterval(ghTimer);
     gh = null; ghEtag = ""; ghSha = "";
-    try { localStorage.removeItem(GH_KEY); if (!keepToken) localStorage.removeItem(BASE_KEY); } catch (e) { }
+    try {
+      localStorage.removeItem(GH_KEY); localStorage.removeItem(GHEXP_KEY);
+      if (!keepToken) { localStorage.removeItem(BASE_KEY); idbSet(BASE_IDB, null); baseCache = {}; }
+    } catch (e) { }
     set("off");
     return Promise.resolve();
   }
@@ -686,17 +851,44 @@
     clearTimeout(pushTimer);
     pushTimer = setTimeout(flushPush, 4000);
   }
+  function busyNow() {
+    return (folder && folderBusy) || (gd && gdBusy) || (gh && ghBusy) || (handle && fileBusy);
+  }
   function flushPush() {
     clearTimeout(pushTimer); pushTimer = null;
+    if (busyNow()) { pushPending = true; return; }
     if (folder) folderSync({ quiet: true });
     else if (gd) gdSync({ quiet: true, push: true });
     else if (gh) ghSync({ quiet: true, push: true });
     else if (handle) doWrite();
   }
+  /* called at the end of every round, whatever the backend */
+  function drainPending() {
+    if (!pushPending) return;
+    pushPending = false;
+    setTimeout(flushPush, 0);
+  }
+  /* When a round finished cleanly. The pill reports the age of this rather
+     than a flat "Synced", because "Synced" is a claim about the past shown in
+     the present tense: a token that expired on Friday leaves a green dot
+     until something makes a request, and a quiet weekend is exactly when the
+     two devices drift. */
+  var LASTOK_KEY = "suite:lastOk";
+  function markOk() { try { localStorage.setItem(LASTOK_KEY, new Date().toISOString()); } catch (e) { } }
+  function lastOk() { try { return localStorage.getItem(LASTOK_KEY) || ""; } catch (e) { return ""; } }
+
   /* A phone does not get a tidy shutdown — you press the home button and the
-     tab is frozen. Anything still waiting on the debounce goes now. */
+     tab is frozen. Anything still waiting on the debounce goes now.
+     `pagehide` as well as `visibilitychange`: on iOS the tab is often killed
+     outright rather than hidden first, and pagehide is the one that fires. */
+  function flushIfWaiting() { if (pushTimer) flushPush(); }
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden && pushTimer) flushPush();
+    if (document.hidden) flushIfWaiting();
+  });
+  window.addEventListener("pagehide", flushIfWaiting);
+  /* and when the network comes back, whatever was waiting goes out */
+  window.addEventListener("online", function () {
+    if (backend()) flushPush();
   });
   try {
     var proto = window.Storage && window.Storage.prototype;
@@ -869,7 +1061,8 @@
 
   function gdSync(opts) {
     opts = opts || {};
-    if (!gd || gdBusy) return Promise.resolve([]);
+    if (!gd) return Promise.resolve([]);
+    if (gdBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
     gdBusy = true;
     if (!opts.quiet) set("syncing", "");
     var localKeys = snapshot().keys;
@@ -879,7 +1072,7 @@
         return gdCreate(JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), keys: localKeys }, null, 1))
           .then(function (made) {
             gd.fileId = made.id; gdStore(); gdVersion = made.version || "";
-            writeBase(localKeys);
+            writeBase(localKeys); markOk();
             set("connected", gd.fileName + " in your Drive");
             return [];
           });
@@ -894,7 +1087,7 @@
         if (!remoteKeys) {
           return gdUpdate(f.id, JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), keys: localKeys }, null, 1))
             .then(function (u) {
-              gdVersion = u.version || ""; writeBase(localKeys);
+              gdVersion = u.version || ""; writeBase(localKeys); markOk();
               set("connected", gd.fileName + " in your Drive");
               return [];
             });
@@ -906,7 +1099,7 @@
           changed = apply({ keys: merged.keys, updatedAt: new Date().toISOString() });
         }
         if (!merged.report.changedRemotely.length) {
-          writeBase(merged.keys);
+          writeBase(merged.keys); markOk();
           set("connected", gd.fileName + " in your Drive");
           if (changed.length) notifyChanged(changed);
           return changed;
@@ -921,7 +1114,7 @@
           return gdUpdate(f.id, JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), keys: merged.keys }, null, 1))
             .then(function (u) {
               gdVersion = u.version || "";
-              writeBase(merged.keys);
+              writeBase(merged.keys); markOk(); markOk();
               set("connected", gd.fileName + " in your Drive");
               if (changed.length) notifyChanged(changed);
               return changed;
@@ -936,7 +1129,7 @@
       if (e && e.message === SIGNIN_NEEDED) set("needsPermission", "tap to sign in to Google again");
       else set("error", e.message || String(e));
       return [];
-    }).then(function (r) { gdBusy = false; return r; });
+    }).then(function (r) { gdBusy = false; drainPending(); return r; });
   }
   /* the one tap that turns needsPermission back into connected */
   function gdSignIn() {
@@ -971,6 +1164,7 @@
     } catch (e) { }
     gd = null; gdTok = ""; gdTokExp = 0; gdVersion = "";
     try { localStorage.removeItem(GD_KEY); localStorage.removeItem(BASE_KEY); } catch (e) { }
+    idbSet(BASE_IDB, null); baseCache = {};
     set("off");
     return Promise.resolve();
   }
@@ -1005,6 +1199,7 @@
   var CANON = "classroom.json";
   var SEEN_KEY = "suite:folderSeen:v1";
   var folder = null, folderTimer = null, folderBusy = false, lastPickup = null;
+  var canonStamp = "", canonKeys = null;   /* so the poll need not re-read it */
 
   function seenList() {
     try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}") || {}; } catch (e) { return {}; }
@@ -1042,7 +1237,8 @@
 
   function folderSync(opts) {
     opts = opts || {};
-    if (!folder || folderBusy) return Promise.resolve([]);
+    if (!folder) return Promise.resolve([]);
+    if (folderBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
     folderBusy = true;
     if (!opts.quiet) set("syncing", "");
 
@@ -1053,7 +1249,7 @@
         var base = readBase();
         var merged = localKeys;
         var canonical = null, drops = [], seen = seenList();
-        var conflicts = 0;
+        var conflicts = 0, kept = 0;
 
         var chain = Promise.resolve();
         files.forEach(function (f) {
@@ -1061,11 +1257,24 @@
             return f.handle.getFile().then(function (file) {
               var stamp = String(file.lastModified) + ":" + file.size;
               if (f.name !== CANON && seen[f.name] === stamp) return;   /* already absorbed */
+              /* The canonical file was being read and JSON-parsed in full
+                 every eight seconds for as long as the tab stayed open. It
+                 is the largest file in the folder and this is the main
+                 thread. Its own stamp answers the only question being asked
+                 of it: has anything changed since we last looked. */
+              if (f.name === CANON && canonStamp === stamp && canonKeys) {
+                canonical = canonKeys;
+                return;
+              }
               return file.text().then(function (text) {
                 var payload;
                 try { payload = normalise(JSON.parse(text)); } catch (e) { payload = null; }
                 if (!payload || !payload.keys) return;                  /* not ours; leave it alone */
-                if (f.name === CANON) { canonical = payload.keys; return; }
+                if (f.name === CANON) {
+                  canonical = payload.keys;
+                  canonStamp = stamp; canonKeys = payload.keys;
+                  return;
+                }
                 drops.push({ name: f.name, keys: payload.keys, handle: f.handle, stamp: stamp });
               });
             }).catch(function () { });
@@ -1075,11 +1284,11 @@
         return chain.then(function () {
           if (canonical) {
             var m = mergeKeys(base, merged, canonical);
-            merged = m.keys; conflicts += m.report.conflicts;
+            merged = m.keys; conflicts += m.report.conflicts; kept += m.report.kept;
           }
           drops.forEach(function (d) {
             var m2 = mergeKeys(base, merged, d.keys, true);
-            merged = m2.keys; conflicts += m2.report.conflicts;
+            merged = m2.keys; conflicts += m2.report.conflicts; kept += m2.report.kept;
           });
 
           var changed = [];
@@ -1087,10 +1296,15 @@
           if (differsLocally) changed = apply({ keys: merged, updatedAt: new Date().toISOString() });
 
           var mustWrite = !canonical || KEYS.some(function (k) { return merged[k] !== (canonical || {})[k]; });
-          lastReport = { conflicts: conflicts, picked: drops.length, changedLocally: changed };
+          /* Same shape as every other backend's report. It used to be its
+             own thing, with `changedLocally` holding changed keys rather
+             than the merge's own list, so anything reading `.kept` broke
+             the moment the folder was the backend. */
+          lastReport = { conflicts: conflicts, kept: kept, additive: true,
+                         picked: drops.length, changedLocally: changed, changedRemotely: [] };
 
           if (!mustWrite && !drops.length) {
-            writeBase(merged);
+            writeBase(merged); markOk();
             set("connected", folder.name);
             if (changed.length) notifyChanged(changed);
             return changed;
@@ -1117,10 +1331,11 @@
     }).catch(function (e) {
       set("error", e.message || String(e));
       return [];
-    }).then(function (r) { folderBusy = false; return r; });
+    }).then(function (r) { folderBusy = false; drainPending(); return r; });
   }
 
   function folderWrite(keys) {
+    canonStamp = ""; canonKeys = null;   /* re-read it next round */
     return folder.getFileHandle(CANON, { create: true }).then(function (h) {
       return h.createWritable().then(function (w) {
         return w.write(JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), keys: keys }, null, 1))
@@ -1151,6 +1366,7 @@
     folder = null;
     idbSet(FOLDER_HANDLE_KEY, null);
     try { localStorage.removeItem(SEEN_KEY); localStorage.removeItem(BASE_KEY); } catch (e) { }
+    idbSet(BASE_IDB, null); baseCache = {}; canonStamp = ""; canonKeys = null;
     set("off");
     return Promise.resolve();
   }
@@ -1185,6 +1401,13 @@
     },
     get drive() { return gd ? { fileName: gd.fileName, fileId: gd.fileId, clientId: gd.clientId, email: gd.email || "" } : null; },
     get lastMerge() { return lastReport; },
+    /* everything the Setup tab needs to show whether syncing is actually
+       healthy, rather than only whether the last request happened to work */
+    get lastOk() { return lastOk(); },
+    get baseDurable() { return baseDurable; },
+    get tokenDays() { return gh ? ghTokenDays() : null; },
+    auditKeys: auditKeys,
+    neverSync: NEVER_SYNC,
     get device() { return deviceName(); },
     setDevice: function (n) { try { localStorage.setItem(DEVICE_KEY, String(n || "").trim() || deviceName()); } catch (e) { } },
     init: init,

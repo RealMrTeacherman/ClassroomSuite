@@ -133,6 +133,10 @@
     };
     nav.appendChild(installBtn);
     paintInstall();
+    /* paintTheme() only ever ran from setTheme(), so on a page loaded with
+       the textured look already on, the button showed the icon for turning
+       it on and carried no aria-pressed at all. */
+    paintTheme();
 
     if (window.SuiteSync) {
       var sep = document.createElement("span"); sep.className = "sep"; nav.appendChild(sep);
@@ -140,25 +144,81 @@
       btn.type = "button";
       btn.innerHTML = '<span class="dot"></span><b class="lbl">Sync</b>';
       var dot = btn.querySelector(".dot"), lbl = btn.querySelector(".lbl");
-      window.SuiteSync.onState(function (st, dt) {
-        dot.className = "dot " + (st === "connected" ? "ok" : st === "needsPermission" || st === "syncing" ? "warn" : st === "error" ? "err" : "");
-        lbl.textContent = st === "connected" ? "Synced" : st === "needsPermission" ? "Sign in"
+      /* "Synced" is a claim about the past written in the present tense. A
+         token that lapsed on Friday leaves a green dot until something
+         happens to make a request, and a quiet weekend is exactly when two
+         devices drift apart. So the pill reports the age of the last round
+         that actually completed, and goes amber at a day and red at three. */
+      function paintSync(st, dt) {
+        var S = window.SuiteSync;
+        var age = ageOf(S.lastOk);
+        var stale = age !== null && age > 24 * 3600 * 1000;
+        var veryStale = age !== null && age > 72 * 3600 * 1000;
+        var tokenSoon = typeof S.tokenDays === "number" && S.tokenDays !== null && S.tokenDays <= 14;
+        var baseGone = S.baseDurable === false;
+
+        var cls = st === "connected" ? (veryStale ? "err" : (stale || tokenSoon || baseGone) ? "warn" : "ok")
+          : st === "needsPermission" || st === "syncing" ? "warn"
+          : st === "error" ? "err" : "";
+        dot.className = "dot " + cls;
+
+        lbl.textContent = st === "connected" ? (stale ? "Synced " + agoShort(age) : "Synced")
+          : st === "needsPermission" ? "Sign in"
           : st === "syncing" ? "Syncing" : st === "error" ? "Sync error"
           : st === "unsupported" ? "Local only" : "Sync";
-        btn.title = st === "connected" ? "Synced with " + dt
-          : st === "needsPermission" ? "Click to allow access to the synced file again"
-          : st === "syncing" ? "Talking to the repository"
-          : st === "unsupported" ? "Nothing is syncing on this device"
-          : st === "error" ? dt : "Click to connect a file";
-      });
+
+        var t;
+        if (st === "connected") {
+          t = "Synced with " + dt + (age === null ? "" : "\nLast completed " + agoLong(age));
+          if (tokenSoon) {
+            t += S.tokenDays <= 0 ? "\nThe GitHub token has expired."
+              : "\nThe GitHub token expires in " + S.tokenDays + " day" + (S.tokenDays === 1 ? "" : "s") + ".";
+          }
+          if (baseGone) t += "\nThe merge base cannot be saved on this device; edits made elsewhere may be overwritten.";
+        } else {
+          t = st === "needsPermission" ? "Click to allow access again"
+            : st === "syncing" ? "Talking to the other side"
+            : st === "unsupported" ? "Nothing is syncing on this device"
+            : st === "error" ? dt : "Click to set syncing up";
+        }
+        btn.title = t;
+        btn.setAttribute("aria-label", "Syncing: " + lbl.textContent);
+      }
+      window.SuiteSync.onState(paintSync);
+      /* the age moves on its own even when nothing else does */
+      setInterval(function () { paintSync(window.SuiteSync.state, window.SuiteSync.detail); }, 60000);
       btn.onclick = function () { syncMenu(); };
       nav.appendChild(btn);
     }
     document.body.appendChild(nav);
   }
 
+  function ageOf(iso) {
+    if (!iso) return null;
+    var t = Date.parse(iso);
+    return t ? Math.max(0, Date.now() - t) : null;
+  }
+  function agoShort(ms) {
+    var d = Math.floor(ms / 86400000);
+    if (d >= 1) return d + "d ago";
+    return Math.floor(ms / 3600000) + "h ago";
+  }
+  function agoLong(ms) {
+    var mins = Math.floor(ms / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + " minute" + (mins === 1 ? "" : "s") + " ago";
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + " hour" + (hrs === 1 ? "" : "s") + " ago";
+    var d = Math.floor(hrs / 24);
+    return d + " day" + (d === 1 ? "" : "s") + " ago";
+  }
+
   function say(msg) {
     var t = document.createElement("div");
+    /* the gradebook and planner toasts are both live regions; this one was
+       not, so every sync confirmation went unannounced */
+    t.setAttribute("role", "status");
+    t.setAttribute("aria-live", "polite");
     t.textContent = msg;
     t.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:2147483001;" +
       "background:#14202A;color:#fff;padding:10px 16px;border-radius:10px;font:13.5px/1.4 inherit;" +
@@ -265,13 +325,18 @@
   }
 
   /* ---------- look ---------- */
+  /* `data-suite-theme`, deliberately not `data-theme`: the planner owns
+     `data-theme` for its own five looks and sets it on the same element. */
   var THEME_KEY = "suite:theme:v1";
+  var QUIET_BAR = "#EDF0F2", TEXTURED_BAR = "#283130";
   function currentTheme() {
-    return document.documentElement.getAttribute("data-theme") === "textured" ? "textured" : "quiet";
+    return document.documentElement.getAttribute("data-suite-theme") === "textured" ? "textured" : "quiet";
   }
   function setTheme(t) {
-    if (t === "textured") document.documentElement.setAttribute("data-theme", "textured");
-    else document.documentElement.removeAttribute("data-theme");
+    if (t === "textured") document.documentElement.setAttribute("data-suite-theme", "textured");
+    else document.documentElement.removeAttribute("data-suite-theme");
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute("content", t === "textured" ? TEXTURED_BAR : QUIET_BAR);
     try { localStorage.setItem(THEME_KEY, t); } catch (e) { }
     paintTheme();
   }
@@ -284,6 +349,74 @@
     b.setAttribute("aria-pressed", on ? "true" : "false");
     b.querySelector(".ic").textContent = on ? "\u25A6" : "\u25A7";
   }
+
+  /* ---------- a new build landed ----------
+     Pages are network-first and assets are cache-first, so the load right
+     after a deploy runs the new HTML against the old scripts until something
+     makes you reload. That window is most of what "my change didn't deploy"
+     actually was, on top of the forgotten cache bump. The worker already
+     calls skipWaiting and claim, so the only missing piece was telling the
+     person sitting in front of it. Never reload on its own: there may be an
+     unsaved day on screen. */
+  function watchForUpdate() {
+    if (!("serviceWorker" in navigator)) return;
+    var reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (reloading) return;
+      var b = document.getElementById("suiteupdate");
+      if (b) return;
+      var box = document.createElement("div");
+      box.id = "suiteupdate";
+      box.setAttribute("role", "status");
+      box.setAttribute("aria-live", "polite");
+      box.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);" +
+        "bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:2147483001;" +
+        "background:#14202A;color:#fff;padding:9px 10px 9px 16px;border-radius:10px;" +
+        "display:flex;gap:12px;align-items:center;" +
+        "font:13.5px/1.4 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;" +
+        "box-shadow:0 2px 10px rgba(16,24,32,.24);max-width:min(520px,92vw)";
+      var t = document.createElement("span");
+      t.textContent = "A newer version of this tool is ready.";
+      box.appendChild(t);
+      var go = document.createElement("button");
+      go.type = "button";
+      go.textContent = "Reload";
+      go.style.cssText = "border:0;background:#10655C;color:#fff;font:600 13px inherit;" +
+        "padding:7px 13px;border-radius:7px;cursor:pointer";
+      go.onclick = function () { reloading = true; location.reload(); };
+      box.appendChild(go);
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "\u00d7";
+      x.setAttribute("aria-label", "Dismiss");
+      x.style.cssText = "border:0;background:transparent;color:#9FB2B5;font-size:17px;cursor:pointer;padding:0 4px";
+      x.onclick = function () { box.remove(); };
+      box.appendChild(x);
+      document.body.appendChild(box);
+    });
+  }
+
+  /* which build this device is actually running, straight from the worker */
+  function buildVersion() {
+    return new Promise(function (res) {
+      if (!("serviceWorker" in navigator) || !navigator.serviceWorker.controller) { res(""); return; }
+      var done = false;
+      function onMsg(e) {
+        if (!e.data || !e.data.suiteVersion) return;
+        done = true;
+        navigator.serviceWorker.removeEventListener("message", onMsg);
+        res(e.data.suiteVersion);
+      }
+      navigator.serviceWorker.addEventListener("message", onMsg);
+      navigator.serviceWorker.controller.postMessage("version");
+      setTimeout(function () {
+        if (done) return;
+        navigator.serviceWorker.removeEventListener("message", onMsg);
+        res("");
+      }, 1500);
+    });
+  }
+  window.SuiteBuild = { version: buildVersion };
 
   function syncMenu() {
     var S = window.SuiteSync;
@@ -300,18 +433,34 @@
       });
       return;
     }
+    /* These two were the last confirm() calls left in the switcher, and both
+       had the destructive answer on Cancel: dismissing the first one — or
+       pressing Escape, or clicking away — disconnected the sync, and
+       dismissing the second created a file rather than doing nothing. The
+       sheet already used everywhere else makes each choice a button that
+       says what it does, and leaves Cancel meaning cancel. */
     if (S.state === "connected") {
-      if (confirm("Synced with " + S.fileName + ".\n\nOK to write now, or Cancel to disconnect.")) {
-        S.push(true).then(function () { say("Written to " + S.fileName + "."); });
-      } else {
-        S.disconnect().then(function () { say("Disconnected. Still saving in this browser."); });
-      }
+      sheet("Synced with " + S.fileName, "All three tools write to that file.", [
+        { label: "Write now", hint: "save this device's data to the file", run: function () {
+          S.push(true).then(function () { say("Written to " + S.fileName + "."); });
+        } },
+        { label: "Stop syncing this device", hint: "the data stays in this browser", run: function () {
+          S.disconnect().then(function () { say("Disconnected. Still saving in this browser."); });
+        } }
+      ]);
       return;
     }
-    var existing = confirm("Connect a file that all three tools share.\n\nOK to open an existing file, Cancel to create a new one.\n\nPut it in your Google Drive folder and Drive keeps it in step across machines.");
+    sheet("Connect a shared file", "All three tools read and write one file. Put it in your Drive folder and Drive keeps it in step across machines.", [
+      { label: "Open an existing file", hint: "one this suite already wrote", run: function () { doConnect(true); } },
+      { label: "Create a new file", hint: "start one from this device's data", run: function () { doConnect(false); } }
+    ]);
+  }
+  function doConnect(existing) {
+    var S = window.SuiteSync;
     S.connect(existing).then(function () { say("Connected. Everything is written to that file from now on."); })
       .catch(function (e) { if (e && e.name !== "AbortError") say("Could not connect: " + (e.message || e)); });
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
-  else build();
+  function start() { build(); watchForUpdate(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();

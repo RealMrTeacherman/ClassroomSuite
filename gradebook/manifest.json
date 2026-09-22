@@ -27,5 +27,44 @@
       "purpose": "maskable"
     }
   ],
-  "orientation": "any"
+  "orientation": "any",
+  "id": "./",
+  "shortcuts": [
+    {
+      "name": "Enter scores",
+      "short_name": "Scores",
+      "url": "./#enter",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Groups & patterns",
+      "short_name": "Groups",
+      "url": "./#groups",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Report card",
+      "short_name": "Report",
+      "url": "./#report",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

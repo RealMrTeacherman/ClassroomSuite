@@ -160,7 +160,7 @@ body {
 }
 
 /* ==========================================================================
-   TEXTURED THEME  —  [data-theme="textured"]
+   TEXTURED THEME  —  [data-suite-theme="textured"]
 
    Woven slate for chrome, manila card for panels, ruled paper for notes and
    passages, pressed wells for tracks and meters. Every texture is a gradient
@@ -184,7 +184,7 @@ body {
       print at all.
    ========================================================================== */
 @media screen {
-  [data-theme="textured"] {
+  [data-suite-theme="textured"] {
     /* Sampled from the original materials sheet. The four surfaces it names
        are: woven slate for chrome, manila card for panels, ruled paper for
        passages and notes, and a pressed well for tracks and meters.
@@ -246,7 +246,7 @@ body {
      rather than tint, and the vertical wash only lifts the top. The earlier
      version darkened towards 460px, which meant everything below the fold
      sat in shadow for no reason. */
-  [data-theme="textured"] body {
+  [data-suite-theme="textured"] body {
     background-color: var(--suite-paper);
     background-image:
       repeating-linear-gradient(90deg, rgba(255, 255, 248, .5) 0 1px, transparent 1px 4px),
@@ -255,27 +255,27 @@ body {
     color: var(--suite-ink);
     font-family: var(--suite-sans);
   }
-  [data-theme="textured"] h1,
-  [data-theme="textured"] h2,
-  [data-theme="textured"] h3 { color: var(--suite-ink-head); }
-  [data-theme="textured"] h1,
-  [data-theme="textured"] h2,
-  [data-theme="textured"] h3,
-  [data-theme="textured"] .num,
-  [data-theme="textured"] .mark.v1,
-  [data-theme="textured"] .mark.v2,
-  [data-theme="textured"] .mark.v3,
-  [data-theme="textured"] .mark.v4,
-  [data-theme="textured"] .mark.vnone,
-  [data-theme="textured"] .scale button,
-  [data-theme="textured"] .clock {
+  [data-suite-theme="textured"] h1,
+  [data-suite-theme="textured"] h2,
+  [data-suite-theme="textured"] h3 { color: var(--suite-ink-head); }
+  [data-suite-theme="textured"] h1,
+  [data-suite-theme="textured"] h2,
+  [data-suite-theme="textured"] h3,
+  [data-suite-theme="textured"] .num,
+  [data-suite-theme="textured"] .mark.v1,
+  [data-suite-theme="textured"] .mark.v2,
+  [data-suite-theme="textured"] .mark.v3,
+  [data-suite-theme="textured"] .mark.v4,
+  [data-suite-theme="textured"] .mark.vnone,
+  [data-suite-theme="textured"] .scale button,
+  [data-suite-theme="textured"] .clock {
     font-family: var(--suite-serif);
   }
 
   /* --- chrome: woven slate, light type, a hard edge --- */
-  [data-theme="textured"] header.app,
-  [data-theme="textured"] header:not(.top),
-  [data-theme="textured"] .timerbar {
+  [data-suite-theme="textured"] header.app,
+  [data-suite-theme="textured"] header:not(.top),
+  [data-suite-theme="textured"] .timerbar {
     background-color: var(--suite-slate);
     background-image:
       repeating-linear-gradient(90deg, rgba(255, 255, 255, .045) 0 1px, transparent 1px 3px),
@@ -288,16 +288,16 @@ body {
     color: #FBF9F1;
   }
   /* on slate the letterpress inverts: the shadow goes below, not above */
-  [data-theme="textured"] header.app .brandrow h1,
-  [data-theme="textured"] header .hbar,
-  [data-theme="textured"] header.app h1 {
+  [data-suite-theme="textured"] header.app .brandrow h1,
+  [data-suite-theme="textured"] header .hbar,
+  [data-suite-theme="textured"] header.app h1 {
     color: #F4F1E6;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
   }
-  [data-theme="textured"] header.app .meta,
-  [data-theme="textured"] header.app .saveflag,
-  [data-theme="textured"] nav.tabs { gap: 3px; padding-top: 2px; }
-  [data-theme="textured"] nav.tabs button {
+  [data-suite-theme="textured"] header.app .meta,
+  [data-suite-theme="textured"] header.app .saveflag,
+  [data-suite-theme="textured"] nav.tabs { gap: 3px; padding-top: 2px; }
+  [data-suite-theme="textured"] nav.tabs button {
     color: #C4BDA9;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
     background: transparent;
@@ -307,33 +307,33 @@ body {
     padding-bottom: 9px;
     margin-bottom: -1px;
   }
-  [data-theme="textured"] nav.tabs button:hover {
+  [data-suite-theme="textured"] nav.tabs button:hover {
     color: #FBF9F1;
     background: rgba(255, 246, 226, .09);
   }
-  [data-theme="textured"] header:not(.top) .hbar,
-  [data-theme="textured"] header:not(.top) .hbar h1,
-  [data-theme="textured"] header:not(.top) .hbar p,
-  [data-theme="textured"] header:not(.top) .hbar a,
-  [data-theme="textured"] header:not(.top) .brand h1 {
+  [data-suite-theme="textured"] header:not(.top) .hbar,
+  [data-suite-theme="textured"] header:not(.top) .hbar h1,
+  [data-suite-theme="textured"] header:not(.top) .hbar p,
+  [data-suite-theme="textured"] header:not(.top) .hbar a,
+  [data-suite-theme="textured"] header:not(.top) .brand h1 {
     color: #F4F1E6;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
   }
-  [data-theme="textured"] header:not(.top) .brand span,
-  [data-theme="textured"] header:not(.top) .hbar .sub {
+  [data-suite-theme="textured"] header:not(.top) .brand span,
+  [data-suite-theme="textured"] header:not(.top) .hbar .sub {
     color: #BCB5A1;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
   }
   /* the planner's brand mark is an element called .mark too, and it is a logo
      rather than a score. Keep the score treatment off it. */
-  [data-theme="textured"] .brand .mark {
+  [data-suite-theme="textured"] .brand .mark {
     background-image: none;
     border: 0;
     box-shadow: none;
   }
   /* the open tab is a piece of the manila lifted out of the cover, joined to
      the page below rather than floating on the bar */
-  [data-theme="textured"] nav.tabs button[aria-selected="true"] {
+  [data-suite-theme="textured"] nav.tabs button[aria-selected="true"] {
     background-image: linear-gradient(180deg, #F9F6EC, #F1EDDF);
     border-color: var(--suite-slate-edge);
     color: #313C3B;
@@ -341,18 +341,18 @@ body {
     text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
     box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 -2px 4px rgba(20, 14, 6, .22);
   }
-  [data-theme="textured"] .segmented {
+  [data-suite-theme="textured"] .segmented {
     background: var(--suite-well);
     border-color: rgba(40, 36, 22, .34);
     box-shadow: 0 1px 3px rgba(40, 36, 22, .3) inset;
   }
-  [data-theme="textured"] .segmented button { color: #6C6450; text-shadow: 0 1px 0 rgba(255, 255, 250, .7); }
-  [data-theme="textured"] .segmented button {
+  [data-suite-theme="textured"] .segmented button { color: #6C6450; text-shadow: 0 1px 0 rgba(255, 255, 250, .7); }
+  [data-suite-theme="textured"] .segmented button {
     background: transparent;
     border: 1px solid transparent;
     box-shadow: none;
   }
-  [data-theme="textured"] .segmented button[aria-pressed="true"] {
+  [data-suite-theme="textured"] .segmented button[aria-pressed="true"] {
     background-image: linear-gradient(180deg, #FDFBF4, #F0EBDE);
     border-color: rgba(40, 36, 22, .38);
     color: #313C3B;
@@ -364,37 +364,37 @@ body {
      properties inherit, so this reaches every hint, caption and secondary line
      in a panel without naming any of them, and anything sitting on the bare
      ground keeps the darker value. */
-  [data-theme="textured"] .card,
-  [data-theme="textured"] .panel,
-  [data-theme="textured"] .sheet,
-  [data-theme="textured"] .tile,
-  [data-theme="textured"] .box,
-  [data-theme="textured"] .group {
+  [data-suite-theme="textured"] .card,
+  [data-suite-theme="textured"] .panel,
+  [data-suite-theme="textured"] .sheet,
+  [data-suite-theme="textured"] .tile,
+  [data-suite-theme="textured"] .box,
+  [data-suite-theme="textured"] .group {
     --suite-ink-3: #6C6450;
     --ink-3: #6C6450;
     --muted: #6C6450;
   }
 
   /* --- panels: manila card, lifted off the ground --- */
-  [data-theme="textured"] .card,
-  [data-theme="textured"] .panel,
-  [data-theme="textured"] .sheet,
-  [data-theme="textured"] .tile,
-  [data-theme="textured"] .box,
-  [data-theme="textured"] .group {
+  [data-suite-theme="textured"] .card,
+  [data-suite-theme="textured"] .panel,
+  [data-suite-theme="textured"] .sheet,
+  [data-suite-theme="textured"] .tile,
+  [data-suite-theme="textured"] .box,
+  [data-suite-theme="textured"] .group {
     background-image: linear-gradient(180deg, #F9F6EC, #F3EFE1);
     border: 1px solid rgba(58, 46, 30, .38) !important;
     box-shadow: var(--suite-shadow-sm) !important;
   }
 
   /* --- letterpress, one pixel, low alpha --- */
-  [data-theme="textured"] main h2,
-  [data-theme="textured"] main h3,
-  [data-theme="textured"] th,
-  [data-theme="textured"] label,
-  [data-theme="textured"] .tag,
-  [data-theme="textured"] .hint,
-  [data-theme="textured"] .gname {
+  [data-suite-theme="textured"] main h2,
+  [data-suite-theme="textured"] main h3,
+  [data-suite-theme="textured"] th,
+  [data-suite-theme="textured"] label,
+  [data-suite-theme="textured"] .tag,
+  [data-suite-theme="textured"] .hint,
+  [data-suite-theme="textured"] .gname {
     text-shadow: 0 1px 0 rgba(255, 252, 242, .8);
   }
 
@@ -402,8 +402,8 @@ body {
   /* The chrome has its own controls — tabs and the subject switch — and they
      are not bone buttons. Excluding them here is what stops a row of tabs
      rendering as a row of pushbuttons. */
-  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button),
-  [data-theme="textured"] .btn {
+  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button),
+  [data-suite-theme="textured"] .btn {
     font-family: var(--suite-sans);
     background-image: linear-gradient(180deg, #FDFBF4, #EEE9DC);
     background-color: #F5F1E6;
@@ -413,23 +413,23 @@ body {
     text-shadow: 0 1px 0 rgba(255, 253, 246, .85);
     box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 1px 2px rgba(35, 27, 16, .28);
   }
-  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button):hover:not(:disabled),
-  [data-theme="textured"] .btn:hover:not(:disabled) { background-image: linear-gradient(180deg, #FFFFFA, #E6E0D0); }
-  [data-theme="textured"] button:not(nav.tabs button):not(.segmented button):active:not(:disabled),
-  [data-theme="textured"] .btn:active:not(:disabled) {
+  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button):hover:not(:disabled),
+  [data-suite-theme="textured"] .btn:hover:not(:disabled) { background-image: linear-gradient(180deg, #FFFFFA, #E6E0D0); }
+  [data-suite-theme="textured"] button:not(nav.tabs button):not(.segmented button):active:not(:disabled),
+  [data-suite-theme="textured"] .btn:active:not(:disabled) {
     background-image: linear-gradient(180deg, #E4DECE, #F5F1E6);
     box-shadow: 0 2px 5px rgba(35, 27, 16, .34) inset;
   }
-  [data-theme="textured"] .btn.primary,
-  [data-theme="textured"] button.primary {
+  [data-suite-theme="textured"] .btn.primary,
+  [data-suite-theme="textured"] button.primary {
     background-image: linear-gradient(180deg, #3F726A, #2A544E);
     border-color: #1B3C36;
     color: #F3FAF8;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
     box-shadow: 0 1px 0 rgba(255, 255, 255, .26) inset, 0 1px 2px rgba(35, 27, 16, .36);
   }
-  [data-theme="textured"] .btn.danger,
-  [data-theme="textured"] button.danger {
+  [data-suite-theme="textured"] .btn.danger,
+  [data-suite-theme="textured"] button.danger {
     background-image: linear-gradient(180deg, #A8503A, #833B28);
     border-color: #632A1B;
     color: #FFF4F0;
@@ -441,7 +441,7 @@ body {
      pressed they take the mark's colour with a gloss and an inner shadow, so
      a marked row is scannable from across the room. The numeral never goes
      away, so the colour is never the only thing saying which mark it is. */
-  [data-theme="textured"] .scale button {
+  [data-suite-theme="textured"] .scale button {
     background-image: linear-gradient(180deg, #FDFBF4, #EBE5D8);
     border: 1px solid rgba(58, 52, 34, .42);
     color: #5F5847;
@@ -449,7 +449,7 @@ body {
     text-shadow: 0 1px 0 rgba(255, 253, 246, .9);
     box-shadow: 0 1px 0 rgba(255, 253, 246, .95) inset, 0 1px 2px rgba(35, 27, 16, .26);
   }
-  [data-theme="textured"] .scale button[aria-pressed="true"] {
+  [data-suite-theme="textured"] .scale button[aria-pressed="true"] {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(0, 0, 0, .18));
     color: #FFFBF2;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
@@ -458,29 +458,29 @@ body {
   /* Mark 2 is a gold, and gold is light: a white numeral on it comes out at
      3.85:1, which is under the bar. Deepening the gloss on that one chip
      alone carries it to 5.3 without touching the mark colour itself. */
-  [data-theme="textured"] .scale button[data-v="2"][aria-pressed="true"] {
+  [data-suite-theme="textured"] .scale button[data-v="2"][aria-pressed="true"] {
     background-image: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .26));
   }
-  [data-theme="textured"] .mark.v1,
-  [data-theme="textured"] .mark.v2,
-  [data-theme="textured"] .mark.v3,
-  [data-theme="textured"] .mark.v4 {
+  [data-suite-theme="textured"] .mark.v1,
+  [data-suite-theme="textured"] .mark.v2,
+  [data-suite-theme="textured"] .mark.v3,
+  [data-suite-theme="textured"] .mark.v4 {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, .5), rgba(0, 0, 0, .06));
     border: 1px solid rgba(58, 46, 30, .3);
     box-shadow: 0 1px 0 rgba(255, 253, 246, .6) inset, 0 1px 1px rgba(35, 27, 16, .22);
     font-weight: 600;
   }
-  [data-theme="textured"] .mark.vnone {
+  [data-suite-theme="textured"] .mark.vnone {
     background-image: none;
     background-color: rgba(58, 46, 30, .05);
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
 
   /* --- ruled paper: notes and reading passages --- */
-  [data-theme="textured"] textarea,
-  [data-theme="textured"] .passage,
-  [data-theme="textured"] .reading,
-  [data-theme="textured"] input.note {
+  [data-suite-theme="textured"] textarea,
+  [data-suite-theme="textured"] .passage,
+  [data-suite-theme="textured"] .reading,
+  [data-suite-theme="textured"] input.note {
     background-color: var(--suite-sheet);
     background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
     background-attachment: local;
@@ -490,44 +490,75 @@ body {
   }
 
   /* --- pressed wells: fields, tracks and meters are cut into the surface --- */
-  [data-theme="textured"] input[type="text"],
-  [data-theme="textured"] input[type="date"],
-  [data-theme="textured"] input[type="number"],
-  [data-theme="textured"] input[type="password"],
-  [data-theme="textured"] select {
+  [data-suite-theme="textured"] input[type="text"],
+  [data-suite-theme="textured"] input[type="date"],
+  [data-suite-theme="textured"] input[type="number"],
+  [data-suite-theme="textured"] input[type="password"],
+  [data-suite-theme="textured"] select {
     font-family: var(--suite-sans);
     background-image: linear-gradient(180deg, var(--suite-well), #FCFAF2 8px);
     border: 1px solid rgba(58, 52, 34, .4);
     border-radius: var(--suite-radius-sm);
     box-shadow: 0 1px 3px rgba(35, 27, 16, .2) inset;
   }
-  [data-theme="textured"] .wbar,
-  [data-theme="textured"] .track,
-  [data-theme="textured"] progress,
-  [data-theme="textured"] .meter,
-  [data-theme="textured"] .segmented {
+  [data-suite-theme="textured"] .wbar,
+  [data-suite-theme="textured"] .track,
+  [data-suite-theme="textured"] progress,
+  [data-suite-theme="textured"] .meter,
+  [data-suite-theme="textured"] .segmented {
     background-color: var(--suite-well);
     border-radius: 99px;
     box-shadow: 0 1px 3px rgba(35, 27, 16, .38) inset, 0 1px 0 rgba(255, 253, 246, .6);
   }
-  [data-theme="textured"] .bar {
+  [data-suite-theme="textured"] .bar {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, .36), rgba(0, 0, 0, .14));
     box-shadow: 0 1px 0 rgba(255, 255, 255, .3) inset;
   }
 
   /* the corner switcher belongs to the chrome, not the page */
-  [data-theme="textured"] #suitenav,
-  [data-theme="textured"] #suitesheet {
+  [data-suite-theme="textured"] #suitenav,
+  [data-suite-theme="textured"] #suitesheet {
     background-image: linear-gradient(180deg, var(--suite-slate), var(--suite-slate-2)) !important;
     border: 1px solid var(--suite-slate-edge) !important;
     box-shadow: 0 1px 0 rgba(255, 255, 255, .13) inset, 0 4px 14px rgba(20, 16, 10, .5) !important;
     color: #FBF9F1;
   }
-  [data-theme="textured"] #suitenav a,
-  [data-theme="textured"] #suitenav button,
-  [data-theme="textured"] #suitesheet > b,
-  [data-theme="textured"] #suitesheet button { color: #EFEADD; }
-  [data-theme="textured"] #suitesheet > i,
-  [data-theme="textured"] #suitesheet button em { color: #A9A294; }
-  [data-theme="textured"] #suitenav a[aria-current="page"] { background: rgba(255, 255, 255, .13); }
+  [data-suite-theme="textured"] #suitenav a,
+  [data-suite-theme="textured"] #suitenav button,
+  [data-suite-theme="textured"] #suitesheet > b,
+  [data-suite-theme="textured"] #suitesheet button { color: #EFEADD; }
+  [data-suite-theme="textured"] #suitesheet > i,
+  [data-suite-theme="textured"] #suitesheet button em { color: #A9A294; }
+  [data-suite-theme="textured"] #suitenav a[aria-current="page"] { background: rgba(255, 255, 255, .13); }
+
+  /* ---------- keyboard focus ----------
+     The theme turns buttons into bevelled keys and fields into pressed
+     wells, and defined no focus ring at all, so a keyboard ring was left to
+     whatever the browser draws by default over a gradient — which on the
+     bone chips and the slate chrome is close to invisible. Two rings, one
+     for each family of surface, both outside the element so they cannot be
+     swallowed by an inner shadow. */
+  [data-suite-theme="textured"] :focus-visible {
+    outline: 2px solid var(--suite-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  /* on the dark chrome the accent has nothing to separate it from the cloth */
+  [data-suite-theme="textured"] header :focus-visible,
+  [data-suite-theme="textured"] nav.tabs :focus-visible,
+  [data-suite-theme="textured"] #suitenav :focus-visible,
+  [data-suite-theme="textured"] #suitesheet :focus-visible {
+    outline: 2px solid #F4F1E6;
+    outline-offset: 2px;
+  }
+  /* a mark chip is the one control read across the room, so its ring sits
+     clear of the bevel rather than on it */
+  [data-suite-theme="textured"] .mark.v1:focus-visible,
+  [data-suite-theme="textured"] .mark.v2:focus-visible,
+  [data-suite-theme="textured"] .mark.v3:focus-visible,
+  [data-suite-theme="textured"] .mark.v4:focus-visible,
+  [data-suite-theme="textured"] .mark.vnone:focus-visible {
+    outline: 2px solid var(--suite-ink);
+    outline-offset: 3px;
+  }
 }
