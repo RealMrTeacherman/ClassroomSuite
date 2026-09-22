@@ -17,6 +17,7 @@
   var KEY = "suite:subplan:v1";
   var LP_SETTINGS = "lp:settings:v2";
   var LP_DAYS = "lp:days:v2";
+  var LP_PENDING = "lp:pending:v1";
   var GB_KEY = "gb2_standards_v1";
   var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var DAYKEY = ["U", "M", "T", "W", "R", "F", "S"];
@@ -90,16 +91,97 @@
   var S = read();
   function persist() { write(S); }
 
-  /* ---------- planner data ---------- */
+  /* ---------- planner data ----------
+     Three places a day can live, and this used to read only the last one.
+
+     The planner keeps the day you are looking at in a `draft` object. That
+     draft reaches `lp:days:v2` only when `commitDay()` runs, which needs the
+     explicit Save; until then an edit goes to `lp:pending:v1` instead. So
+     typing tomorrow's plan and pressing Sub plan without saving first
+     produced a sub plan built from the schedule template alone — no lesson
+     positions, no day note, no subject notes — and printed it without
+     complaint. That is the one moment this feature exists for.
+
+     The planner's main script is a plain top-level <script>, not a module or
+     an IIFE, and this file is a classic script too, so the two share the
+     global scope: `draft`, `cursor`, `DAYS` and `PENDING` are reachable by
+     name and `flushSave` is on window. Nothing has to be added to the
+     planner for this. Everything below is guarded, because this same file
+     also loads on the gradebook, where none of it exists.
+
+     Precedence is the planner's own, not a new one. Its boot does
+     `if(DAYS[k]) delete PENDING[k]` — a draft never shadows a saved record —
+     and that matters here because `lp:pending:v1` is synced, so a stale
+     draft can arrive from another device. Live draft first (it is what is on
+     screen), then the saved record, then a pending draft. */
+  /* A bare reference to something the planner never declared throws
+     ReferenceError, which is the guard. No eval: the scope chain from inside
+     this function already reaches the planner's top-level `let` and `const`
+     bindings, because both files are classic scripts sharing one global
+     lexical scope, and a page with a strict script-src would block eval
+     anyway. */
+  function lpDraft() { try { return draft; } catch (e) { return undefined; } }
+  function lpCursor() { try { return cursor; } catch (e) { return undefined; } }
+  function lpKeyFn() { try { return key; } catch (e) { return undefined; } }
+  /* Ask the planner to write everything through before we read storage.
+     flushSave() stashes the working draft, forces the debounced day write,
+     and flushes the pending write. Without this, a day edited and saved less
+     than 450ms ago is still only in memory. */
+  function flushPlanner() {
+    try { if (typeof window.flushSave === "function") window.flushSave(); } catch (e) { }
+  }
+  /* which day the planner is actually showing, so the panel does not silently
+     open on today while you are looking at Thursday */
+  function plannerDay() {
+    try {
+      var cur = lpCursor(), k = lpKeyFn();
+      if (cur && typeof k === "function") return k(cur);
+    } catch (e) { }
+    return null;
+  }
+  var draftDays = {};        /* dates whose record is an uncommitted draft */
   function planner() {
     try {
       var s = localStorage.getItem(LP_SETTINGS);
       if (!s) return null;
+      var saved = JSON.parse(localStorage.getItem(LP_DAYS) || "{}") || {};
+      var pend = JSON.parse(localStorage.getItem(LP_PENDING) || "{}") || {};
+      var days = {};
+      draftDays = {};
+
+      Object.keys(saved).forEach(function (k) { days[k] = saved[k]; });
+      /* a pending draft only fills a day that has no saved record */
+      Object.keys(pend).forEach(function (k) {
+        if (days[k]) return;
+        days[k] = pend[k];
+        draftDays[k] = true;
+      });
+      /* and the live draft, which is fresher than anything on disk */
+      var live = lpDraft();
+      if (live && live.__key) {
+        var copy = JSON.parse(JSON.stringify(live));
+        delete copy.__key;
+        days[live.__key] = copy;
+        if (!live.saved) draftDays[live.__key] = true;
+        else delete draftDays[live.__key];
+      }
       return {
         subjects: (JSON.parse(s) || {}).subjects || [],
-        days: JSON.parse(localStorage.getItem(LP_DAYS) || "{}") || {}
+        days: days
       };
     } catch (e) { return null; }
+  }
+  function isDraftDay(iso) { return !!draftDays[iso]; }
+  /* commitDay() saves whatever day the planner's cursor is on, not whatever
+     day this panel is showing, and the two can differ the moment the date
+     field here is changed. Offering the button then would save the wrong
+     day. So it appears only when the panel and the planner agree and there
+     is a live unsaved draft to save. */
+  function canSaveHere() {
+    if (typeof window.commitDay !== "function") return false;
+    var live = lpDraft();
+    if (!live || live.saved || !live.__key) return false;
+    return live.__key === curDate && plannerDay() === curDate;
   }
   function esc(x) {
     return String(x == null ? "" : x).replace(/[&<>"']/g, function (c) {
@@ -347,6 +429,20 @@
       blocks.length + " block" + (blocks.length === 1 ? "" : "s") + " for a " + DAYS[new Date(curDate + "T12:00:00").getDay()] +
       ", " + filled + " filled in from the planner" + (dayNote(curDate) ? ", plus your note for the day" : "") + ".</p>";
 
+    /* The draft is being used, so nothing is missing from the printout — but
+       say so, because an unsaved day is also one the planner will not keep
+       if the browser is cleared, and because "filled in from the planner" is
+       otherwise describing something that is not in the planner yet. */
+    if (isDraftDay(curDate)) {
+      h += '<p class="hint" style="border-left:3px solid #C98A1B;padding-left:9px;margin-top:8px">' +
+        "This day has not been saved in the planner yet. Everything you typed is included here, " +
+        "but save it in the planner too so the day is not lost." +
+        (canSaveHere()
+          ? ' <button class="b" data-act="savefirst" style="margin-left:6px">Save the day now</button>'
+          : "") +
+        "</p>";
+    }
+
     if (!hasContent()) {
       h += '<div class="warn"><b>Nothing standing yet.</b> The published files carry the time blocks and nothing else — no names, no notes, no phone number, because this site is served from a public repository. Load yours from a private file above, or type them in below.</div>';
     }
@@ -420,7 +516,18 @@
       el.onclick = function () {
         var a = el.dataset.act;
         if (a === "close") close();
-        else if (a === "full" || a === "glance") doPrint(a, curDate);
+        else if (a === "full" || a === "glance") { flushPlanner(); doPrint(a, curDate); }
+        else if (a === "savefirst") {
+          /* commitDay(true) is the planner's own explicit-save path: it marks
+             the draft saved, moves it into DAYS, drops the pending copy and
+             writes through immediately. */
+          try {
+            if (typeof window.commitDay === "function") window.commitDay(true);
+            if (typeof window.render === "function") window.render();
+          } catch (e) { }
+          flushPlanner();
+          paint();
+        }
         else if (a === "addw") { S.watch.push({ name: "", note: "" }); persist(); paint(); }
         else if (a === "addb") { S.blocks.push({ start: "", end: "", title: "", days: "MTRF", subject: "", detail: "", emergency: "" }); persist(); paint(); }
         else if (a === "save") {
@@ -434,7 +541,7 @@
       };
     });
     var dt = document.getElementById("subdate");
-    if (dt) dt.onchange = function () { curDate = dt.value; paint(); };
+    if (dt) dt.onchange = function () { curDate = dt.value; flushPlanner(); paint(); };
     var seed = document.getElementById("subseed");
     if (seed) seed.onchange = function (e) {
       var file = e.target.files[0]; if (!file) return;
@@ -452,7 +559,17 @@
   function openPanel(dateISO) {
     if (open) return;
     open = true;
+    /* Write the planner through before reading storage, and open on the day
+       it is actually showing. The button used to pass nothing, so curDate
+       stayed at today even when the planner was on Thursday — which, with a
+       draft that had not been saved, produced a confident-looking plan for
+       the wrong day. */
+    flushPlanner();
     if (dateISO) curDate = dateISO;
+    else {
+      var d = plannerDay();
+      if (d) curDate = d;
+    }
     var wrap = document.createElement("div");
     wrap.id = "subwrap";
     wrap.innerHTML = '<div id="subpanel"></div>';
