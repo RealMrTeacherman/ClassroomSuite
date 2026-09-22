@@ -570,17 +570,22 @@ body {
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
 
-  /* A single-line field is one line of writing, so it gets one rule, drawn at
-     the foot of the text rather than tiled. Doing it this way means no
-     line-height has to be forced on it: an input's text is centred in its
-     content box, so the rule follows the text whatever the field's own
-     padding and type size are, and no row anywhere gets taller. */
+  /* A single-line field is one line of writing, and it does not need a rule
+     drawn under it — the field's own edge already says where to write. It is
+     plain paper: colour, border, a shallow inset, and nothing painted inside.
+
+     It also has to say `background-image: none` out loud. `.freein` carries
+     no `type` attribute, so it matches the pressed-well rule below at
+     *identical* specificity (0,2,1), and that rule comes later in the file,
+     so its top-shading gradient won. Painted with the content-box origin and
+     no-repeat set here, it came out as a grey band floating above the text
+     and stopping short of both edges. Naming both properties here, and
+     excluding these two classes from the well rule, settles it from both
+     directions rather than relying on source order. */
   [data-suite-theme="textured"] input.note,
   [data-suite-theme="textured"] input.freein {
     background-color: var(--suite-sheet);
-    background-image: linear-gradient(to top, rgba(96, 116, 130, .28) 0 1px, transparent 1px);
-    background-origin: content-box;
-    background-repeat: no-repeat;
+    background-image: none;
     border: 1px solid rgba(58, 46, 30, .4);
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
@@ -626,8 +631,13 @@ body {
   /* An <input> with no type attribute is a text input, but `input[type="text"]`
      does not match one: the attribute has to be written out. Every untyped
      field in the suite was therefore getting no treatment at all and keeping
-     whatever its own tool gave it. */
-  [data-suite-theme="textured"] input:not([type]),
+     whatever its own tool gave it.
+
+     `.freein` and `.note` are untyped too, but they are paper rather than
+     wells, and they are styled above. Excluding them in a `:where()` costs no
+     specificity, so this rule stays at (0,2,1) and simply stops competing
+     with theirs. */
+  [data-suite-theme="textured"] input:not([type]):not(:where(.freein, .note)),
   [data-suite-theme="textured"] select {
     font-family: var(--suite-sans);
     background-image: linear-gradient(180deg, var(--suite-well), #FCFAF2 8px);

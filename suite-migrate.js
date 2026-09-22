@@ -1,5 +1,7 @@
-/* One-time data fixes, run before the planner boots so it reads the new shape.
-   Each is flagged so it happens once and never again. */
+/* Data fixes, run before the planner boots so it reads the new shape.
+   A fix that adds or removes something is flagged so it happens once and a
+   later hand edit sticks; a fix that enforces a state converges on every
+   load instead (see toFreeText below). */
 (function () {
   var S_KEY = "lp:settings:v2", D_KEY = "lp:days:v2", FLAG = "suite:migrations";
 
@@ -113,10 +115,156 @@
     mark("health-sel-subject");
   }
 
+  /* Wednesday, as the school actually runs it (September 2026).
+
+     The planner's Wednesday template had drifted from the real day: 9:45 was
+     "Assembly / Enrichments / Math" linked to Math, so the planner showed
+     Math running 9:15–10:30 and the week's one open block had nowhere to be
+     written down; and 11:45 was "STEAM — Teacher Choice" where the day has
+     GID & Class Store from 11:40.
+
+     Two parts, deliberately different, per the rule above:
+
+     Flagged, once ("wednesday-2026"): an Enrichment subject (free text, like
+     WIN, seated after it) and the Wednesday blocks re-pointed. It changes
+     things he can edit in Settings afterwards, and a later hand edit must
+     stick. suite:migrations syncs, so a second device will not re-apply it.
+
+     Converging, every load: an empty Wednesday is filled in. The planner's
+     own "Reset to sub-plan schedule" sets Wednesday to [] (its reset only
+     knows mtrfBlocks), and its v4 refill never runs again once tv is
+     current, so a reset left Wednesday blank for good. A school day with no
+     blocks is wrong every time it is seen. */
+  function wedBlocks() {
+    return [
+      { t: "8:00",  l: "Morning Meeting",                          s: "",        n: "Feelings check-in \u00b7 schedule \u00b7 attendance & lunch count \u00b7 jobs \u00b7 yoga dice" },
+      { t: "8:15",  l: "Phonics",                                  s: "phonics", n: "ECRI \u2014 first 15 minutes of the Reading block" },
+      { t: "8:30",  l: "Reading",                                  s: "reading", n: "" },
+      { t: "9:00",  l: "Structured Break",                         s: "",        n: "Recess" },
+      { t: "9:15",  l: "Math",                                     s: "math",    n: "" },
+      { t: "9:45",  l: "Assembly / Enrichments / World Wednesday", s: "enrich",  n: "Varies by week \u2014 write it in the Enrichment card" },
+      { t: "10:30", l: "WIN",                                      s: "win",     n: "" },
+      { t: "11:00", l: "Recess",                                   s: "",        n: "" },
+      { t: "11:15", l: "Line up & sanitize",                       s: "",        n: "" },
+      { t: "11:20", l: "Lunch",                                    s: "",        n: "" },
+      { t: "11:40", l: "GID & Class Store",                        s: "",        n: "Unfinished work first, then the GID menu \u00b7 Class Store" },
+      { t: "12:20", l: "Core Arts \u2014 Health/SEL Block A",           s: "",        n: "" },
+      { t: "12:45", l: "Dismissal",                                s: "",        n: "Confirm the exact time" }
+    ];
+  }
+  /* the planner's own clock rule: 12-hour, no am/pm, anything before 7 is pm */
+  function clock(t) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "").trim());
+    if (!m) return 1e9;
+    var h = +m[1]; if (h < 7) h += 12;
+    return h * 60 + (+m[2]);
+  }
+  function wednesday() {
+    try {
+      var raw = localStorage.getItem(S_KEY);
+      if (!raw) return;                       /* planner has not saved yet; try again next boot */
+      var st = JSON.parse(raw);
+      if (!st || !Array.isArray(st.subjects) || !st.templates || typeof st.templates !== "object") return;
+      var wed = Array.isArray(st.templates[3]) ? st.templates[3] : [];
+
+      if (done()["wednesday-2026"]) {
+        if (wed.length) return;
+        st.templates[3] = wedBlocks();
+        localStorage.setItem(S_KEY, JSON.stringify(st));
+        return;
+      }
+
+      if (!st.subjects.some(function (x) { return x && x.id === "enrich"; })) {
+        var block = {
+          id: "enrich", name: "Enrichment",
+          curriculum: "Assembly \u00b7 Enrichments \u00b7 World Wednesday",
+          schema: "free", color: "#8A6A3B", start: { text: "" }, on: true
+        };
+        var at = -1;
+        st.subjects.forEach(function (x, i) { if (x && x.id === "win") at = i; });
+        if (at >= 0) st.subjects.splice(at + 1, 0, block);
+        else st.subjects.push(block);
+      }
+
+      var want = wedBlocks();
+      if (!wed.length) wed = want;
+      else {
+        var put = function (match, b) {
+          var i = -1;
+          wed.forEach(function (x, j) { if (i < 0 && x && match(x)) i = j; });
+          if (i >= 0) wed[i] = { t: b.t, l: b.l, s: b.s, n: b.n || wed[i].n || "" };
+          else wed.push(b);
+        };
+        /* 9:45: whatever it was called, it is the open weekly block */
+        put(function (b) { return b.t === "9:45"; }, want[5]);
+        /* 10:30: WIN, linked so its text reaches the sub plan */
+        put(function (b) { return b.t === "10:30"; }, want[6]);
+        /* 11:40: GID & Class Store replaces the 11:45 STEAM slot */
+        put(function (b) { return b.t === "11:40" || b.t === "11:45" || /STEAM/i.test(b.l || ""); }, want[10]);
+      }
+      st.templates[3] = wed.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
+      localStorage.setItem(S_KEY, JSON.stringify(st));
+    } catch (e) { return; }
+    mark("wednesday-2026");
+  }
+
+  /* Day records the planner cannot draw.
+
+     The arrows only moved between saved days. go() moves the cursor and then
+     renders, and renderToday() throws on a record missing something it
+     assumes — so the cursor moved, the screen stayed on the previous day,
+     and the next press moved it again until it landed on a complete record,
+     in practice a saved one. `draft` had already switched before the throw,
+     so typing on the stale screen went into a day not on screen.
+
+     The shapes that throw, each checked against the real planner: flags not
+     an array, entries not an object, a free-text entry with no pos, and a
+     record that is not an object at all. A missing notes, noSchool or saved
+     is harmless and left alone, as is a stepper entry with no pos.
+
+     What wrote them is not settled. The planner does not, the gradebook only
+     reads, and both day keys sync, so an older build on another device is
+     the likeliest source. So this repairs the shape, whatever wrote it, and
+     converges on every load: a record that cannot be drawn is wrong every
+     time it is seen. Only missing structure is filled in; no value that is
+     present changes. Runs last, after toFreeText has settled the schemas. */
+  function repairDays() {
+    var free = {};
+    try {
+      var st = JSON.parse(localStorage.getItem(S_KEY) || "null");
+      ((st && st.subjects) || []).forEach(function (x) { if (x && x.schema === "free") free[x.id] = true; });
+    } catch (e) { }
+    function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+    var fixed = 0;
+    [D_KEY, "lp:pending:v1"].forEach(function (key) {
+      var all;
+      try { all = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return; }
+      if (!isObj(all)) return;
+      var changed = false;
+      Object.keys(all).forEach(function (dk) {
+        var rec = all[dk];
+        if (!isObj(rec)) { delete all[dk]; changed = true; fixed++; return; }
+        var hit = false;
+        if (!Array.isArray(rec.flags)) { rec.flags = []; hit = true; }
+        if (!isObj(rec.entries)) { rec.entries = {}; hit = true; }
+        Object.keys(rec.entries).forEach(function (id) {
+          var e = rec.entries[id];
+          if (free[id] && isObj(e) && !isObj(e.pos)) { e.pos = { text: "" }; hit = true; }
+        });
+        if (hit) { changed = true; fixed++; }
+      });
+      if (changed) { try { localStorage.setItem(key, JSON.stringify(all)); } catch (e) { } }
+    });
+    /* said once, so "was this what was wrong on my machine?" has an answer */
+    if (fixed && window.console) console.info("[suite] repaired " + fixed + " planner day record" + (fixed === 1 ? "" : "s"));
+  }
+
   /* Science and Social Studies covers too much variety to be "Lesson 4", and
      Writing runs on its own rhythm rather than the curriculum's unit, week
      and day. Both are open fields he types into. */
   toFreeText("science");
   toFreeText("writing");
   addHealthSel();
+  wednesday();
+  repairDays();
 })();
