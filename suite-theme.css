@@ -542,13 +542,45 @@ body {
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
 
-  /* --- ruled paper: notes and reading passages --- */
-  [data-suite-theme="textured"] textarea,
-  [data-suite-theme="textured"] input.note {
+  /* --- ruled paper: notes --- */
+  [data-suite-theme="textured"] textarea {
     background-color: var(--suite-sheet);
     background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
+    /* The rules start where the *text* starts.
+
+       By default a background is laid out from the padding box, so the rules
+       began at the top of the field while the first line of text began one
+       padding-top lower. Every field has its own padding, so every field put
+       its text at a different height inside the band — the day-notes box sat
+       above its rule, "Add specifics" had its rule struck through the
+       letters, and nothing lined up with anything. From the content box the
+       offset is the same everywhere:
+
+         baseline ≈ (26 − 1.15×14.5)/2 + 0.90×14.5 ≈ 17.7px into the line
+         rule at 25px  →  7.3px under the baseline, clear of the descenders
+
+       `repeat-x` rather than the default `repeat` so the pattern is not also
+       tiled upwards into the padding, which would put a stray rule along the
+       top edge of every field. */
+    background-origin: content-box;
+    background-repeat: repeat-x;
     background-attachment: local;
     line-height: 26px;
+    border: 1px solid rgba(58, 46, 30, .4);
+    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
+  }
+
+  /* A single-line field is one line of writing, so it gets one rule, drawn at
+     the foot of the text rather than tiled. Doing it this way means no
+     line-height has to be forced on it: an input's text is centred in its
+     content box, so the rule follows the text whatever the field's own
+     padding and type size are, and no row anywhere gets taller. */
+  [data-suite-theme="textured"] input.note,
+  [data-suite-theme="textured"] input.freein {
+    background-color: var(--suite-sheet);
+    background-image: linear-gradient(to top, rgba(96, 116, 130, .28) 0 1px, transparent 1px);
+    background-origin: content-box;
+    background-repeat: no-repeat;
     border: 1px solid rgba(58, 46, 30, .4);
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
@@ -614,14 +646,9 @@ body {
      <button> and the button rule caught it; this is the same field finally
      matching it. */
   [data-suite-theme="textured"] input.freein {
-    background-color: var(--suite-sheet);
-    background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(96, 116, 130, .28) 25px 26px);
-    background-attachment: local;
     font-family: var(--suite-sans);
     font-size: 14px;
     color: var(--suite-ink);
-    border: 1px solid rgba(58, 46, 30, .4);
-    box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
   [data-suite-theme="textured"] input.freein::placeholder { color: var(--suite-ink-3); }
   [data-suite-theme="textured"] .wbar,
