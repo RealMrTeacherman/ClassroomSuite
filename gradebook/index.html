@@ -121,7 +121,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .btn.ghost:hover{background:var(--accent-soft)}
 /* Brass: a bulk action that is consequential but not destructive. Dark ink on
    the gold, not white — white on this gold is 2.6:1 and the ink is 8.1:1. */
-.btn.brass{background:var(--s2);border-color:var(--s2);color:#2A2012;box-shadow:none;font-weight:600}
+.btn.brass{background:var(--s2);border-color:var(--s2);color:#140D04;box-shadow:none;font-weight:600}
 .btn.brass:hover{filter:brightness(1.06)}
 .btn.danger{color:var(--s1);border-color:var(--s1);background:var(--panel);box-shadow:none}
 .btn.danger:hover{background:var(--s1-bg)}
@@ -140,7 +140,7 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 .scale{display:inline-flex;gap:4px}
 .scale button{
   width:38px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--line-strong);
-  background:var(--panel);font-weight:600;font-size:15px;color:#9AA4AE;
+  background:var(--panel);font-weight:600;font-size:15px;color:var(--ink-3);
   display:flex;align-items:center;justify-content:center;
 }
 .scale button:hover{border-color:var(--ink-3);color:var(--ink-2)}
@@ -150,7 +150,9 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 .scale button[data-v="4"][aria-pressed="true"]{background:var(--s4);border-color:var(--s4);color:#fff}
 .mark{display:inline-flex;align-items:center;justify-content:center;width:25px;height:23px;border-radius:5px;font-weight:600;font-size:13px;border:1px solid transparent}
 .mark.v1{background:var(--s1-bg);color:var(--s1);border-color:var(--s1-line)}
-.mark.v2{background:var(--s2-bg);color:var(--s2);border-color:var(--s2-line)}
+/* Text on a mark's own pale tint takes a deeper ink of the same hue: the gold
+   at #A87621 is 3.57:1 on its tint. The fill and border keep the mark colour. */
+.mark.v2{background:var(--s2-bg);color:#7F5A14;border-color:var(--s2-line)}
 .mark.v3{background:var(--s3-bg);color:var(--s3);border-color:var(--s3-line)}
 .mark.v4{background:var(--s4-bg);color:var(--s4);border-color:var(--s4-line)}
 .mark.vnone{background:transparent;color:#BAC2CA;border-color:var(--line)}
@@ -176,10 +178,10 @@ td.c,th.c{text-align:center}
 .group{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);overflow:hidden;box-shadow:var(--shadow-sm)}
 .group>h3{padding:10px 15px;background:transparent;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center}
 .group>h3 .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em}
-.tag.reteach{background:var(--s1-bg);color:var(--s1)}
+.tag.reteach{background:var(--s1-bg);color:#9A3B26}
 .tag.practice{background:var(--s2-bg);color:var(--s2)}
 .tag.extend{background:var(--s4-bg);color:var(--s4)}
-.tag.flag{background:var(--s2-bg);color:var(--warn)}
+.tag.flag{background:var(--s2-bg);color:#7F5A14}
 .group .body{padding:12px 15px}
 .namelist{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
 .namelist span{background:#F4F7F8;border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:13px;font-weight:500}
@@ -264,6 +266,20 @@ select.override{padding:3px 6px;font-size:13px}
   .brandrow h1{font-size:15px}
   .brandrow .meta,.saveflag{display:none}
   .brandrow .spacer{flex:1}
+  /* Title and subject switch share one row: the header was 132–135px on a
+     phone, and the title is the part you already know. */
+  .brandrow{flex-wrap:nowrap}
+  .brandrow h1{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brandrow .spacer{display:none}
+  /* The report card's rotated column headers ran to about 300px and were
+     clipped; they wrap within their column now, capped at a few lines. */
+  #panel-report th.c > span{white-space:normal !important;display:inline-block;max-height:10em;line-height:1.2}
+  /* The folded standard card on Enter scores */
+  details.stdfold > summary{list-style:none;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;cursor:pointer;font-weight:600;min-height:40px;padding:4px 0}
+  details.stdfold > summary::-webkit-details-marker{display:none}
+  details.stdfold > summary .stdfold-change{margin-left:auto;color:var(--accent);font-size:13px}
+  details.stdfold[open] > summary{margin-bottom:10px}
+  details.stdfold[open] > summary .stdfold-change{visibility:hidden}
   /* Tabs already scroll sideways; snapping stops one sitting half off-screen. */
   nav.tabs{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
   nav.tabs button{scroll-snap-align:start;padding:9px 11px}
@@ -307,7 +323,10 @@ select.override{padding:3px 6px;font-size:13px}
   .btn{padding:10px 16px}
   .btn.sm{padding:8px 12px}
   .sgchip{padding:5px}
-  .sgchip .mv{width:34px;height:36px;font-size:12px}
+  .sgchip .mv{width:40px;height:40px;font-size:12px}
+  /* the little "choose standards" disclosures were 20px tall */
+  summary.tiny,summary.small{padding:10px 0}
+  .btn{min-width:44px}
   .sgchip .undo{min-width:30px;height:30px}
   /* 16px or iOS zooms in on focus and never comes back out. */
   input[type=text],input[type=date],input[type=number],select,textarea{font-size:16px}
@@ -772,6 +791,8 @@ function render() {
 function noStudents(el) {
   el.innerHTML = '<div class="card empty"><strong>No students yet</strong>Add your roster in Setup and this fills in.<div style="margin-top:12px"><button class="btn primary" onclick="gotoTab(\'setup\')">Go to Setup</button></div></div>';
 }
+/* The layout a phone gets: the same test as the stylesheet's own breakpoint. */
+function phoneLayout() { try { return window.matchMedia("(max-width: 760px)").matches; } catch (e) { return false; } }
 function gotoTab(t) { document.querySelector('nav.tabs button[data-tab="' + t + '"]').click(); }
 
 /* ============================================================
@@ -797,7 +818,22 @@ function renderEnter() {
 
   let html = '<div class="stack">';
   html += assignmentBarHTML();
-  html += '<div class="card pad">' +
+  /* On a phone the assignment bar and this card filled the whole first
+     screen of an iPhone SE, so every marking session began with a scroll.
+     Once the assignment on screen has marks, the card folds to one line
+     that says what it is; tapping it opens the pickers again. A new or
+     empty assignment keeps it open, because choosing is the next step. */
+  const foldKey = UI.enterStd + "|" + UI.enterDate + "|" + (UI.enterCtx || "");
+  const foldable = !!std && phoneLayout() &&
+    S.scores.some(x => x.std === UI.enterStd && x.date === UI.enterDate && (x.ctx || "") === (UI.enterCtx || "") && !x.source);
+  const foldOpen = UI.enterFold && UI.enterFold.key === foldKey ? UI.enterFold.open : false;
+  html += (foldable
+      ? '<details class="card pad stdfold"' + (foldOpen ? " open" : "") +
+        ' ontoggle="UI.enterFold={key:' + esc(JSON.stringify(foldKey)).replace(/'/g, "&#39;") + ',open:this.open}">' +
+        '<summary><code class="std">' + esc(std.c) + "</code> " + esc(std.lbl) +
+        '<span class="tiny"> \u00b7 ' + esc(UI.enterDate.slice(5)) + (UI.enterCtx ? " \u00b7 " + esc(UI.enterCtx) : "") + "</span>" +
+        '<span class="stdfold-change">Change</span></summary>'
+      : '<div class="card pad">') +
     '<div class="row" style="align-items:flex-end">' +
     '<label class="fld" style="flex:1;min-width:300px">' + esc(subjLabel()) + ' standard<select id="e-std">' + stdOpts + "</select></label>" +
     '<label class="fld">Date<input type="date" id="e-date" value="' + UI.enterDate + '"></label>' +
@@ -805,7 +841,7 @@ function renderEnter() {
     "</div>" +
     (std ? '<div class="hint" style="margin-top:10px"><code class="std">' + esc(std.c) + "</code> " + esc(std.t) + "</div>" : "") +
     plannerPickHTML() +
-    "</div>";
+    (foldable ? "</details>" : "</div>");
 
   if (std) {
     const roster = sortedStudents();

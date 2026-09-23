@@ -17,8 +17,13 @@
   --suite-paper-hi: #F6F8F9;
   --suite-panel: #FFFFFF;
   --suite-ink: #14202A;
-  --suite-ink-2: #55636E;
-  --suite-ink-3: #8A95A0;
+  /* The muted grey was #8A95A0: 3.05:1 on a panel and 2.66:1 on the paper,
+     under the 4.5:1 that small text needs, and it carried every hint,
+     label and caption in all three tools. #626D78 is 5.28:1 on a panel and
+     4.61:1 on the paper. The secondary ink moves down a step with it so the
+     two stay distinguishable. */
+  --suite-ink-2: #48555F;
+  --suite-ink-3: #626D78;
   --suite-line: rgba(16, 24, 32, .09);
   --suite-line-2: rgba(16, 24, 32, .14);
   --suite-accent: #10655C;
@@ -107,6 +112,49 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ---- Planner cards for subjects not on today's schedule ----------------
+   Every enabled subject gets a card, so on a Wednesday Writing, Science and
+   Health/SEL sat among the day's real blocks at full size. The planner only
+   prints a time on a card whose subject is in today's schedule, so a
+   skipped card with no time is one the day does not have. It moves to the
+   end of the rail and folds to its name and its Skipped button; pressing
+   that brings the whole card back, for a day that runs differently. */
+.rail .sub.skip:not(:has(.subtime)) { order: 1; align-self: start; }
+.rail .sub.skip:not(:has(.subtime)) :is(.slot, .freein, .prov, .subnote) { display: none; }
+
+/* The "after …" line under each card repeats the whole of the last entry,
+   in capitals. After a long open-text entry — a day's sub instructions —
+   it ran to six lines and read as though the text were part of the card.
+   Two lines are enough to say where the suggestion came from. */
+.sub .prov {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* ---- Toasts sit above the corner switcher ------------------------------
+   The gradebook's, planner's and running-records tool's toasts all sat 22–24px
+   from the bottom, which is exactly where the fixed switcher is, so a
+   two-line toast was cut off underneath it. They now clear it the same way
+   the suite's own notices do. */
+#toast, .toast {
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 2147483001 !important;
+}
+
+/* The planner's Draft chip is its palette's gold as text on a pale gold:
+   3.02:1. Darkened from whatever that gold is, so every planner palette
+   keeps its own hue. */
+.dow .chip.draft { color: color-mix(in srgb, var(--gold) 70%, #000); }
+
+/* The planner's Early release banner is the same gold on gold: 3.1–3.5:1. */
+#main .banner { color: color-mix(in srgb, var(--gold) 62%, #000); }
+
+/* The planner's "days logged" caption sits on its own shell colour, where
+   the muted grey is lighter than on a panel. Secondary ink reads there. */
+.jar small { color: var(--ink-2); }
 
 /* ---- The planner's day arrows hold still ------------------------------
    Off today, the planner adds a Today button after the › arrow. The date
@@ -380,7 +428,7 @@ body {
     border-color: rgba(40, 36, 22, .34);
     box-shadow: 0 1px 3px rgba(40, 36, 22, .3) inset;
   }
-  [data-suite-theme="textured"] .segmented button { color: #6C6450; text-shadow: 0 1px 0 rgba(255, 255, 250, .7); }
+  [data-suite-theme="textured"] .segmented button { color: #5F5847; text-shadow: 0 1px 0 rgba(255, 255, 250, .7); }
   [data-suite-theme="textured"] .segmented button {
     background: transparent;
     border: 1px solid transparent;
@@ -764,4 +812,136 @@ body {
   [data-suite-theme="textured"] .timerbar .cue.act { color: #F2C66D; }
   [data-suite-theme="textured"] .timerbar .clock.low { color: #F4A08C; }
   [data-suite-theme="textured"] .timerbar .progress { background: rgba(255, 255, 255, .16); }
+}
+
+/* ==== Mobile pass (v45) =================================================
+   From a measured audit on 390, 375 and 320px screens in both themes. Every
+   rule here is inside a width or pointer query, so a desktop is unchanged. */
+
+/* iOS zooms the page when a field under 16px takes focus and does not zoom
+   back. The shared rule above lost to more specific rules in each tool —
+   the gradebook's per-student note (13px), the report card's mark picker
+   (13px), the paste boxes (12px), the running-records roster (15px), every
+   field in the sub plan panel (14px), and the textured theme's own planner
+   field (14px). This one is not allowed to lose. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select, textarea { font-size: 16px !important; }
+  /* the last few targets that were well under a thumb */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select { min-height: 40px; }
+  input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
+  .jump input { inset: -12px -10px; }
+  .setrow .swatch { width: 40px; height: 40px; flex-basis: 40px; }
+  .del { min-width: 40px; }
+}
+
+@media (max-width: 760px) {
+  /* A long open-text entry in the planner's timeline could not wrap, made
+     the page up to 207px wider than the screen, and dragged the fixed
+     switcher and Sub plan button off the right edge. */
+  .tl .tlpos { white-space: normal; overflow-wrap: anywhere; }
+  .tllabel { min-width: 0; overflow-wrap: anywhere; }
+
+  /* Pickers with an inline min-width, and file inputs, overflowed at 375
+     and 320px and pushed the page sideways. */
+  /* Capped at the column, not zeroed: these rows wrap by way of each
+     field's minimum, and a zero minimum let a field shrink to nothing
+     beside its button instead of taking its own line. */
+  label.fld, .fld { min-width: min(100%, 12rem) !important; max-width: 100%; }
+  select, input[type="file"] { max-width: 100%; }
+  /* an inline flex:0 0 auto kept a long checkbox label from wrapping */
+  .checkline { flex: 0 1 auto !important; min-width: 0; }
+
+  /* The running-records timer bar is sticky and was 300–321px tall on a
+     phone — half an iPhone SE's screen during a read, leaving six lines
+     of the passage being marked. Clock, progress and counts share a row;
+     the buttons keep their size (they are pressed mid-read) but lose the
+     spare padding; the cue is capped at two lines. */
+  .timerbar { padding: 8px 10px; gap: 6px 10px; margin-bottom: 8px; }
+  .timerbar .clock { font-size: 26px; min-width: 70px; line-height: 1; }
+  .timerbar .progress { flex: 1 1 60px; }
+  .timerbar .tally { gap: 12px; font-size: 12px; flex: 1 1 100%; order: 3; }
+  .timerbar .tally b { display: inline; font-size: 16px; margin-right: 3px; }
+  .timerbar > div[style] { gap: 6px !important; order: 4; flex: 1 1 100%; }
+  .timerbar .btn { padding: 8px 12px; }
+  .timerbar .cue {
+    order: 5; font-size: 12.5px; line-height: 1.35;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+
+  /* Planner type below 11px — chips at 8.5px, Skip at 8px, tabs at 9px. */
+  .dow .chip { font-size: 10.5px; }
+  .skipbtn { font-size: 10px; }
+  .subcur, .prov, .jar small { font-size: 11px; }
+  .tabs .tab { font-size: 11px; }
+  .weekgrid h3 i { font-size: 10px; }
+
+  /* The planner's pinned header was 109–116px. */
+  header .hbar { padding: 6px 0; }
+  header .tabs { padding: 4px 0 6px; }
+
+  /* A tab row that scrolls sideways says so. suite-nav.js sets data-more
+     to "left", "right" or both while there is more to see that way. */
+  nav.tabs[data-more="right"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); }
+  nav.tabs[data-more="left"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px); mask-image: linear-gradient(90deg, transparent, #000 32px); }
+  nav.tabs[data-more="left right"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
+
+  /* The sub plan panel's actions took four rows of a pinned header, about
+     170px, for the whole time the form was being filled in. On a phone the
+     header scrolls away with the form instead; every action stays visible
+     when the panel opens, and Close sits beside the title. */
+  #subwrap { padding: 8px !important; }
+  #subpanel { max-height: calc(100vh - 16px) !important; max-height: calc(100dvh - 16px) !important; }
+  #subpanel .hd { position: static !important; padding: 10px 12px !important; gap: 8px !important; }
+  #subpanel .hd h2 { order: -2; }
+  #subpanel .hd [data-act="close"] { order: -1; margin-right: auto; }
+  #subpanel .bd { padding: 12px 12px 18px !important; }
+}
+
+/* ---- Textured theme: the planner's jar and the sub plan panel ---------- */
+@media screen {
+  /* The jar is a light pill on slate chrome, and its count inherited the
+     chrome's light ink: 1.07:1, invisible. */
+  [data-suite-theme="textured"] .jar b { color: #313C3B; text-shadow: none; }
+  [data-suite-theme="textured"] .jar small { color: #615946; text-shadow: none; }
+  /* the WCPM figure in the gradebook's ORF bars sits on a pressed well */
+  [data-suite-theme="textured"] .wbar b { color: #5F5847; }
+
+  /* The sub plan panel styled itself in white and IBM Plex whatever the
+     theme. It now takes the manila card, bone buttons and pressed fields. */
+  [data-suite-theme="textured"] #subpanel {
+    background: linear-gradient(180deg, #F9F6EC, #F1EDDF) !important;
+    color: #313C3B !important;
+    font-family: var(--suite-sans) !important;
+    border: 1px solid rgba(58, 52, 34, .3);
+  }
+  [data-suite-theme="textured"] #subpanel .hd {
+    background: rgba(246, 242, 230, .96) !important;
+    border-bottom-color: rgba(58, 52, 34, .2) !important;
+  }
+  [data-suite-theme="textured"] #subpanel h2 { font-family: var(--suite-serif) !important; color: #313C3B; }
+  [data-suite-theme="textured"] #subpanel h3,
+  [data-suite-theme="textured"] #subpanel label.f { color: #6C6450 !important; }
+  [data-suite-theme="textured"] #subpanel .b {
+    background: linear-gradient(180deg, #FBF8EF, #EDE7D7) !important;
+    border-color: rgba(58, 52, 34, .34) !important;
+    color: #313C3B !important;
+    font-family: var(--suite-sans) !important;
+    box-shadow: 0 1px 0 rgba(255, 253, 246, .9) inset, 0 1px 2px rgba(40, 32, 18, .22) !important;
+  }
+  [data-suite-theme="textured"] #subpanel .b.p {
+    background: linear-gradient(180deg, #2F7A56, #245F43) !important;
+    border-color: #1E4F38 !important; color: #FBF9F1 !important;
+  }
+  [data-suite-theme="textured"] #subpanel .b.d { color: #9A3B26 !important; border-color: #9A3B26 !important; }
+  [data-suite-theme="textured"] #subpanel input,
+  [data-suite-theme="textured"] #subpanel textarea,
+  [data-suite-theme="textured"] #subpanel select {
+    background: #FFFDF6 !important;
+    border-color: rgba(58, 52, 34, .3) !important;
+    color: #313C3B !important;
+    font-family: var(--suite-sans) !important;
+    box-shadow: 0 1px 2px rgba(40, 36, 22, .18) inset;
+  }
 }

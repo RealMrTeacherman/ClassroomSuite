@@ -62,6 +62,8 @@
     '#suitenav a{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;' +
     'color:#55636E;text-decoration:none;white-space:nowrap}' +
     '#suitenav a:hover{color:#14202A;background:rgba(16,24,32,.05)}' +
+    /* a thumb-sized target for every switcher item on a touch screen; they were 32–39px wide */
+    '@media (pointer:coarse){#suitenav a,#suitenav button{min-width:44px;min-height:44px;justify-content:center}}' +
     '#suitenav a[aria-current="page"]{background:#10655C;color:#fff}' +
     '#suitenav b{font-weight:600}' +
     '#suitenav .ic{font-size:13px;opacity:.75}' +
@@ -88,7 +90,7 @@
     'font:inherit;cursor:pointer;padding:9px 6px;border-radius:8px;color:#14202A}' +
     '#suitesheet button:hover{background:rgba(16,24,32,.05)}' +
     '#suitesheet button span{font-weight:500}' +
-    '#suitesheet button em{display:block;font-style:normal;color:#8A95A0;font-size:12px;margin-top:1px}' +
+    '#suitesheet button em{display:block;font-style:normal;color:#626D78;font-size:12px;margin-top:1px}' +
     '#suitesheet button.cancel{color:#55636E;border-top:1px solid rgba(16,24,32,.09);' +
     'border-radius:0 0 8px 8px;margin-top:3px;padding-top:10px}' +
     '@media print{#suitesheet{display:none!important}}' +
@@ -460,7 +462,39 @@
     S.connect(existing).then(function () { say("Connected. Everything is written to that file from now on."); })
       .catch(function (e) { if (e && e.name !== "AbortError") say("Could not connect: " + (e.message || e)); });
   }
-  function start() { build(); watchForUpdate(); }
+  /* A tab row that scrolls sideways on a phone gave no sign that there was
+     more: the gradebook's showed "F" of Fluency and nothing else, and the
+     running-records tool's hid Students and Passages entirely. This marks
+     each row with data-more ("left", "right" or both) while there is more
+     that way, which the stylesheet fades, and brings a tapped tab fully
+     into view. Nothing about the tabs themselves changes. */
+  function tabRows() {
+    Array.prototype.forEach.call(document.querySelectorAll("nav.tabs"), function (nav) {
+      if (nav.__suiteMore) return;
+      nav.__suiteMore = true;
+      function update() {
+        var more = [];
+        if (nav.scrollLeft > 4) more.push("left");
+        if (nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4) more.push("right");
+        if (more.length) nav.setAttribute("data-more", more.join(" "));
+        else nav.removeAttribute("data-more");
+      }
+      nav.addEventListener("scroll", update, { passive: true });
+      window.addEventListener("resize", update);
+      nav.addEventListener("click", function (ev) {
+        var b = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+        if (b && nav.scrollWidth > nav.clientWidth) {
+          var nr = nav.getBoundingClientRect(), br = b.getBoundingClientRect();
+          var l = br.left - nr.left + nav.scrollLeft, r = l + br.width;
+          if (l < nav.scrollLeft + 8) nav.scrollLeft = Math.max(0, l - 24);
+          else if (r > nav.scrollLeft + nav.clientWidth - 8) nav.scrollLeft = r - nav.clientWidth + 24;
+        }
+        setTimeout(update, 60);
+      });
+      update();
+    });
+  }
+  function start() { build(); watchForUpdate(); tabRows(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

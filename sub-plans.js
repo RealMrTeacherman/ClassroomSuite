@@ -60,8 +60,8 @@
         { start: "10:30", end: "11:00", title: "WIN time", days: "W", subject: "win", detail: "", emergency: "" },
         { start: "11:00", end: "11:40", title: "Recess & lunch", days: "W", subject: "", detail: "", emergency: "" },
         { start: "11:40", end: "12:20", title: "GID and Class Store", days: "W", subject: "", detail: "", emergency: "" },
-        { start: "12:20", end: "12:45", title: "Core Arts — Health/SEL", days: "W", subject: "", detail: "", emergency: "" },
-        { start: "12:45", end: "", title: "Dismissal", days: "W", subject: "", detail: "", emergency: "" }
+        { start: "12:20", end: "12:55", title: "PE", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "12:55", end: "", title: "Dismissal", days: "W", subject: "", detail: "", emergency: "" }
       ]
     };
   }
@@ -458,9 +458,9 @@
       "#subpanel .hd{position:sticky;top:0;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);" +
       "border-bottom:1px solid rgba(16,24,32,.09);padding:14px 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}" +
       "#subpanel h2{margin:0;font-family:'IBM Plex Serif',Georgia,serif;font-size:17px;font-weight:600}" +
-      "#subpanel h3{margin:18px 0 8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8A95A0}" +
+      "#subpanel h3{margin:18px 0 8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#626D78}" +
       "#subpanel .bd{padding:16px 18px 22px}" +
-      "#subpanel label.f{display:flex;flex-direction:column;gap:4px;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8A95A0}" +
+      "#subpanel label.f{display:flex;flex-direction:column;gap:4px;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#626D78}" +
       "#subpanel input,#subpanel textarea,#subpanel select{font:14px 'IBM Plex Sans',sans-serif;color:#14202A;border:1px solid rgba(16,24,32,.14);border-radius:8px;padding:7px 10px;background:#fff;width:100%}" +
       "#subpanel textarea{resize:vertical}" +
       "#subpanel .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}" +
@@ -471,7 +471,7 @@
       "#subpanel .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}" +
       "#subpanel .blkrow{border:1px solid rgba(16,24,32,.09);border-radius:10px;padding:10px 12px;margin-top:9px}" +
       "#subpanel .warn{background:#FAF2E2;border:1px solid #E7D7B4;border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:12px}" +
-      "#subpanel .hint{font-size:12.5px;color:#8A95A0}" +
+      "#subpanel .hint{font-size:12.5px;color:#626D78}" +
       "#subpanel table{width:100%;border-collapse:collapse;font-size:13.5px}" +
       "#subpanel th,#subpanel td{border-bottom:1px solid rgba(16,24,32,.09);padding:5px 6px;text-align:left}" +
       "@media print{#subbtn,#subwrap{display:none !important}}";

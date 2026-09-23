@@ -148,8 +148,8 @@
       { t: "11:15", l: "Line up & sanitize",                       s: "",        n: "" },
       { t: "11:20", l: "Lunch",                                    s: "",        n: "" },
       { t: "11:40", l: "GID & Class Store",                        s: "",        n: "Unfinished work first, then the GID menu \u00b7 Class Store" },
-      { t: "12:20", l: "Core Arts \u2014 Health/SEL Block A",           s: "",        n: "" },
-      { t: "12:45", l: "Dismissal",                                s: "",        n: "Confirm the exact time" }
+      { t: "12:20", l: "PE",                                       s: "",        n: "" },
+      { t: "12:55", l: "Dismissal",                                s: "",        n: "" }
     ];
   }
   /* the planner's own clock rule: 12-hour, no am/pm, anything before 7 is pm */
@@ -259,6 +259,120 @@
     if (fixed && window.console) console.info("[suite] repaired " + fixed + " planner day record" + (fixed === 1 ? "" : "s"));
   }
 
+  /* Subjects marked taught on a day they are not scheduled.
+
+     Every enabled subject gets a card, and one that is not on that day's
+     schedule is meant to arrive already marked Skipped: the planner's
+     buildDraft() does that when it creates a day. Two paths skip it. A day
+     record that has no entry for a subject — Health/SEL and Enrichment were
+     both added after days already existed, and repairDays() gives a record
+     with no entries an empty set — is drawn by cardHTML(), whose fallback
+     marks the subject taught. And a day created while its weekday's
+     template was empty (Wednesday, before wednesday() filled it back in)
+     marked everything taught. Either way Wednesday showed Writing, Science
+     and Health/SEL as live cards with nothing in them.
+
+     Only an entry that holds nothing is changed: an open-text subject with
+     no text and no note. Anything written in one, on any day, is kept as
+     written. Stepper subjects are left alone because a position cannot say
+     whether it was recorded on purpose. Converges on every load; a day
+     whose template is empty is not judged. Runs after repairDays(). */
+  function skipUnscheduled() {
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !Array.isArray(st.subjects) || !st.templates || typeof st.templates !== "object") return;
+    function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+    function blank(v) { return !String(v == null ? "" : v).trim(); }
+    var free = st.subjects.filter(function (x) { return x && x.on && x.id && x.schema === "free"; });
+    var fixed = 0;
+    [D_KEY, "lp:pending:v1"].forEach(function (key) {
+      var all;
+      try { all = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return; }
+      if (!isObj(all)) return;
+      var changed = false;
+      Object.keys(all).forEach(function (dk) {
+        var rec = all[dk], m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dk);
+        if (!m || !isObj(rec) || rec.noSchool || !isObj(rec.entries)) return;
+        var tpl = st.templates[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+        if (!Array.isArray(tpl) || !tpl.length) return;
+        var inDay = {};
+        tpl.forEach(function (b) { if (b && b.s) inDay[b.s] = true; });
+        var hit = false;
+        free.forEach(function (sb) {
+          if (inDay[sb.id]) return;
+          var e = rec.entries[sb.id];
+          if (e === undefined) { rec.entries[sb.id] = { pos: { text: "" }, taught: false, note: "" }; hit = true; return; }
+          if (isObj(e) && e.taught !== false && blank(e.note) && blank(isObj(e.pos) ? e.pos.text : "")) { e.taught = false; hit = true; }
+        });
+        if (hit) { changed = true; fixed++; }
+      });
+      if (changed) { try { localStorage.setItem(key, JSON.stringify(all)); } catch (e) { } }
+    });
+    if (fixed && window.console) console.info("[suite] marked unscheduled subjects skipped on " + fixed + " planner day" + (fixed === 1 ? "" : "s"));
+  }
+
+  /* Wednesday 12:20 is PE.
+
+     The planner's own default and the first Wednesday pass both called it
+     "Core Arts — Health/SEL Block A", which is not what happens then. The
+     block is renamed in the planner's Wednesday and in the sub plan's block
+     list, but only while it still carries exactly that old name, so a name
+     typed in Settings or the sub plan panel afterwards is kept. Converges
+     rather than being flagged: reloading the private sub plan seed, which
+     may still hold the old name, is put right on the next load. */
+  function wednesdayPE() {
+    var OLD_PLANNER = "Core Arts \u2014 Health/SEL Block A", OLD_SUB = "Core Arts \u2014 Health/SEL";
+    try {
+      var st = JSON.parse(localStorage.getItem(S_KEY) || "null");
+      var wed = st && st.templates && Array.isArray(st.templates[3]) ? st.templates[3] : null;
+      var hit = false;
+      (wed || []).forEach(function (b) {
+        if (b && b.t === "12:20" && b.l === OLD_PLANNER) { b.l = "PE"; hit = true; }
+      });
+      if (hit) localStorage.setItem(S_KEY, JSON.stringify(st));
+    } catch (e) { }
+    try {
+      var sp = JSON.parse(localStorage.getItem("suite:subplan:v1") || "null");
+      var hit2 = false;
+      ((sp && Array.isArray(sp.blocks)) ? sp.blocks : []).forEach(function (b) {
+        if (b && b.start === "12:20" && /W/.test(b.days || "") && b.title === OLD_SUB) { b.title = "PE"; hit2 = true; }
+      });
+      if (hit2) localStorage.setItem("suite:subplan:v1", JSON.stringify(sp));
+    } catch (e) { }
+  }
+
+  /* Wednesday dismissal is 12:55, confirmed by the teacher. The earlier
+     default said 12:45 with a "Confirm the exact time" note. A block ends
+     where the next begins, so moving dismissal also makes PE read
+     12:20–12:55. Only exactly the old values are changed, so a time set by
+     hand afterwards is kept, and the placeholder note is cleared only if it
+     is still the placeholder. Converges, like wednesdayPE(). */
+  function wednesdayDismissal() {
+    try {
+      var st = JSON.parse(localStorage.getItem(S_KEY) || "null");
+      var wed = st && st.templates && Array.isArray(st.templates[3]) ? st.templates[3] : null;
+      var hit = false;
+      (wed || []).forEach(function (b) {
+        if (b && b.t === "12:45" && b.l === "Dismissal") {
+          b.t = "12:55";
+          if (b.n === "Confirm the exact time") b.n = "";
+          hit = true;
+        }
+      });
+      if (hit) localStorage.setItem(S_KEY, JSON.stringify(st));
+    } catch (e) { }
+    try {
+      var sp = JSON.parse(localStorage.getItem("suite:subplan:v1") || "null");
+      var hit2 = false;
+      ((sp && Array.isArray(sp.blocks)) ? sp.blocks : []).forEach(function (b) {
+        if (!b || !/W/.test(b.days || "")) return;
+        if (b.title === "Dismissal" && b.start === "12:45") { b.start = "12:55"; hit2 = true; }
+        if (b.start === "12:20" && b.end === "12:45") { b.end = "12:55"; hit2 = true; }
+      });
+      if (hit2) localStorage.setItem("suite:subplan:v1", JSON.stringify(sp));
+    } catch (e) { }
+  }
+
   /* Science and Social Studies covers too much variety to be "Lesson 4", and
      Writing runs on its own rhythm rather than the curriculum's unit, week
      and day. Both are open fields he types into. */
@@ -266,5 +380,8 @@
   toFreeText("writing");
   addHealthSel();
   wednesday();
+  wednesdayPE();
+  wednesdayDismissal();
   repairDays();
+  skipUnscheduled();
 })();
