@@ -19,9 +19,32 @@
     return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
       window.navigator.standalone === true;
   }
+  /* iOS never fires beforeinstallprompt: adding to the home screen is a
+     Safari menu item, so the button explains it instead. An iPad reports
+     itself as a Mac; the touch points are what give it away. */
+  function isIOS() {
+    var ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  }
   function paintInstall() {
     if (!installBtn) return;
-    installBtn.style.display = (deferredPrompt && !standalone()) ? "" : "none";
+    installBtn.style.display = (!standalone() && (deferredPrompt || isIOS())) ? "" : "none";
+  }
+  /* One app, not three. A home-screen app on iOS keeps its own storage,
+     separate from Safari and from every other icon, so a second icon is a
+     second roster that never hears from the first. */
+  function iosSteps() {
+    var home = !currentApp();
+    var opts = [];
+    if (!home) opts.push({ label: "Open the home page", hint: "add it from there, so it gets the suite\u2019s icon", run: function () {
+      location.href = base();
+    } });
+    sheet("Add to Home Screen",
+      "Tap the Share button (in Safari it may be under \u2022\u2022\u2022), then <b>Add to Home Screen</b>, then <b>Add</b>. " +
+      "Add it once. The app keeps its own copy of your data, separate from Safari and from any second icon. " +
+      "If you have been using the suite in Safari on this device, send yourself a backup first " +
+      "(Sync \u2192 Send to my desktop) and load it inside the app (Sync \u2192 Load a backup).",
+      opts);
   }
 
   var APPS = ["gradebook", "planner", "fluency"];
@@ -125,7 +148,7 @@
     installBtn.title = "Install this as an app on this device";
     installBtn.style.display = "none";
     installBtn.onclick = function () {
-      if (!deferredPrompt) return;
+      if (!deferredPrompt) { if (isIOS()) iosSteps(); return; }
       var p = deferredPrompt;
       deferredPrompt = null;
       paintInstall();

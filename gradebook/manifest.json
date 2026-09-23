@@ -1,10 +1,12 @@
 {
-  "name": "Grade 2 Standards Gradebook",
-  "short_name": "Gradebook",
-  "description": "Standards entry, grouping, iReady, fluency and report card marks.",
-  "start_url": "./",
-  "scope": "./",
+  "name": "Classroom",
+  "short_name": "Classroom",
+  "description": "Standards gradebook, lesson planner and running records for one grade 2 classroom.",
+  "id": "./",
+  "start_url": "../",
+  "scope": "../",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#EDF0F2",
   "theme_color": "#EDF0F2",
   "icons": [
@@ -27,13 +29,23 @@
       "purpose": "maskable"
     }
   ],
-  "orientation": "any",
-  "id": "./",
   "shortcuts": [
+    {
+      "name": "Today’s plan",
+      "short_name": "Today",
+      "url": "../planner/",
+      "icons": [
+        {
+          "src": "../planner-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
     {
       "name": "Enter scores",
       "short_name": "Scores",
-      "url": "./#enter",
+      "url": "../gradebook/#enter",
       "icons": [
         {
           "src": "../icon-192.png",
@@ -43,12 +55,12 @@
       ]
     },
     {
-      "name": "Groups & patterns",
-      "short_name": "Groups",
-      "url": "./#groups",
+      "name": "New running record",
+      "short_name": "New record",
+      "url": "../fluency/",
       "icons": [
         {
-          "src": "../icon-192.png",
+          "src": "../fluency-icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -57,7 +69,7 @@
     {
       "name": "Report card",
       "short_name": "Report",
-      "url": "./#report",
+      "url": "../gradebook/#report",
       "icons": [
         {
           "src": "../icon-192.png",

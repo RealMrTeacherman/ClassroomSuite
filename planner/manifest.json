@@ -1,42 +1,78 @@
 {
-  "name": "Lesson Planner",
-  "short_name": "Planner",
-  "description": "Daily and weekly lesson planning for one grade 2 classroom.",
-  "start_url": "./",
-  "scope": "./",
+  "name": "Classroom",
+  "short_name": "Classroom",
+  "description": "Standards gradebook, lesson planner and running records for one grade 2 classroom.",
+  "id": "./",
+  "start_url": "../",
+  "scope": "../",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#EDF0F2",
   "theme_color": "#EDF0F2",
   "icons": [
     {
-      "src": "../planner-icon-192.png",
+      "src": "../icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "../planner-icon-512.png",
+      "src": "../icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "../planner-icon-maskable-512.png",
+      "src": "../icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "orientation": "any",
-  "id": "./",
   "shortcuts": [
     {
-      "name": "Today",
+      "name": "Today’s plan",
       "short_name": "Today",
-      "url": "./",
+      "url": "../planner/",
       "icons": [
         {
           "src": "../planner-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Enter scores",
+      "short_name": "Scores",
+      "url": "../gradebook/#enter",
+      "icons": [
+        {
+          "src": "../icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "New running record",
+      "short_name": "New record",
+      "url": "../fluency/",
+      "icons": [
+        {
+          "src": "../fluency-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Report card",
+      "short_name": "Report",
+      "url": "../gradebook/#report",
+      "icons": [
+        {
+          "src": "../icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
