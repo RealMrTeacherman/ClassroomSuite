@@ -373,6 +373,23 @@
     } catch (e) { }
   }
 
+  /* The planner's own five looks are retired: the suite's Look control sets
+     the look for all three tools. `atomic` is the planner's base, the one
+     look with no rules of its own, so pinning ME.theme to it means none of
+     the planner's [data-theme] rules match and only the suite's apply.
+     Subject colours are left exactly as they are — they are data, and a
+     colour chosen under another look is still a choice. Converges. */
+  function pinPlannerLook() {
+    try {
+      var raw = localStorage.getItem("lp:me:v1");
+      if (!raw) return;
+      var me = JSON.parse(raw);
+      if (!me || typeof me !== "object" || !me.theme || me.theme === "atomic") return;
+      me.theme = "atomic";
+      localStorage.setItem("lp:me:v1", JSON.stringify(me));
+    } catch (e) { }
+  }
+
   /* Science and Social Studies covers too much variety to be "Lesson 4", and
      Writing runs on its own rhythm rather than the curriculum's unit, week
      and day. Both are open fields he types into. */
@@ -380,6 +397,7 @@
   toFreeText("writing");
   addHealthSel();
   wednesday();
+  pinPlannerLook();
   wednesdayPE();
   wednesdayDismissal();
   repairDays();

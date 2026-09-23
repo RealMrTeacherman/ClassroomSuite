@@ -115,7 +115,8 @@
     themeBtn.type = "button";
     themeBtn.id = "suitetheme";
     themeBtn.innerHTML = '<span class="ic">\u25A7</span><b class="lbl">Look</b>';
-    themeBtn.onclick = toggleTheme;
+    themeBtn.setAttribute("aria-haspopup", "dialog");
+    themeBtn.onclick = pickLook;
     nav.appendChild(themeBtn);
 
     installBtn = document.createElement("button");
@@ -330,26 +331,66 @@
   /* `data-suite-theme`, deliberately not `data-theme`: the planner owns
      `data-theme` for its own five looks and sets it on the same element. */
   var THEME_KEY = "suite:theme:v1";
-  var QUIET_BAR = "#EDF0F2", TEXTURED_BAR = "#283130";
+  /* Three looks, named for the years they borrow from. The stored values are
+     unchanged for the first two ("quiet" and "textured"), so a device keeps
+     the look it already had. */
+  var LOOKS = [
+    { id: "quiet", name: "2026", hint: "Quiet \u2014 clean surfaces, loud marks", icon: "\u25A7", bar: "#EDF0F2" },
+    { id: "textured", name: "2006", hint: "Textured \u2014 slate, manila and ruled paper", icon: "\u25A6", bar: "#283130" },
+    { id: "2046", name: "2046", hint: "Future \u2014 a dark instrument, the marks lit", icon: "\u25C8", bar: "#0F1322" }
+  ];
+  function lookOf(id) { for (var i = 0; i < LOOKS.length; i++) if (LOOKS[i].id === id) return LOOKS[i]; return LOOKS[0]; }
   function currentTheme() {
-    return document.documentElement.getAttribute("data-suite-theme") === "textured" ? "textured" : "quiet";
+    var a = document.documentElement.getAttribute("data-suite-theme");
+    return a === "textured" || a === "2046" ? a : "quiet";
   }
   function setTheme(t) {
-    if (t === "textured") document.documentElement.setAttribute("data-suite-theme", "textured");
-    else document.documentElement.removeAttribute("data-suite-theme");
+    var look = lookOf(t);
+    if (look.id === "quiet") document.documentElement.removeAttribute("data-suite-theme");
+    else document.documentElement.setAttribute("data-suite-theme", look.id);
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute("content", t === "textured" ? TEXTURED_BAR : QUIET_BAR);
-    try { localStorage.setItem(THEME_KEY, t); } catch (e) { }
+    if (m) m.setAttribute("content", look.bar);
+    try { localStorage.setItem(THEME_KEY, look.id); } catch (e) { }
     paintTheme();
   }
-  function toggleTheme() { setTheme(currentTheme() === "textured" ? "quiet" : "textured"); }
+  /* A picker, not a toggle: with three looks a toggle would make you cycle
+     through one you did not want to reach the one you did. It uses the same
+     sheet as the sync menu, so each choice is a button that says what it is. */
+  function pickLook() {
+    var cur = currentTheme();
+    sheet("Look", "Applies to all three tools on this device.", LOOKS.map(function (l) {
+      return { label: l.name + (l.id === cur ? " \u2713" : ""), hint: l.hint, run: function () { setTheme(l.id); say("Look: " + l.name); } };
+    }));
+  }
   function paintTheme() {
     var b = document.getElementById("suitetheme");
     if (!b) return;
-    var on = currentTheme() === "textured";
-    b.title = on ? "Switch to the quiet look" : "Switch to the textured look";
-    b.setAttribute("aria-pressed", on ? "true" : "false");
-    b.querySelector(".ic").textContent = on ? "\u25A6" : "\u25A7";
+    var look = lookOf(currentTheme());
+    b.title = "Look: " + look.name + " \u2014 choose another";
+    b.setAttribute("aria-label", "Look: " + look.name);
+    b.querySelector(".ic").textContent = look.icon;
+  }
+
+  /* ---------- the switcher steps aside while you scroll down ----------
+     Fixed in the corner, it sat on whatever row was under it — on desktop it
+     is about 500px wide, and it covered a student's 1-4 chips and note on
+     Enter scores at every scroll position, not only at the end of the page.
+     Scrolling down tucks it away; any scroll up, reaching the top or the
+     bottom, or focus inside it brings it straight back. */
+  function tuckOnScroll() {
+    var last = window.scrollY || 0, ticking = false;
+    function apply() {
+      ticking = false;
+      var y = window.scrollY || 0, d = y - last;
+      var atEnd = y + window.innerHeight >= document.documentElement.scrollHeight - 8;
+      if (y < 80 || atEnd || d < -6) document.body.classList.remove("suite-tucked");
+      else if (d > 6) document.body.classList.add("suite-tucked");
+      if (Math.abs(d) > 6 || y < 80 || atEnd) last = y;
+    }
+    window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(apply); } }, { passive: true });
+    document.addEventListener("focusin", function (e) {
+      if (e.target && e.target.closest && e.target.closest("#suitenav, #suitesheet, #subbtn")) document.body.classList.remove("suite-tucked");
+    });
   }
 
   /* ---------- a new build landed ----------
@@ -494,7 +535,7 @@
       update();
     });
   }
-  function start() { build(); watchForUpdate(); tabRows(); }
+  function start() { build(); watchForUpdate(); tabRows(); tuckOnScroll(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

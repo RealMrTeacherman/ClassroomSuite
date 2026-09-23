@@ -36,12 +36,14 @@
   } catch (e) { /* the fonts still load, just a little later */ }
 
   try {
+    /* three looks: "" is 2026 (quiet), "textured" is 2006, "2046" is 2046 */
     var t = localStorage.getItem("suite:theme:v1");
-    if (t === "textured") {
-      document.documentElement.setAttribute("data-suite-theme", "textured");
+    var BAR = { textured: "#283130", "2046": "#0F1322" };
+    if (t === "textured" || t === "2046") {
+      document.documentElement.setAttribute("data-suite-theme", t);
       /* the notch and the status bar are part of the page on a phone */
       var m = document.querySelector('meta[name="theme-color"]');
-      if (m) m.setAttribute("content", "#283130");
+      if (m) m.setAttribute("content", BAR[t]);
     }
   } catch (e) { /* private mode, or storage disabled: quiet theme, no harm */ }
 })();

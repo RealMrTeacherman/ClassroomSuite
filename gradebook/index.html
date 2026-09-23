@@ -162,7 +162,7 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 .entryrow:last-child{border-bottom:0}
 .entryrow .nm{flex:1;min-width:130px;font-weight:600;font-size:15.5px}
 .entryrow .prev{font-size:12.5px;color:var(--ink-3);min-width:104px;text-align:right}
-.entryrow input.note{border:1px solid transparent;background:transparent;border-radius:6px;width:190px;font-size:13px;padding:5px 8px}
+.entryrow input.note{border:1px solid var(--line);background:transparent;border-radius:6px;width:190px;font-size:13px;padding:5px 8px}
 .entryrow input.note:hover{border-color:var(--line)}
 .entryrow input.note:focus{border-color:var(--line-strong);background:var(--panel)}
 
@@ -200,7 +200,7 @@ td.c,th.c{text-align:center}
 .sgchip.moved{border-left:2px solid var(--accent)}
 .sgchip .nm{flex:1;min-width:0;font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sgchip .num{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink-3);min-width:24px;text-align:right}
-.sgchip .mv{width:21px;height:24px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--ink-3);font-size:10px;line-height:1;flex:none}
+.sgchip .mv{width:24px;height:24px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--ink-3);font-size:10px;line-height:1;flex:none}
 .sgchip .mv:hover:not(:disabled){background:var(--accent-soft);color:var(--accent)}
 .sgchip .mv:disabled{opacity:.2}
 .sgchip .undo{border:0;background:transparent;color:var(--accent);font-size:11px;padding:0 2px;flex:none}
@@ -225,6 +225,12 @@ select.override{padding:3px 6px;font-size:13px}
 .wbar b{position:absolute;right:-30px;top:-4px;font-size:11.5px;line-height:18px;color:var(--ink-3);font-weight:500}
 
 /* ---------- toast ---------- */
+/* The report card's column headers are rotated labels set on one line,
+   which ran to about 300px on a phone and 175px on a desktop before the
+   first student. They wrap within their column now, capped at a few lines. */
+#panel-report th.c > span{white-space:normal !important;display:inline-block;max-height:10em;line-height:1.2}
+/* disclosure summaries ("choose standards") were 18-20px tall */
+summary.tiny,summary.small{padding:4px 0}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13.5px;box-shadow:var(--shadow-float);z-index:100;
   opacity:0;pointer-events:none;transition:opacity .18s}
@@ -273,7 +279,6 @@ select.override{padding:3px 6px;font-size:13px}
   .brandrow .spacer{display:none}
   /* The report card's rotated column headers ran to about 300px and were
      clipped; they wrap within their column now, capped at a few lines. */
-  #panel-report th.c > span{white-space:normal !important;display:inline-block;max-height:10em;line-height:1.2}
   /* The folded standard card on Enter scores */
   details.stdfold > summary{list-style:none;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;cursor:pointer;font-weight:600;min-height:40px;padding:4px 0}
   details.stdfold > summary::-webkit-details-marker{display:none}
@@ -3299,8 +3304,10 @@ function paintSyncFlag(st, dt) {
     unsupported: "Saved on this device"
   }[st] || "";
   el.textContent = label;
-  el.style.color = st === "connected" ? "#8FD3B0" : st === "error" ? "#F0B4A4" : st === "syncing" ? "#93A8AC" :
-    st === "needsPermission" ? "#EFD08A" : "#93A8AC";
+  /* colour comes from the stylesheet, per look, by state: these were written
+     for a dark header and read at 2.17:1 on the quiet look's white one */
+  el.setAttribute("data-state", st || "off");
+  el.style.color = "";
   el.style.cursor = (st === "needsPermission" || st === "off") ? "pointer" : "default";
 }
 
@@ -3912,7 +3919,7 @@ function plannerPickHTML() {
   const show = t.filter(x => codes.indexOf(x.code) >= 0);
   if (!show.length) return "";
   return '<div class="row" style="margin-top:10px;gap:6px;align-items:center">' +
-    '<span class="tiny muted" style="letter-spacing:.04em">TAUGHT THIS DAY</span>' +
+    '<span class="tiny muted pickhead" style="letter-spacing:.04em">TAUGHT THIS DAY</span>' +
     show.map(x => '<button class="btn sm' + (x.code === UI.enterStd ? " primary" : "") + '" data-pick="' + x.code + '" title="' + esc(x.subject + " Unit " + x.unit) + '">' +
       esc(byCode[x.code].lbl) + "</button>").join("") + "</div>";
 }

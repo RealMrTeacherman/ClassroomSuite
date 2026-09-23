@@ -8,7 +8,7 @@
    of them exactly as it was.
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Zilla+Slab:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Zilla+Slab:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Sora:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap");
 
 :root {
   /* --- the palette, named once --- */
@@ -132,6 +132,52 @@ body {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+
+/* ---- The planner's own looks are retired --------------------------------
+   The planner arrived with five looks of its own (Atomic Ranch, Moonbase,
+   Mission Control, Vanguard, Formica), from before it lived in this suite.
+   The suite's Look control now owns the look for all three tools, and
+   suite-migrate.js pins the planner to its base palette. Its Theme panel
+   in Settings goes with them. Subject colours are data and stay as set. */
+.panel:has(> .themegrid) { display: none; }
+
+/* ---- The gradebook's sync flag ------------------------------------------
+   Its colours were written for a dark header the gradebook no longer has:
+   on the quiet look's white header it was 2.17:1. The state is now an
+   attribute and each look colours it for its own header. */
+.saveflag[data-state="connected"] { color: #2F7A56; }
+.saveflag[data-state="error"] { color: #B4472F; }
+.saveflag[data-state="needsPermission"] { color: #8A5C0E; }
+
+/* ---- Desktop audit (v46) ------------------------------------------------ */
+/* Hints ran up to 93em — about 150 characters a line — across a wide
+   gradebook card. 75ch is the upper end of comfortable reading. */
+.hint, .card li, #sampleNote { max-width: 75ch; }
+/* Keyboard focus that drew nothing in the quiet look: the gradebook's date
+   field, the planner's per-subject notes, and the planner's jump-to-date
+   control, whose real input is invisible over the date text. */
+input[type="date"]:focus-visible,
+.subnote:focus-visible,
+textarea.notes:focus-visible { outline: 2px solid var(--suite-accent); outline-offset: 2px; }
+.jump:focus-within { outline: 2px solid var(--suite-accent); outline-offset: 3px; border-radius: 4px; }
+/* Targets under WCAG 2.2's 24px minimum on a desktop: the planner's Skip
+   and delete buttons (21px tall), its jump-to-date (19px), and the Setup
+   token field (21px). Touch screens get larger ones below. */
+.skipbtn { min-height: 24px; }
+.del { min-width: 24px; min-height: 24px; }
+.jump input { inset: -4px -6px; }
+input[type="password"] { min-height: 30px; }
+/* The corner switcher steps aside while the page scrolls down, so it never
+   sits on a row you are working in; it returns on any scroll up, at the
+   top and bottom of the page, and whenever it has focus (suite-nav.js). */
+#suitenav, #subbtn { transition: transform .22s ease, opacity .22s ease; }
+body.suite-tucked #suitenav:not(:focus-within),
+body.suite-tucked #subbtn:not(:focus) { transform: translateY(calc(100% + 28px)); opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  #suitenav, #subbtn { transition: opacity .15s linear; }
+  body.suite-tucked #suitenav:not(:focus-within),
+  body.suite-tucked #subbtn:not(:focus) { transform: none; }
 }
 
 /* ---- Toasts sit above the corner switcher ------------------------------
@@ -376,8 +422,17 @@ body {
     color: #F4F1E6;
     text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
   }
+  /* This selector list once ran straight into the tab-row rule below, so the
+     header's roster line and sync flag got the tabs' spacing and no ink of
+     their own, and sat dim on the slate. */
   [data-suite-theme="textured"] header.app .meta,
-  [data-suite-theme="textured"] header.app .saveflag,
+  [data-suite-theme="textured"] header.app .saveflag {
+    color: #C4BDA9;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+  }
+  [data-suite-theme="textured"] header.app .saveflag[data-state="connected"] { color: #9FD8B8; }
+  [data-suite-theme="textured"] header.app .saveflag[data-state="error"] { color: #F2B6A6; }
+  [data-suite-theme="textured"] header.app .saveflag[data-state="needsPermission"] { color: #EFD08A; }
   [data-suite-theme="textured"] nav.tabs { gap: 3px; padding-top: 2px; }
   [data-suite-theme="textured"] nav.tabs button {
     color: #C4BDA9;
@@ -944,4 +999,595 @@ body {
     font-family: var(--suite-sans) !important;
     box-shadow: 0 1px 2px rgba(40, 36, 22, .18) inset;
   }
+}
+
+/* ==========================================================================
+   2006, aligned to the design file (v47)
+
+   Measured from "Design · Gradebook · Enter scores", the original design for
+   this look, rendered and read back value by value. Where the file and the
+   build differed, the file wins, with four exceptions, all contrast: the
+   design's cream-on-gold brass button measured 2.6–3.5:1, its muted captions
+   4.0–4.3:1 and its unpressed numerals 4.48:1. Those keep the design's look
+   and move one step darker to clear 4.5:1; every other value is the file's.
+   The `html` prefix wins ties with the earlier textured rules without
+   reaching for !important, which is kept for the three inline styles.
+   ========================================================================== */
+@media screen {
+  /* --- ground: fine cream weave, 4px pitch both ways --- */
+  html[data-suite-theme="textured"] body {
+    background-color: #EFEADD;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(120, 100, 70, .04) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgba(120, 100, 70, .03) 0 1px, transparent 1px 4px);
+  }
+
+  /* --- chrome: a darker, greener slate, horizontal weave, lit top edge --- */
+  html[data-suite-theme="textured"] header.app {
+    background-color: #22302E !important;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, .06) 0 1px, transparent 1px 3px) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .14) inset, 0 2px 6px rgba(0, 0, 0, .35);
+  }
+  html[data-suite-theme="textured"] header.app .brandrow h1 {
+    font-family: 'Zilla Slab', Georgia, serif;
+    font-size: 21px; font-weight: 700; letter-spacing: .01em;
+    color: #F4EFE2;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .08);
+  }
+  html[data-suite-theme="textured"] header.app .meta { color: #A6BBB7; font-size: 13px; text-shadow: 0 -1px 0 rgba(0, 0, 0, .5); }
+  /* the sync flag: mint, with a lit dot while connected */
+  html[data-suite-theme="textured"] header.app .saveflag { color: #A6BBB7; font-size: 13px; }
+  html[data-suite-theme="textured"] header.app .saveflag[data-state="connected"] { color: #96D8B4; }
+  html[data-suite-theme="textured"] header.app .saveflag[data-state="connected"]::before {
+    content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    margin-right: 7px; vertical-align: 0;
+    background: radial-gradient(circle at 35% 30%, #BDF0D3, #5FB88C);
+    box-shadow: 0 0 6px rgba(127, 198, 168, .8), inset 0 -1px 1px rgba(0, 0, 0, .3);
+  }
+  /* the subject switch is a recessed well in the slate; the chosen subject a teal key */
+  html[data-suite-theme="textured"] header.app .segmented {
+    background: rgba(0, 0, 0, .28); border: 0; border-radius: 8px; padding: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .5) inset, 0 1px 0 rgba(255, 255, 255, .1);
+  }
+  html[data-suite-theme="textured"] header.app .segmented button {
+    color: #B3C6C2; font-size: 14px; font-weight: 600; border-radius: 6px;
+    border: 1px solid transparent; background: transparent; box-shadow: none;
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
+  }
+  html[data-suite-theme="textured"] header.app .segmented button[aria-pressed="true"] {
+    color: #F2FBF8;
+    background-image: linear-gradient(180deg, #2E8A7E 0%, #1F6B63 52%, #1A5C55 100%);
+    border-color: #1A6059;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .28) inset, 0 1px 2px rgba(0, 0, 0, .4);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .4);
+  }
+  /* tabs */
+  html[data-suite-theme="textured"] header.app nav.tabs button { color: #9FB4B0; font-size: 14px; font-weight: 600; padding: 9px 16px 8px; }
+  html[data-suite-theme="textured"] header.app nav.tabs button:hover { color: #E4EEEB; }
+  html[data-suite-theme="textured"] header.app nav.tabs button[aria-selected="true"] {
+    color: #2A3A38;
+    background-image: linear-gradient(180deg, #F6F2E6, #E9E2D1);
+    border-radius: 7px 7px 0 0;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 -1px 3px rgba(0, 0, 0, .18);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+  }
+
+  /* the design runs its cards 22px from the window edge, full width */
+
+  /* --- cards: manila, lit top edge, one hairline --- */
+  html[data-suite-theme="textured"] main .card {
+    background-image: linear-gradient(180deg, #FCF9F0, #F3EEE0);
+    border: 1px solid #C9BFA6;
+    border-radius: 10px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 2px 5px rgba(70, 55, 25, .13) !important;
+  }
+  html[data-suite-theme="textured"] main .card:has(> #rosterlist) { background-image: linear-gradient(180deg, #FDFBF4, #F6F1E4); overflow: hidden; }
+  /* the roster opens with a band: slab title, the hint at the right */
+  html[data-suite-theme="textured"] main .card:has(> #rosterlist) > .pad:first-child {
+    background-image: linear-gradient(180deg, #F1EBDA, #E7E0CC);
+    border-bottom: 1px solid #D8CFB8;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset;
+    padding: 11px 18px !important;
+  }
+  html[data-suite-theme="textured"] main .card:has(> #rosterlist) > .pad:first-child h2 {
+    font-family: 'Zilla Slab', Georgia, serif; font-size: 16px; font-weight: 600; color: #2A3A38;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
+  }
+  html[data-suite-theme="textured"] main .card:has(> #rosterlist) > .pad:first-child .hint { color: #635842; font-size: 13px; }
+
+  /* --- labels, hints, fields: light sheet fields, not pressed wells --- */
+  html[data-suite-theme="textured"] label.fld {
+    color: #6E634E; font-size: 12px; font-weight: 600; letter-spacing: .07em;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
+  }
+  html[data-suite-theme="textured"] main .hint { color: #635842; font-size: 13.5px; }
+  html[data-suite-theme="textured"] main select,
+  html[data-suite-theme="textured"] main input[type="date"],
+  html[data-suite-theme="textured"] main input[type="text"]:not(.note),
+  html[data-suite-theme="textured"] main input[type="number"] {
+    background-image: linear-gradient(180deg, #FFFFFF, #F7F3E9);
+    background-color: #FFFFFF;
+    border: 1px solid #B9AE95;
+    border-radius: 7px;
+    box-shadow: 0 2px 3px rgba(80, 65, 35, .16) inset;
+    color: #2A2418;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-size: 15px; font-weight: 400; letter-spacing: 0; text-transform: none;
+    padding: 10px 12px;
+  }
+  html[data-suite-theme="textured"] main select { padding-right: 30px; }
+  html[data-suite-theme="textured"] main input[type="date"] { font-family: 'Zilla Slab', Georgia, serif; font-weight: 500; }
+  html[data-suite-theme="textured"] .entryrow input.note {
+    background-image: linear-gradient(180deg, #FFFFFF, #FAF7EE);
+    background-color: #FFFFFF;
+    border: 1px solid #D5CCB5;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(80, 65, 35, .12) inset;
+    color: #2A2418; font-size: 13.5px; padding: 7px 10px;
+  }
+
+  /* "Taught this day" and its chips: bone pills */
+  html[data-suite-theme="textured"] .pickhead { color: #6C6450; font-size: 11px; font-weight: 700; letter-spacing: .1em !important; }
+  html[data-suite-theme="textured"] button.btn[data-pick] {
+    background-image: linear-gradient(180deg, #FEFDFA, #EEE8DA);
+    border: 1px solid #B9AE95; border-radius: 20px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 1px 2px rgba(60, 45, 20, .2);
+    color: #3A3222; font-size: 13px; font-weight: 600; padding: 6px 13px;
+  }
+
+  /* --- brass: the design's cream on gold, one step deeper so it reads --- */
+  html[data-suite-theme="textured"] .btn.brass {
+    background-image: linear-gradient(180deg, #A8762A 0%, #8E5F17 52%, #7E5311 100%);
+    border: 1px solid #6A4412;
+    border-radius: 7px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 2px 3px rgba(70, 45, 10, .32);
+    color: #FFF8EA; font-size: 14px; font-weight: 700; padding: 11px 18px;
+    text-shadow: 0 -1px 0 rgba(70, 42, 6, .55);
+  }
+  html[data-suite-theme="textured"] .btn.brass:hover:not(:disabled) { background-image: linear-gradient(180deg, #B07E30 0%, #95651B 52%, #845814 100%); }
+
+  /* --- the roster --- */
+  html[data-suite-theme="textured"] .entryrow { border-bottom: 1px solid #E4DCC7; }
+  html[data-suite-theme="textured"] .entryrow:nth-child(even) { background-color: #FAFCFB; }
+  /* the missing-work row and its pressed button are inline-styled by the gradebook */
+  html[data-suite-theme="textured"] .entryrow[style*="--s1-bg"] { background-color: #F7E7E1 !important; }
+  html[data-suite-theme="textured"] .entryrow .nm { color: #2A2418; font-size: 15.5px; font-weight: 600; text-shadow: 0 1px 0 rgba(255, 255, 255, .7); }
+  /* the prior mark is context, not data: plain "was 2 · 09-11", no chip */
+  html[data-suite-theme="textured"] .entryrow .prev { color: #6C6450; font-size: 12.5px; }
+  html[data-suite-theme="textured"] .entryrow .prev .mark {
+    background: none !important; border: 0 !important; box-shadow: none !important;
+    padding: 0; min-width: 0; width: auto; height: auto; display: inline;
+    color: inherit !important; font: inherit; text-shadow: none;
+  }
+  html[data-suite-theme="textured"] .entryrow .prev .mark::after { content: " \00B7"; }
+  html[data-suite-theme="textured"] .entryrow .prev .tiny { color: inherit; font-size: inherit; }
+
+  /* 1-4: bone keys with a glossy split; pressed, the mark colour under the same gloss */
+  html[data-suite-theme="textured"] .scale button {
+    border-radius: 7px;
+    background-image: linear-gradient(180deg, #FEFDFA 0%, #F0EADC 48%, #E7DFCD 52%, #F2ECE0 100%);
+    border: 1px solid #B9AE95;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 1px 2px rgba(60, 45, 20, .22);
+    color: #5F5847;
+    font-family: 'Zilla Slab', Georgia, serif; font-size: 17px; font-weight: 700;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
+  }
+  html[data-suite-theme="textured"] .scale button[aria-pressed="true"] {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .34) 0%, rgba(255, 255, 255, .05) 48%, rgba(0, 0, 0, .05) 52%, rgba(0, 0, 0, .17) 100%);
+    color: #FFFFFF;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .42) inset, 0 -1px 0 rgba(0, 0, 0, .28) inset, 0 1px 3px rgba(0, 0, 0, .3);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+  }
+  html[data-suite-theme="textured"] .scale button[data-v="1"][aria-pressed="true"] { background-color: #A6432B; border-color: #7A2E1B; }
+  html[data-suite-theme="textured"] .scale button[data-v="2"][aria-pressed="true"] { background-color: #9C6C1E; border-color: #755014; }
+  html[data-suite-theme="textured"] .scale button[data-v="3"][aria-pressed="true"] { background-color: #3E7A50; border-color: #2A5A38; }
+  html[data-suite-theme="textured"] .scale button[data-v="4"][aria-pressed="true"] { background-color: #2C5F7C; border-color: #1D4258; }
+
+  /* no work: a small bone key; pressed, a red key that says so */
+  html[data-suite-theme="textured"] .entryrow button[data-miss] {
+    background-image: linear-gradient(180deg, #FBF8F0, #F0EBDC);
+    border: 1px solid #CDC3AB; border-radius: 7px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset;
+    color: #6C6450; font-size: 13px; font-weight: 600; padding: 8px 13px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+  }
+  html[data-suite-theme="textured"] .entryrow button[data-miss][style*="--s1"] {
+    background: linear-gradient(180deg, #B85030 0%, #9E3E26 52%, #8A331B 100%) !important;
+    border-color: #8E3A22 !important;
+    color: #FFF3EE !important; font-weight: 700 !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .28) inset, 0 1px 2px rgba(60, 20, 10, .35);
+    text-shadow: 0 -1px 0 rgba(70, 20, 8, .55);
+  }
+
+  /* the Sub plan button is a bone key like "no work", not a white pill */
+  html[data-suite-theme="textured"] #subbtn {
+    background-image: linear-gradient(180deg, #FBF8F0, #F0EBDC) !important;
+    border: 1px solid #CDC3AB !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 2px 6px rgba(60, 45, 20, .25) !important;
+    color: #3A3222 !important;
+    font-family: 'Source Sans 3', system-ui, sans-serif !important;
+  }
+
+  /* --- the switcher: a slate pill; the tool you are in is a mint key --- */
+  html[data-suite-theme="textured"] #suitenav {
+    background-image: linear-gradient(180deg, #2C3D3A, #17201F) !important;
+    border: 0 !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .14) inset, 0 4px 14px rgba(0, 0, 0, .42) !important;
+  }
+  html[data-suite-theme="textured"] #suitenav a,
+  html[data-suite-theme="textured"] #suitenav button { color: #B3C6C2; font-weight: 600; text-shadow: 0 -1px 0 rgba(0, 0, 0, .5); }
+  html[data-suite-theme="textured"] #suitenav a[aria-current="page"] {
+    background-image: linear-gradient(180deg, #A5DCC2, #7FC6A8);
+    color: #10322C;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 1px 2px rgba(0, 0, 0, .3);
+    text-shadow: none;
+  }
+}
+
+/* The design file is drawn for a desktop. Its sizes apply from 761px up, so
+   the phone layout (52x46 keys, wrapping rows, a compact header) is kept. */
+@media screen and (min-width: 761px) {
+  html[data-suite-theme="textured"] body > main { max-width: none; padding-left: 22px; padding-right: 22px; }
+  html[data-suite-theme="textured"] .scale button { width: 46px; height: 42px; }
+  html[data-suite-theme="textured"] .entryrow { padding: 7px 12px; min-height: 57px; }
+  html[data-suite-theme="textured"] header.app .segmented button { padding: 7px 18px; }
+}
+
+/* ==========================================================================
+   2046 THEME  —  [data-suite-theme="2046"]
+
+   The instrument at dusk. Three looks meet here:
+   - from 2006, physical depth — surfaces are slabs with a machined top
+     edge, keys have a highlight and press in, fields are recessed wells;
+     but depth is made of light, not texture.
+   - from 2026, restraint — flat type, hairlines, one step of radius,
+     nothing decorative that is not also information.
+   - from 2046, the data is lit. Everything that is not a student's mark
+     sits at low luminance, and the four marks are the light sources: a
+     pressed chip glows in its colour, a mark on a card is lit ink.
+
+   The only saturated colour is still the four marks. The UI accent is a
+   pale lavender that none of them resembles, so a control can never be
+   mistaken for a score. The marks keep their hues and are brightened for a
+   dark ground (the --suite-m1..m4 tokens are not touched; tools are pointed
+   at lit variants). Colour never carries meaning alone: every numeral
+   stays. No text-shadow anywhere — the glow is on the chip, not the type.
+   All of it is inside @media screen, so print stays black on white.
+
+   Type: Sora for everything you read — wide, open and calm at small sizes.
+   Chakra Petch for everything you count — marks, positions, times, WCPM —
+   squared off like an instrument's digits. Every text/surface pair below
+   was measured at 4.5:1 or better; test-future.js holds them.
+   ========================================================================== */
+@media screen {
+  [data-suite-theme="2046"] {
+    color-scheme: dark;
+
+    --suite-paper: #0F1322;
+    --suite-paper-2: #131829;
+    --suite-paper-hi: #161C30;
+    --suite-panel: #19203A;
+    --suite-panel-hi: #222A48;
+    --suite-well: #0C101D;
+    --suite-key: #232B4A;
+
+    --suite-ink: #EAF0FF;
+    --suite-ink-2: #B7C1DC;
+    --suite-ink-3: #8E99B8;
+    --suite-line: rgba(170, 190, 255, .12);
+    --suite-line-2: rgba(170, 190, 255, .22);
+    --suite-accent: #C3B4FF;
+    --suite-accent-2: #A898F0;
+    --suite-accent-soft: rgba(195, 180, 255, .14);
+    --suite-on-lit: #0B1020;
+
+    /* the marks, lit for a dark ground: same hues, more light */
+    --suite-m1-lit: #FF8A6E;
+    --suite-m2-lit: #F4C85A;
+    --suite-m3-lit: #5EDBA4;
+    --suite-m4-lit: #7DB2FF;
+    --suite-m1-tint: color-mix(in srgb, #FF8A6E 18%, #19203A);
+    --suite-m2-tint: color-mix(in srgb, #F4C85A 18%, #19203A);
+    --suite-m3-tint: color-mix(in srgb, #5EDBA4 18%, #19203A);
+    --suite-m4-tint: color-mix(in srgb, #7DB2FF 18%, #19203A);
+
+    --suite-radius: 14px;
+    --suite-radius-sm: 9px;
+    --suite-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 14px 34px rgba(3, 6, 16, .45);
+    --suite-shadow-sm: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 6px 18px rgba(3, 6, 16, .35);
+    --suite-shadow-float: 0 10px 30px rgba(3, 6, 16, .55);
+
+    --suite-sans: 'Sora', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --suite-serif: 'Sora', 'Segoe UI', system-ui, sans-serif;
+    --suite-num: 'Chakra Petch', 'Sora', system-ui, sans-serif;
+    --suite-mono: 'Chakra Petch', 'SFMono-Regular', Consolas, monospace;
+
+    /* gradebook */
+    --paper: var(--suite-paper);
+    --panel-t: rgba(25, 32, 58, .86);
+    --line-strong: rgba(170, 190, 255, .28);
+    --s1: var(--suite-m1-lit); --s1-bg: var(--suite-m1-tint); --s1-line: color-mix(in srgb, #FF8A6E 40%, #19203A);
+    --s2: var(--suite-m2-lit); --s2-bg: var(--suite-m2-tint); --s2-line: color-mix(in srgb, #F4C85A 40%, #19203A);
+    --s3: var(--suite-m3-lit); --s3-bg: var(--suite-m3-tint); --s3-line: color-mix(in srgb, #5EDBA4 40%, #19203A);
+    --s4: var(--suite-m4-lit); --s4-bg: var(--suite-m4-tint); --s4-line: color-mix(in srgb, #7DB2FF 40%, #19203A);
+    --warn: var(--suite-m2-lit);
+    --shadow: var(--suite-shadow);
+    --shadow-sm: var(--suite-shadow-sm);
+    --serif: var(--suite-sans);
+    --sans: var(--suite-sans);
+
+    /* planner: chrome takes the accent, never a mark colour */
+    --screen: #0A0E1A;
+    --screen-txt: #D9E3FF;
+    --orange: var(--suite-accent);
+    --orange-2: var(--suite-accent-2);
+    --gold: var(--suite-m2-lit);
+    --teal: var(--suite-accent);
+    --avocado: var(--suite-m3-lit);
+    --display: var(--suite-sans);
+
+    /* running records */
+    --err: var(--suite-m1-lit);
+    --err-soft: var(--suite-m1-tint);
+    --sc: var(--suite-m4-lit);
+    --sc-soft: var(--suite-m4-tint);
+    --read: var(--suite-sans);
+  }
+
+  /* --- the ground: deep ink, a faint instrument grid, a haze of light at the top --- */
+  [data-suite-theme="2046"] body {
+    background-color: var(--suite-paper);
+    background-image:
+      radial-gradient(ellipse 90% 340px at 50% -80px, rgba(195, 180, 255, .10), transparent 70%),
+      radial-gradient(rgba(170, 190, 255, .07) 1px, transparent 1.3px);
+    background-size: auto, 24px 24px;
+    background-repeat: no-repeat, repeat;
+    background-attachment: fixed, fixed;
+    color: var(--suite-ink);
+    font-family: var(--suite-sans);
+  }
+  [data-suite-theme="2046"] h1,
+  [data-suite-theme="2046"] h2,
+  [data-suite-theme="2046"] h3 { color: var(--suite-ink); font-family: var(--suite-sans); letter-spacing: -.01em; }
+  [data-suite-theme="2046"] .hint,
+  [data-suite-theme="2046"] .muted,
+  [data-suite-theme="2046"] label { color: var(--suite-ink-3); }
+
+  /* --- slabs --- */
+  [data-suite-theme="2046"] .card,
+  [data-suite-theme="2046"] .panel,
+  [data-suite-theme="2046"] .sheet,
+  [data-suite-theme="2046"] .tile,
+  [data-suite-theme="2046"] .box,
+  [data-suite-theme="2046"] article.sub,
+  [data-suite-theme="2046"] .wday,
+  [data-suite-theme="2046"] .timerbar {
+    background-color: var(--suite-panel) !important;
+    border: 1px solid rgba(170, 190, 255, .11) !important;
+    box-shadow: var(--suite-shadow) !important;
+    color: var(--suite-ink);
+  }
+
+  /* --- chrome: dark glass, one lit hairline beneath --- */
+  [data-suite-theme="2046"] header.app,
+  [data-suite-theme="2046"] header:not(.top) {
+    background: rgba(13, 17, 31, .78) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    border-bottom: 1px solid rgba(195, 180, 255, .24) !important;
+    box-shadow: 0 1px 0 rgba(195, 180, 255, .06), 0 10px 30px rgba(3, 6, 16, .4);
+    color: var(--suite-ink);
+  }
+  [data-suite-theme="2046"] header.app .meta { color: var(--suite-ink-3); }
+  [data-suite-theme="2046"] header.app .saveflag { color: var(--suite-ink-3); }
+  [data-suite-theme="2046"] header.app .saveflag[data-state="connected"] { color: var(--suite-m3-lit); }
+  [data-suite-theme="2046"] header.app .saveflag[data-state="error"] { color: var(--suite-m1-lit); }
+  [data-suite-theme="2046"] header.app .saveflag[data-state="needsPermission"] { color: var(--suite-m2-lit); }
+  [data-suite-theme="2046"] .brand span,
+  [data-suite-theme="2046"] .hbar .sub { color: var(--suite-ink-3); }
+
+  /* tabs: quiet type, the open one lit from beneath */
+  [data-suite-theme="2046"] nav.tabs { background: transparent; border-color: transparent; }
+  [data-suite-theme="2046"] nav.tabs button,
+  [data-suite-theme="2046"] .tabs .tab { color: var(--suite-ink-3); background: transparent; border-color: transparent; font-family: var(--suite-sans); }
+  [data-suite-theme="2046"] nav.tabs button:hover,
+  [data-suite-theme="2046"] .tabs .tab:hover { color: var(--suite-ink); }
+  [data-suite-theme="2046"] nav.tabs button[aria-selected="true"],
+  [data-suite-theme="2046"] .tabs .tab[aria-selected="true"] {
+    color: var(--suite-ink) !important;
+    background: var(--suite-accent-soft) !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 -2px 0 var(--suite-accent);
+  }
+
+  /* --- keys --- */
+  [data-suite-theme="2046"] button:not(:where(nav.tabs button, .segmented button, .tabs .tab, .scale button, #suitenav button, #suitesheet button)),
+  [data-suite-theme="2046"] .btn {
+    background: var(--suite-key);
+    border: 1px solid var(--suite-line-2);
+    color: var(--suite-ink);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .07) inset, 0 2px 6px rgba(3, 6, 16, .35);
+  }
+  [data-suite-theme="2046"] button:not(:where(nav.tabs button, .segmented button, .tabs .tab, .scale button, #suitenav button, #suitesheet button)):hover:not(:disabled),
+  [data-suite-theme="2046"] .btn:hover:not(:disabled) { border-color: rgba(195, 180, 255, .55); background-color: #2A3354; }
+  [data-suite-theme="2046"] button:not(:where(nav.tabs button, .segmented button, .tabs .tab, .scale button, #suitenav button, #suitesheet button)):active:not(:disabled),
+  [data-suite-theme="2046"] .btn:active:not(:disabled) { box-shadow: 0 2px 5px rgba(0, 0, 0, .45) inset; }
+  [data-suite-theme="2046"] button:disabled,
+  [data-suite-theme="2046"] .btn:disabled { color: var(--suite-ink-3); opacity: .6; }
+  [data-suite-theme="2046"] .btn.primary,
+  [data-suite-theme="2046"] button.primary,
+  /* in the running-records tool a bare .btn is the primary action; in the
+     gradebook it is a neutral key, so this is scoped to that tool's column */
+  [data-suite-theme="2046"] .wrap > section button.btn:not(.ghost):not(.quiet):not(.danger),
+  [data-suite-theme="2046"] .wrap > section .timerbar button.btn:not(.ghost):not(.quiet):not(.danger),
+  [data-suite-theme="2046"] #subpanel .b.p {
+    background: var(--suite-accent) !important;
+    border-color: var(--suite-accent) !important;
+    color: var(--suite-on-lit) !important;
+    box-shadow: 0 0 0 1px rgba(195, 180, 255, .35), 0 4px 16px rgba(195, 180, 255, .22);
+  }
+  [data-suite-theme="2046"] button.btn.ghost,
+  [data-suite-theme="2046"] button.btn.quiet,
+  [data-suite-theme="2046"] .ghost {
+    background: var(--suite-key) !important;
+    color: var(--suite-ink) !important;
+    border-color: var(--suite-line-2) !important;
+  }
+  /* brass: consequential but not destructive — lit gold outline */
+  [data-suite-theme="2046"] .btn.brass,
+  [data-suite-theme="2046"] button.brass {
+    background: color-mix(in srgb, #F4C85A 14%, #232B4A) !important;
+    border-color: color-mix(in srgb, #F4C85A 60%, #232B4A) !important;
+    color: var(--suite-m2-lit) !important;
+  }
+  [data-suite-theme="2046"] .btn.danger,
+  [data-suite-theme="2046"] button.danger,
+  [data-suite-theme="2046"] #subpanel .b.d { color: var(--suite-m1-lit) !important; border-color: color-mix(in srgb, #FF8A6E 55%, #232B4A) !important; background: var(--suite-key) !important; }
+
+  /* --- wells --- */
+  [data-suite-theme="2046"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  [data-suite-theme="2046"] select,
+  [data-suite-theme="2046"] textarea {
+    background-color: var(--suite-well) !important;
+    border: 1px solid var(--suite-line-2) !important;
+    color: var(--suite-ink) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .5) inset;
+  }
+  [data-suite-theme="2046"] ::placeholder { color: var(--suite-ink-3) !important; opacity: 1; }
+  [data-suite-theme="2046"] input[type="checkbox"],
+  [data-suite-theme="2046"] input[type="radio"],
+  [data-suite-theme="2046"] progress { accent-color: var(--suite-accent); }
+  [data-suite-theme="2046"] .subnote { background: transparent !important; box-shadow: none; border-top: 1px dashed var(--suite-line-2) !important; border-left: 0 !important; border-right: 0 !important; border-bottom: 0 !important; }
+
+  /* the subject switch and other tracks */
+  [data-suite-theme="2046"] .segmented { background: var(--suite-well); border-color: var(--suite-line-2); box-shadow: 0 1px 3px rgba(0, 0, 0, .5) inset; }
+  [data-suite-theme="2046"] .segmented button { color: var(--suite-ink-3); }
+  [data-suite-theme="2046"] .segmented button[aria-pressed="true"] { background: var(--suite-panel-hi); color: var(--suite-ink); box-shadow: 0 0 0 1px rgba(195, 180, 255, .35), 0 1px 0 rgba(255, 255, 255, .07) inset; }
+  [data-suite-theme="2046"] .progress,
+  [data-suite-theme="2046"] .track,
+  [data-suite-theme="2046"] .meter,
+  [data-suite-theme="2046"] .bar { background: var(--suite-well); }
+  [data-suite-theme="2046"] .progress i { background: var(--suite-accent); box-shadow: 0 0 10px rgba(195, 180, 255, .6); }
+
+  /* --- the data: lit --- */
+  [data-suite-theme="2046"] .num,
+  [data-suite-theme="2046"] .clock,
+  [data-suite-theme="2046"] .readout,
+  [data-suite-theme="2046"] .tlpos,
+  [data-suite-theme="2046"] code.std,
+  [data-suite-theme="2046"] time,
+  [data-suite-theme="2046"] .subtime,
+  [data-suite-theme="2046"] .scale button,
+  [data-suite-theme="2046"] .mark { font-family: var(--suite-num); letter-spacing: .02em; }
+  [data-suite-theme="2046"] code.std { color: var(--suite-accent); }
+
+  /* an unpressed 1-4 is a dark recessed cell; pressed, it lights in its colour */
+  [data-suite-theme="2046"] .scale button {
+    background: var(--suite-well) !important;
+    border: 1px solid var(--suite-line-2) !important;
+    color: var(--suite-ink-3) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .55) inset;
+  }
+  [data-suite-theme="2046"] .scale button:hover { color: var(--suite-ink) !important; border-color: rgba(195, 180, 255, .5) !important; }
+  [data-suite-theme="2046"] .scale button[data-v="1"][aria-pressed="true"] { background: var(--suite-m1-lit) !important; border-color: var(--suite-m1-lit) !important; box-shadow: 0 0 0 1px #FF8A6E, 0 0 16px rgba(255, 138, 110, .55); }
+  [data-suite-theme="2046"] .scale button[data-v="2"][aria-pressed="true"] { background: var(--suite-m2-lit) !important; border-color: var(--suite-m2-lit) !important; box-shadow: 0 0 0 1px #F4C85A, 0 0 16px rgba(244, 200, 90, .5); }
+  [data-suite-theme="2046"] .scale button[data-v="3"][aria-pressed="true"] { background: var(--suite-m3-lit) !important; border-color: var(--suite-m3-lit) !important; box-shadow: 0 0 0 1px #5EDBA4, 0 0 16px rgba(94, 219, 164, .5); }
+  [data-suite-theme="2046"] .scale button[data-v="4"][aria-pressed="true"] { background: var(--suite-m4-lit) !important; border-color: var(--suite-m4-lit) !important; box-shadow: 0 0 0 1px #7DB2FF, 0 0 16px rgba(125, 178, 255, .55); }
+  [data-suite-theme="2046"] .scale button[aria-pressed="true"] { color: var(--suite-on-lit) !important; font-weight: 700; }
+
+  /* a mark on a card is lit ink on a tint of itself */
+  [data-suite-theme="2046"] .mark.v1 { background: var(--suite-m1-tint); color: var(--suite-m1-lit); border-color: color-mix(in srgb, #FF8A6E 45%, #19203A); }
+  [data-suite-theme="2046"] .mark.v2 { background: var(--suite-m2-tint); color: var(--suite-m2-lit); border-color: color-mix(in srgb, #F4C85A 45%, #19203A); }
+  [data-suite-theme="2046"] .mark.v3 { background: var(--suite-m3-tint); color: var(--suite-m3-lit); border-color: color-mix(in srgb, #5EDBA4 45%, #19203A); }
+  [data-suite-theme="2046"] .mark.v4 { background: var(--suite-m4-tint); color: var(--suite-m4-lit); border-color: color-mix(in srgb, #7DB2FF 45%, #19203A); }
+  [data-suite-theme="2046"] .mark.vnone { background: var(--suite-well); color: var(--suite-ink-3); border-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] .tag.flag { background: var(--suite-m2-tint); color: var(--suite-m2-lit); }
+  [data-suite-theme="2046"] .tag.reteach { background: var(--suite-m1-tint); color: var(--suite-m1-lit); }
+  [data-suite-theme="2046"] .chip.eld { background: var(--suite-m4-tint); color: var(--suite-m4-lit); }
+  [data-suite-theme="2046"] .notice.warn { border-left-color: var(--suite-m2-lit); background: var(--suite-m2-tint); color: var(--suite-ink); }
+  [data-suite-theme="2046"] .notice.ok { border-left-color: var(--suite-m3-lit); background: var(--suite-m3-tint); color: var(--suite-ink); }
+
+  /* tables read as a lit ledger */
+  [data-suite-theme="2046"] th { color: var(--suite-ink-3); border-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] td { border-color: var(--suite-line); }
+  [data-suite-theme="2046"] tr:hover td { background: rgba(195, 180, 255, .04); }
+  /* hard-coded light fills in the tools, each measured failing under light ink */
+  [data-suite-theme="2046"] tbody tr:hover,
+  [data-suite-theme="2046"] table.gb tbody tr:nth-child(even) { background: rgba(170, 190, 255, .045) !important; }
+  [data-suite-theme="2046"] .namelist span { background: var(--suite-panel-hi) !important; color: var(--suite-ink); }
+  [data-suite-theme="2046"] [style*="background:#FCFBF8"] { background: var(--suite-paper-hi) !important; }
+  [data-suite-theme="2046"] .tick { color: var(--suite-ink-3) !important; }
+  [data-suite-theme="2046"] tr.done .tick { color: var(--suite-accent) !important; }
+  [data-suite-theme="2046"] .daypick button { background: var(--suite-key); color: var(--suite-ink); border-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] .daypick button[aria-selected="true"] { background: var(--suite-accent) !important; color: var(--suite-on-lit) !important; border-color: var(--suite-accent) !important; }
+  [data-suite-theme="2046"] #subpanel .warn { background: var(--suite-m2-tint) !important; border-color: color-mix(in srgb, #F4C85A 45%, #19203A) !important; color: var(--suite-ink); }
+
+  /* --- planner --- */
+  [data-suite-theme="2046"] .readout { background: var(--screen) !important; color: var(--screen-txt) !important; border: 1px solid rgba(195, 180, 255, .22) !important; box-shadow: 0 0 0 1px rgba(0, 0, 0, .4) inset, 0 0 18px rgba(195, 180, 255, .08) inset; }
+  [data-suite-theme="2046"] .readout:hover { background: #121833 !important; }
+  [data-suite-theme="2046"] .freein { background: var(--suite-well) !important; color: var(--suite-ink) !important; font-family: var(--suite-sans) !important; }
+  [data-suite-theme="2046"] .tlpos { background: #0A0E1A; color: var(--screen-txt); border: 1px solid rgba(195, 180, 255, .22); }
+  [data-suite-theme="2046"] .tab[aria-selected="true"],
+  [data-suite-theme="2046"] .arrow:hover { color: var(--suite-on-lit) !important; }
+  [data-suite-theme="2046"] .arrow,
+  [data-suite-theme="2046"] .step,
+  [data-suite-theme="2046"] .todaybtn,
+  [data-suite-theme="2046"] .skipbtn,
+  [data-suite-theme="2046"] .flag { background: var(--suite-key); color: var(--suite-ink); border-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] .sub.skip .skipbtn,
+  [data-suite-theme="2046"] .flag[aria-pressed="true"] { background: var(--suite-accent); color: var(--suite-on-lit); border-color: var(--suite-accent); }
+  [data-suite-theme="2046"] .jar { background: var(--suite-well); border-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] .jar b { color: var(--suite-ink); }
+  [data-suite-theme="2046"] .jar small { color: var(--suite-ink-3); }
+  [data-suite-theme="2046"] .dow .chip.draft,
+  [data-suite-theme="2046"] #main .banner { color: var(--suite-m2-lit); }
+
+  /* --- running records --- */
+  [data-suite-theme="2046"] .passage { color: var(--suite-ink); }
+  [data-suite-theme="2046"] .passage .w.stopw { background: var(--suite-accent-soft); box-shadow: inset 0 -3px 0 var(--suite-accent); }
+  [data-suite-theme="2046"] .marking .passage .w:hover { background: rgba(195, 180, 255, .10); }
+  [data-suite-theme="2046"] .passage .w.prev { color: var(--suite-ink-3); border-bottom-color: var(--suite-line-2); }
+  [data-suite-theme="2046"] .timerbar .tally b { color: var(--suite-ink); }
+  [data-suite-theme="2046"] .timerbar .cue { color: var(--suite-ink-2); }
+  [data-suite-theme="2046"] .timerbar .cue.act { color: var(--suite-m2-lit); }
+  [data-suite-theme="2046"] .timerbar .clock.low { color: var(--suite-m1-lit); }
+
+  /* --- floating things --- */
+  [data-suite-theme="2046"] #toast,
+  [data-suite-theme="2046"] .toast { background: var(--suite-panel-hi) !important; color: var(--suite-ink) !important; border: 1px solid rgba(195, 180, 255, .3); box-shadow: var(--suite-shadow-float); }
+  [data-suite-theme="2046"] #suitenav,
+  [data-suite-theme="2046"] #suitesheet,
+  [data-suite-theme="2046"] #subbtn {
+    background: rgba(18, 23, 42, .82) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(195, 180, 255, .24) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 12px 30px rgba(3, 6, 16, .55) !important;
+    color: var(--suite-ink) !important;
+  }
+  [data-suite-theme="2046"] #suitenav a,
+  [data-suite-theme="2046"] #suitenav button,
+  [data-suite-theme="2046"] #suitesheet > b,
+  [data-suite-theme="2046"] #suitesheet button { color: var(--suite-ink-2) !important; }
+  [data-suite-theme="2046"] #suitenav a:hover,
+  [data-suite-theme="2046"] #suitenav button:hover { color: var(--suite-ink) !important; background: rgba(195, 180, 255, .08) !important; }
+  [data-suite-theme="2046"] #suitenav a[aria-current="page"] { background: var(--suite-accent) !important; color: var(--suite-on-lit) !important; }
+  [data-suite-theme="2046"] #suitesheet > i,
+  [data-suite-theme="2046"] #suitesheet button em { color: var(--suite-ink-3) !important; }
+  [data-suite-theme="2046"] #suitesheet button { border-color: var(--suite-line) !important; }
+
+  /* the sub plan panel */
+  [data-suite-theme="2046"] #subpanel { background: var(--suite-panel) !important; color: var(--suite-ink) !important; font-family: var(--suite-sans) !important; border: 1px solid rgba(195, 180, 255, .22); }
+  [data-suite-theme="2046"] #subpanel .hd { background: rgba(25, 32, 58, .96) !important; border-bottom-color: var(--suite-line-2) !important; }
+  [data-suite-theme="2046"] #subpanel h2 { color: var(--suite-ink); font-family: var(--suite-sans) !important; }
+  [data-suite-theme="2046"] #subpanel h3,
+  [data-suite-theme="2046"] #subpanel label.f,
+  [data-suite-theme="2046"] #subpanel .hint { color: var(--suite-ink-3) !important; }
+  [data-suite-theme="2046"] #subpanel .b { background: var(--suite-key) !important; border-color: var(--suite-line-2) !important; color: var(--suite-ink) !important; font-family: var(--suite-sans) !important; }
+  [data-suite-theme="2046"] #subwrap { background: rgba(4, 6, 14, .6) !important; }
+
+  /* focus: one lavender ring, everywhere */
+  [data-suite-theme="2046"] :focus-visible { outline: 2px solid var(--suite-accent) !important; outline-offset: 2px; }
 }
