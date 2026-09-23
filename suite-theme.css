@@ -707,18 +707,17 @@ body {
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
   }
 
-  /* The reading passage is ruled paper too, but it is not a note and it
-     cannot take the note's measurements.
+  /* The reading passage is plain sheet, not ruled paper (v49).
 
-     Two things were wrong here. The pitch: the rules repeat every 26px and
-     the line-height was forced to 26px to match, but the passage is set at
-     24px with a line-height of 2.05 and every word is an inline-block with
-     its own padding, so the line boxes land around 40px apart whatever this
-     rule says. The rules and the text could not line up, and the result is
-     stripes behind the text rather than paper under it. The pitch is now the
-     passage's own line box, so they sit on the lines.
+     v44 ruled it at the passage's own pitch, but the rules still could not
+     hold the text: every word is an inline-block with its own padding, so the
+     word boxes, not the text, decide where each line sits, and on a phone
+     they drifted off the rules within a few lines. The teacher found the
+     misalignment distracting, so the rules are gone, and so are the
+     line-height and word-margin overrides that existed only to chase them —
+     the passage keeps the fluency tool's own spacing.
 
-     And the face: `--read` resolved to `--suite-serif`, which this theme
+     The face: `--read` resolved to `--suite-serif`, which this theme
      re-points to Zilla Slab. The art board is explicit that Zilla Slab is
      for "headings, numerals, marks" and that Source Sans 3 is the one that
      "stays legible at small sizes" — and of everything in the suite, the
@@ -727,17 +726,9 @@ body {
   [data-suite-theme="textured"] .passage,
   [data-suite-theme="textured"] .reading {
     background-color: var(--suite-sheet);
-    background-image: repeating-linear-gradient(180deg, transparent 0 48px, rgba(96, 116, 130, .28) 48px 49px);
-    background-attachment: local;
-    line-height: 49px;
+    background-image: none;
     border: 1px solid rgba(58, 46, 30, .4);
     box-shadow: 0 1px 2px rgba(35, 27, 16, .16) inset;
-  }
-  /* the words are inline-blocks, so their own box drives the line: keep it
-     inside the 49px so the text sits on the rule rather than drifting off it */
-  [data-suite-theme="textured"] .passage .w {
-    margin: 0;
-    padding: 0 4px;
   }
 
   /* --- pressed wells: fields, tracks and meters are cut into the surface --- */
