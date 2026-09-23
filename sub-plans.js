@@ -45,9 +45,17 @@
         { start: "11:40", end: "12:05", title: "Writing", days: "MTRF", subject: "writing", detail: "", emergency: "" },
         { start: "12:05", end: "1:00", title: "WIN time", days: "MTRF", subject: "win", detail: "", emergency: "" },
         { start: "1:00", end: "1:30", title: "Science / Social Studies", days: "MTRF", subject: "science", detail: "", emergency: "" },
-        { start: "1:30", end: "1:55", title: "Specials 1", days: "MTRF", subject: "", detail: "", emergency: "" },
-        { start: "1:55", end: "2:20", title: "Specials 2", days: "MTRF", subject: "", detail: "", emergency: "" },
-        { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "MTRF", subject: "", detail: "", emergency: "" },
+        /* Closing clean-up is the last ten minutes of the last period in the
+           room: 2:15 on Tue, Thu and Fri; before PE on Monday (and Wednesday),
+           which runs to dismissal. Health/SEL is Mon 1:30, Thu and Fri 1:55. */
+        { start: "1:30", end: "1:45", title: "Specials 1", days: "M", subject: "health", detail: "", emergency: "" },
+        { start: "1:30", end: "1:55", title: "Specials 1", days: "TRF", subject: "", detail: "", emergency: "" },
+        { start: "1:45", end: "1:55", title: "Closing clean-up", days: "M", subject: "", detail: "", emergency: "" },
+        { start: "1:55", end: "2:30", title: "Specials 2", days: "M", subject: "", detail: "", emergency: "" },
+        { start: "1:55", end: "2:15", title: "Specials 2", days: "T", subject: "", detail: "", emergency: "" },
+        { start: "1:55", end: "2:15", title: "Specials 2", days: "RF", subject: "health", detail: "", emergency: "" },
+        { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "TRF", subject: "", detail: "", emergency: "" },
+        { start: "2:30", end: "", title: "Dismissal", days: "M", subject: "", detail: "", emergency: "" },
         /* Wednesday is an early-release day with its own shape. It used to
            have no blocks at all, so a Wednesday sub plan printed an empty
            schedule. */
@@ -59,7 +67,8 @@
         { start: "9:45", end: "10:30", title: "Assembly / Enrichment / World Wednesday", days: "W", subject: "enrich", detail: "", emergency: "" },
         { start: "10:30", end: "11:00", title: "WIN time", days: "W", subject: "win", detail: "", emergency: "" },
         { start: "11:00", end: "11:40", title: "Recess & lunch", days: "W", subject: "", detail: "", emergency: "" },
-        { start: "11:40", end: "12:20", title: "GID and Class Store", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "11:40", end: "12:10", title: "GID and Class Store", days: "W", subject: "", detail: "", emergency: "" },
+        { start: "12:10", end: "12:20", title: "Closing clean-up", days: "W", subject: "", detail: "", emergency: "" },
         { start: "12:20", end: "12:55", title: "PE", days: "W", subject: "", detail: "", emergency: "" },
         { start: "12:55", end: "", title: "Dismissal", days: "W", subject: "", detail: "", emergency: "" }
       ]

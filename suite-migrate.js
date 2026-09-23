@@ -390,16 +390,163 @@
     } catch (e) { }
   }
 
-  /* Science and Social Studies covers too much variety to be "Lesson 4", and
-     Writing runs on its own rhythm rather than the curriculum's unit, week
-     and day. Both are open fields he types into. */
-  toFreeText("science");
-  toFreeText("writing");
-  addHealthSel();
-  wednesday();
-  pinPlannerLook();
-  wednesdayPE();
-  wednesdayDismissal();
-  repairDays();
-  skipUnscheduled();
+
+  /* The end of the day, as the teacher described it (v52).
+
+     "Closing clean-up is the last ten minutes of whatever our last
+     in-classroom activity is." Tue, Thu and Fri end in the room, so it stays
+     at 2:15. Monday and Wednesday end in PE, so it comes before PE: Monday
+     Health/SEL 1:30-1:45, clean-up 1:45, PE 1:55 to dismissal at 2:30 (the
+     same shape as Wednesday, which has no shoutouts either); Wednesday GID &
+     Class Store to 12:10, clean-up 12:10, PE 12:20.
+
+     And the three Health/SEL specials (Mon 1:30, Thu 1:55, Fri 1:55) are
+     Health/SEL: they carried no subject, so its card said Skipped every day.
+
+     Flagged, once: these add, move and remove blocks he can edit in
+     Settings, and a later hand edit must stick. Each part only acts on the
+     shape it expects, so a day he has already rearranged is left alone. */
+  var CLEAN_NOTE = "Number boxes \u00b7 trash \u00b7 chairs in \u00b7 backpacks";
+  function endOfDay() {
+    if (done()["end-of-day-2026"]) return;
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !Array.isArray(st.subjects) || !st.templates || typeof st.templates !== "object") return;
+    var T = st.templates;
+    var hasHealth = st.subjects.some(function (x) { return x && x.id === "health"; });
+    var linked = {};
+    function arr(d) { return Array.isArray(T[d]) ? T[d] : null; }
+    function find(tpl, t, re) { for (var i = 0; i < tpl.length; i++) { var b = tpl[i]; if (b && b.t === t && re.test(b.l || "")) return b; } return null; }
+
+    if (hasHealth) [1, 2, 4, 5].forEach(function (d) {
+      var tpl = arr(d); if (!tpl) return;
+      tpl.forEach(function (b) {
+        if (b && !b.s && /Health\s*\/\s*SEL/i.test(b.l || "")) { b.s = "health"; linked[d] = true; }
+      });
+    });
+
+    /* a M/T/R/F day whose last period is PE */
+    [1, 2, 4, 5].forEach(function (d) {
+      var tpl = arr(d); if (!tpl) return;
+      if (!find(tpl, "1:55", /(^|\u2014\s*)PE\s*$/)) return;
+      var clean = find(tpl, "2:15", /clean/i);
+      if (!clean) return;
+      clean.t = "1:45";
+      var shout = find(tpl, "2:20", /shout/i);
+      if (shout) tpl.splice(tpl.indexOf(shout), 1);
+      var bus = find(tpl, "2:25", /bussers/i);
+      if (bus) { bus.t = "2:30"; bus.l = "Dismissal"; }
+      else if (!tpl.some(function (b) { return b && /dismissal/i.test(b.l || ""); }))
+        tpl.push({ t: "2:30", l: "Dismissal", s: "", n: "" });
+      T[d] = tpl.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
+    });
+
+    var wed = arr(3);
+    if (wed && find(wed, "12:20", /^PE$/) && !wed.some(function (b) { return b && /clean/i.test(b.l || ""); })) {
+      wed.push({ t: "12:10", l: "Closing clean-up", s: "", n: CLEAN_NOTE });
+      T[3] = wed.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
+    }
+
+    try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { return; }
+
+    /* Health/SEL was skipped on every day because it had no block. On a day
+       not yet saved, an empty skipped Health/SEL entry was the planner's
+       doing, not his, so it follows the schedule now. Saved days are his
+       record and are left as they are. */
+    function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+    function blank(v) { return !String(v == null ? "" : v).trim(); }
+    [D_KEY, "lp:pending:v1"].forEach(function (key) {
+      var all;
+      try { all = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return; }
+      if (!isObj(all)) return;
+      var changed = false;
+      Object.keys(all).forEach(function (dk) {
+        var rec = all[dk], m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dk);
+        if (!m || !isObj(rec) || rec.saved || !isObj(rec.entries)) return;
+        if (!linked[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]) return;
+        var e = rec.entries.health;
+        if (isObj(e) && e.taught === false && blank(e.note) && blank(isObj(e.pos) ? e.pos.text : "")) { e.taught = true; changed = true; }
+      });
+      if (changed) { try { localStorage.setItem(key, JSON.stringify(all)); } catch (e) { } }
+    });
+    mark("end-of-day-2026");
+  }
+
+  /* The same day in the sub plan's own block list. Converges, like
+     wednesdayPE(): reloading the private standing-notes file can bring the
+     old rows back, so they are put right on every load. Only rows that are
+     exactly the old defaults are replaced; anything typed in is kept. */
+  function subPlanEndOfDay() {
+    var raw, sp;
+    try { raw = localStorage.getItem("suite:subplan:v1"); sp = raw && JSON.parse(raw); } catch (e) { return; }
+    if (!sp || !Array.isArray(sp.blocks)) return;
+    function row(b, start, end, title, days) {
+      return b && b.start === start && b.end === end && b.title === title && b.days === days && !b.subject;
+    }
+    function like(b, o) {
+      return { start: o.start, end: o.end, title: o.title, days: o.days, subject: o.subject || "",
+        detail: String(b.detail || ""), emergency: String(b.emergency || "") };
+    }
+    var out = [], hit = false;
+    sp.blocks.forEach(function (b) {
+      if (row(b, "1:30", "1:55", "Specials 1", "MTRF")) {
+        out.push(like(b, { start: "1:30", end: "1:45", title: "Specials 1", days: "M", subject: "health" }));
+        out.push(like(b, { start: "1:30", end: "1:55", title: "Specials 1", days: "TRF" }));
+        hit = true; return;
+      }
+      if (row(b, "1:55", "2:20", "Specials 2", "MTRF")) {
+        out.push(like(b, { start: "1:55", end: "2:30", title: "Specials 2", days: "M" }));
+        out.push(like(b, { start: "1:55", end: "2:15", title: "Specials 2", days: "T" }));
+        out.push(like(b, { start: "1:55", end: "2:15", title: "Specials 2", days: "RF", subject: "health" }));
+        hit = true; return;
+      }
+      if (row(b, "2:15", "2:30", "Clean-up, shoutouts, dismissal", "MTRF")) {
+        out.push(like(b, { start: "1:45", end: "1:55", title: "Closing clean-up", days: "M" }));
+        out.push(like(b, { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "TRF" }));
+        out.push(like(b, { start: "2:30", end: "", title: "Dismissal", days: "M" }));
+        hit = true; return;
+      }
+      if (row(b, "11:40", "12:20", "GID and Class Store", "W")) {
+        out.push(like(b, { start: "11:40", end: "12:10", title: "GID and Class Store", days: "W" }));
+        out.push(like(b, { start: "12:10", end: "12:20", title: "Closing clean-up", days: "W" }));
+        hit = true; return;
+      }
+      out.push(b);
+    });
+    if (!hit) return;
+    /* the sub plan prints in clock order, and its editor lists rows as
+       stored, so keep them in clock order too; the sort is stable */
+    sp.blocks = out.map(function (b, i) { return { b: b, i: i }; })
+      .sort(function (x, y) { return (clock(x.b.start) - clock(y.b.start)) || (x.i - y.i); })
+      .map(function (x) { return x.b; });
+    try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
+  }
+
+  function runAll() {
+    /* Science and Social Studies covers too much variety to be "Lesson 4", and
+       Writing runs on its own rhythm rather than the curriculum's unit, week
+       and day. Both are open fields he types into. */
+    toFreeText("science");
+    toFreeText("writing");
+    addHealthSel();
+    wednesday();
+    pinPlannerLook();
+    wednesdayPE();
+    wednesdayDismissal();
+    endOfDay();
+    subPlanEndOfDay();
+    repairDays();
+    skipUnscheduled();
+  }
+
+  /* On a fresh install there is nothing stored yet, so every fix above finds
+     nothing to fix; the planner then writes its built-in defaults, which
+     predate them (a Wednesday with STEAM at 11:45 and dismissal at 12:45).
+     They converged on the second load, so a newly added home-screen app
+     opened on the wrong Wednesday. `fresh` tells suite-boot.js to run them
+     again once the planner has written its defaults (v51). */
+  var fresh = false;
+  try { fresh = !localStorage.getItem(S_KEY); } catch (e) { }
+  runAll();
+  window.SuiteMigrate = { fresh: fresh, runAll: runAll, keys: [S_KEY, D_KEY] };
 })();
