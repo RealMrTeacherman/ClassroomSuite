@@ -380,6 +380,7 @@ summary.tiny,summary.small{padding:4px 0}
 <link rel="stylesheet" href="../suite-theme.css">
 <script src="../suite-sync.js"></script>
 <script src="../suite-nav.js" defer></script>
+<script src="../curriculum.js"></script>
 <script>
 /* ============================================================
    STANDARDS CATALOG
@@ -544,6 +545,24 @@ const KEY = "gb2_standards_v1";
 const PRE_RESTORE = "gb2:preRestore:v1";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const byCode = {}; CATALOG.forEach(s => byCode[s.c] = s);
+/* Which code a math standard is shown by. The Reveal pacing guide, and so
+   the planner, speak CCSS; this catalog is the 2021 Oregon standards, which
+   kept the CCSS codes for OA and NBT and renumbered measurement, data and
+   geometry (2.MD.A.1 is 2.GM.B.4 here). Marks are always stored under the
+   Oregon code, whatever this shows, so switching it moves nothing.
+   Oregon is the default (v61) because Synergy's report card is Oregon;
+   CCSS is an opt-in, so a settings object with no mathCodes reads as
+   Oregon. Setup -> "Show math codes as" chooses, and every view that
+   names a math standard goes through here. */
+function dispCode(c) {
+  const s = byCode[c];
+  if (!s || s.s !== "Math" || !window.RevealPacing || !(S && S.settings && S.settings.mathCodes === "ccss")) return c;
+  return window.RevealPacing.ccssFor(c) || c;
+}
+function codeHTML(c) {
+  const d = dispCode(c);
+  return '<code class="std"' + (d !== c ? ' title="Oregon ' + esc(c) + '"' : (byCode[c] && byCode[c].s === "Math" && window.RevealPacing && window.RevealPacing.ccssFor(c) && window.RevealPacing.ccssFor(c) !== c ? ' title="CCSS ' + esc(window.RevealPacing.ccssFor(c)) + '"' : "")) + ">" + esc(d) + "</code>";
+}
 
 const QUARTER_NAMES = ["Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4", "Quarter 5", "Quarter 6"];
 const TRI_NAMES = ["Trimester 1", "Trimester 2", "Trimester 3"];
@@ -584,7 +603,41 @@ function hydrate(p) {
   if (out.sub && typeof out.sub !== "object") out.sub = null;
   if (!out.overrides || typeof out.overrides !== "object") out.overrides = {};
   if (!out.groupPins || typeof out.groupPins !== "object") out.groupPins = {};
+  if (!out.seeded || typeof out.seeded !== "object") out.seeded = {};
+  seedRevealUnits(out);
+  seedBenchmarkUnits(out);
   return out;
+}
+/* The unit -> standards map was left empty because only he knew what his
+   units covered. The district's Reveal pacing guide now says, lesson by
+   lesson, so the math half is filled from it. Once, and flagged: a unit
+   he has already ticked is left exactly as it is, and a standard he unticks
+   afterwards stays unticked. Unit 1 is grade 1 review and stays empty. */
+function seedRevealUnits(st) {
+  const R = window.RevealPacing;
+  if (!R || st.seeded.revealUnits) return;
+  R.UNITS.forEach(u => {
+    if (R.priorUnit(u.u)) return;
+    const k = "math|" + u.u, cur = st.unitMap[k];
+    if (Array.isArray(cur) && cur.length) return;
+    const codes = R.unitOregon(u.u).filter(c => byCode[c]);
+    if (codes.length) st.unitMap[k] = codes;
+  });
+  st.seeded.revealUnits = R.VERSION;
+}
+/* The same, once, for Reading from the Benchmark scope and sequence. Its
+   codes are matched from the skill names, not printed by Benchmark, which
+   is why the Planning tab says so. Word study stays out: Phonics is ECRI. */
+function seedBenchmarkUnits(st) {
+  const B = window.BenchmarkScope;
+  if (!B || st.seeded.benchmarkUnits) return;
+  B.UNITS.forEach(u => {
+    const k = "reading|" + u.u, cur = st.unitMap[k];
+    if (Array.isArray(cur) && cur.length) return;
+    const codes = B.unitCodes(u.u).filter(c => byCode[c]);
+    if (codes.length) st.unitMap[k] = codes;
+  });
+  st.seeded.benchmarkUnits = 1;
 }
 
 function blankState() {
@@ -613,7 +666,7 @@ function blankState() {
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
       ireadyAutoScore: true, ireadyInReport: false, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
-      noMapPrompts: false }
+      noMapPrompts: false, mathCodes: "oregon" }
   };
 }
 let S = blankState();
@@ -624,6 +677,9 @@ let UI = {
   enterDate: todayISO(),
   enterMode: "standard",
   enterCtx: "",
+  /* The Reveal day being graded, as an index into the guide, or null to
+     follow the date: the lesson the planner has on it (v62). */
+  enterLesson: null,
   enterStudent: "",
   groupWindow: "0",
   groupEvidence: "both",
@@ -771,7 +827,7 @@ function openTabFromHash() {
   }
   if (params.std && byCode[params.std]) UI.enterStd = params.std;
   if (params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)) UI.enterDate = params.date;
-  if (params.ctx != null) UI.enterCtx = params.ctx;
+  if (params.ctx != null) { UI.enterCtx = params.ctx; UI.enterLesson = lessonFromCtx(params.ctx); }
   if (params.student) UI.enterStudent = params.student;
   gotoTab(tab);
 }
@@ -815,7 +871,7 @@ function renderEnter() {
     const subj = byCode[codes.filter(c => byCode[c].d === d)[0]].s;
     return '<optgroup label="' + esc(UI.subject === "All" ? subj + " \u00b7 " + d : d) + '">' +
       codes.filter(c => byCode[c].d === d).map(c =>
-        '<option value="' + c + '"' + (c === UI.enterStd ? " selected" : "") + '>' + esc(byCode[c].c + " \u2014 " + byCode[c].lbl) + "</option>").join("") +
+        '<option value="' + c + '"' + (c === UI.enterStd ? " selected" : "") + '>' + esc(dispCode(c) + " \u2014 " + byCode[c].lbl) + "</option>").join("") +
       "</optgroup>";
   }).join("");
 
@@ -835,7 +891,7 @@ function renderEnter() {
   html += (foldable
       ? '<details class="card pad stdfold"' + (foldOpen ? " open" : "") +
         ' ontoggle="UI.enterFold={key:' + esc(JSON.stringify(foldKey)).replace(/'/g, "&#39;") + ',open:this.open}">' +
-        '<summary><code class="std">' + esc(std.c) + "</code> " + esc(std.lbl) +
+        '<summary>' + codeHTML(std.c) + " " + esc(std.lbl) +
         '<span class="tiny"> \u00b7 ' + esc(UI.enterDate.slice(5)) + (UI.enterCtx ? " \u00b7 " + esc(UI.enterCtx) : "") + "</span>" +
         '<span class="stdfold-change">Change</span></summary>'
       : '<div class="card pad">') +
@@ -844,7 +900,8 @@ function renderEnter() {
     '<label class="fld">Date<input type="date" id="e-date" value="' + UI.enterDate + '"></label>' +
     '<label class="fld">What was it? (optional)<input type="text" id="e-ctx" placeholder="exit ticket, small group, observation" value="' + esc(UI.enterCtx || "") + '" style="width:220px"></label>' +
     "</div>" +
-    (std ? '<div class="hint" style="margin-top:10px"><code class="std">' + esc(std.c) + "</code> " + esc(std.t) + "</div>" : "") +
+    (std ? '<div class="hint" style="margin-top:10px">' + codeHTML(std.c) + " " + esc(std.t) + "</div>" : "") +
+    lessonPickHTML() +
     plannerPickHTML() +
     (foldable ? "</details>" : "</div>");
 
@@ -890,7 +947,14 @@ function renderEnter() {
 
   wireAssignmentBar(el);
   document.getElementById("e-std").onchange = e => { UI.enterStd = e.target.value; renderEnter(); };
-  document.getElementById("e-date").onchange = e => { UI.enterDate = e.target.value; renderEnter(); };
+  document.getElementById("e-date").onchange = e => {
+    UI.enterDate = e.target.value;
+    /* where the planner has a lesson on the new date, that is the lesson */
+    if (revealStepOn(UI.enterDate)) UI.enterLesson = null;
+    renderEnter();
+  };
+  const ls = document.getElementById("e-lesson");
+  if (ls) ls.onchange = e => chooseLesson(e.target.value);
   const ctx = document.getElementById("e-ctx");
   if (ctx) {
     ctx.oninput = e => { UI.enterCtx = e.target.value; };
@@ -901,7 +965,16 @@ function renderEnter() {
     b.onclick = () => setScore(b.dataset.sid, UI.enterStd, Number(b.dataset.v));
   });
   el.querySelectorAll("[data-pick]").forEach(b => {
-    b.onclick = () => { UI.enterStd = b.dataset.pick; renderEnter(); };
+    b.onclick = () => {
+      UI.enterStd = b.dataset.pick;
+      /* Name the assignment after the lesson, but only when that cannot
+         split one: an assignment is standard + date + "What was it?", so
+         filling that in beside marks already entered without it would make
+         a second assignment out of the same work. */
+      const c = b.dataset.pickctx;
+      if (c && !UI.enterCtx && !S.scores.some(x => x.std === UI.enterStd && x.date === UI.enterDate && !x.ctx && !x.source)) UI.enterCtx = c;
+      renderEnter();
+    };
   });
   el.querySelectorAll("[data-miss]").forEach(b => {
     b.onclick = () => toggleMissingHere(b.dataset.miss);
@@ -1158,7 +1231,7 @@ function renderSkillGroups() {
     '<label class="fld">Group on<select id="sg-std" style="max-width:340px">' +
     '<option value="__all"' + (sel === "__all" ? " selected" : "") + ">All " + esc(subjLabel()) + " standards together</option>" +
     codes.map(c => '<option value="' + esc(c) + '"' + (sel === c ? " selected" : "") + ">" +
-      esc(c + " \u00b7 " + byCode[c].lbl) + "</option>").join("") +
+      esc(dispCode(c) + " \u00b7 " + byCode[c].lbl) + "</option>").join("") +
     "</select></label>" +
     '<label class="fld">How many<select id="sg-k">' +
     [2, 3, 4, 5, 6].map(n => '<option value="' + n + '"' + (Number(UI.groupCount) === n ? " selected" : "") + ">" + n + " groups</option>").join("") +
@@ -1251,7 +1324,7 @@ function renderGroups() {
       html += '<div class="group"><h3><span class="tag ' + (ones ? "reteach" : "practice") + '">' + (ones ? "Reteach" : "More practice") + "</span> Group " + (i + 1) + ' <span class="spacer" style="flex:1"></span><span class="tiny muted">' + g.kids.length + " students</span></h3><div class=\"body\">";
       html += '<div class="namelist">' + g.kids.map(sid => "<span>" + esc(fullName(S.students.find(s => s.id === sid))) + "</span>").join("") + "</div>";
       html += '<div class="small"><strong>Shared need:</strong><ul style="margin:6px 0 0;padding-left:18px">' +
-        g.stds.map(c => "<li><code class=\"std\">" + esc(c) + "</code> " + esc(byCode[c].lbl) + "</li>").join("") + "</ul></div>" +
+        g.stds.map(c => "<li>" + codeHTML(c) + " " + esc(byCode[c].lbl) + "</li>").join("") + "</ul></div>" +
         evidenceLine(groupEvidenceMix(g, days));
       html += "</div></div>";
     });
@@ -1314,7 +1387,7 @@ function renderGroups() {
   if (codes.length) {
     html += '<div class="divider"></div><h2>Class at a glance</h2>' +
       '<div class="scroll"><table><thead><tr><th style="min-width:150px">Student</th>' +
-      codes.map(c => '<th class="c" title="' + esc(byCode[c].t) + '"><span style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">' + esc(byCode[c].c) + "</span></th>").join("") +
+      codes.map(c => '<th class="c" title="' + esc(byCode[c].t) + '"><span style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">' + esc(dispCode(byCode[c].c)) + "</span></th>").join("") +
       '<th class="c">Avg</th></tr></thead><tbody>';
     sortedStudents().forEach(st => {
       const vals = [];
@@ -1400,7 +1473,7 @@ function renderStudents() {
     codes.forEach(c => {
       const a = scoresFor(st.id, c);
       if (byCode[c].d !== lastDom) { lastDom = byCode[c].d; html += '<div class="tiny muted" style="margin:10px 0 2px;font-weight:640">' + esc(lastDom) + "</div>"; }
-      html += '<div class="stdrow"><span class="lbl"><code class="std">' + esc(c) + "</code> " + esc(byCode[c].lbl) + "</span>" +
+      html += '<div class="stdrow"><span class="lbl">' + codeHTML(c) + " " + esc(byCode[c].lbl) + "</span>" +
         '<span class="spark">' + a.slice(-6).map(x => '<i style="height:' + (x.v * 5 + 4) + "px;background:var(--s" + x.v + ')" title="' + x.date + ": " + x.v + '"></i>').join("") + "</span>" +
         markHTML(a[a.length - 1].v) + "</div>";
     });
@@ -1410,7 +1483,7 @@ function renderStudents() {
   const notes = S.scores.filter(x => x.sid === st.id && x.note);
   if (notes.length) {
     html += '<div class="card pad"><h3>Notes</h3><table style="margin-top:8px"><tbody>' +
-      notes.slice(-25).reverse().map(n => "<tr><td style=\"width:90px\" class=\"tiny muted\">" + esc(n.date) + "</td><td class=\"tiny\"><code class=\"std\">" + esc(n.std) + "</code></td><td>" + esc(n.note) + "</td></tr>").join("") + "</tbody></table></div>";
+      notes.slice(-25).reverse().map(n => "<tr><td style=\"width:90px\" class=\"tiny muted\">" + esc(n.date) + "</td><td class=\"tiny\">" + codeHTML(n.std) + "</td><td>" + esc(n.note) + "</td></tr>").join("") + "</tbody></table></div>";
   }
   html += "</div>";
   el.innerHTML = html;
@@ -2038,6 +2111,9 @@ function renderSetup() {
   const onCount = Object.keys(S.active).filter(k => S.active[k]).length;
   html += '<div class="card pad"><div class="sectionhead"><h2>' + esc(subjLabel()) + ' standards in play</h2><span class="spacer"></span>' +
     '<label class="row small" style="gap:6px"><input type="checkbox" id="show-subs"' + (S.settings.showSubs ? " checked" : "") + "> Show sub-standards</label>" +
+    (UI.subject !== "ELA" && window.RevealPacing ? '<label class="row small" style="gap:6px">Show math codes as <select id="set-mathcodes">' +
+      '<option value="oregon"' + (S.settings.mathCodes !== "ccss" ? " selected" : "") + '>Oregon 2021 (Synergy)</option>' +
+      '<option value="ccss"' + (S.settings.mathCodes === "ccss" ? " selected" : "") + '>CCSS (Reveal)</option></select></label>' : "") +
     '<span class="hint">' + onCount + " turned on</span></div>" +
     '<p class="hint">Turning a standard off hides it from entry and analysis; marks you already recorded are kept.</p>';
   (UI.subject === "All" ? ["Math", "ELA"] : [UI.subject]).forEach(subj => {
@@ -2050,7 +2126,7 @@ function renderSetup() {
         ' <button class="btn sm ghost" onclick="toggleDomain(\'' + esc(subj) + "','" + esc(d) + "',true)\">all on</button>" +
         '<button class="btn sm ghost" onclick="toggleDomain(\'' + esc(subj) + "','" + esc(d) + "',false)\">all off</button></div>";
       html += list.map(s =>
-        '<label class="row small" style="gap:7px;padding:2px 0' + (s.lvl === 2 ? ";padding-left:22px" : "") + '"><input type="checkbox" data-std="' + s.c + '"' + (S.active[s.c] ? " checked" : "") + '><code class="std">' + esc(s.c) + "</code> <span>" + esc(s.lbl) + "</span></label>").join("");
+        '<label class="row small" style="gap:7px;padding:2px 0' + (s.lvl === 2 ? ";padding-left:22px" : "") + '"><input type="checkbox" data-std="' + s.c + '"' + (S.active[s.c] ? " checked" : "") + '>' + codeHTML(s.c) + " <span>" + esc(s.lbl) + "</span></label>").join("");
       html += "</div>";
     });
   });
@@ -2066,7 +2142,7 @@ function renderSetup() {
       '<button class="btn sm danger" onclick="removeLine(\'' + l.id + '\')">Remove</button></div>' +
       '<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">' + l.std.length + " standards feed this line</summary><div style=\"columns:2;margin-top:6px\">" +
       CATALOG.filter(s => s.s === l.s && (S.settings.showSubs || s.lvl === 1)).map(s =>
-        '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-line="' + l.id + '" data-code="' + s.c + '"' + (l.std.includes(s.c) ? " checked" : "") + "><span>" + esc(s.c + " " + s.lbl) + "</span></label>").join("") +
+        '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-line="' + l.id + '" data-code="' + s.c + '"' + (l.std.includes(s.c) ? " checked" : "") + "><span>" + esc(dispCode(s.c) + " " + s.lbl) + "</span></label>").join("") +
       "</div></details></div>";
   });
   html += "</div>";
@@ -2107,6 +2183,8 @@ function renderSetup() {
   document.getElementById("set-teacher").oninput = e => { S.settings.teacher = e.target.value; save(); };
   document.getElementById("set-year").oninput = e => { S.settings.year = e.target.value; save(); };
   document.getElementById("show-subs").onchange = e => { S.settings.showSubs = e.target.checked; save(); renderSetup(); };
+  const mc = document.getElementById("set-mathcodes");
+  if (mc) mc.onchange = e => { S.settings.mathCodes = e.target.value; save(); renderSetup(); };
   el.querySelectorAll("[data-sf]").forEach(inp => {
     inp.onchange = () => {
       const s = S.students.find(x => x.id === inp.dataset.id); if (!s) return;
@@ -3234,7 +3312,7 @@ function ireadyMappingCardHTML() {
     const subj = /phon|vocab|comprehen|high|word/.test(d.key) ? "ELA" : "Math";
     h += '<div style="border:1px solid var(--rule);border-radius:6px;padding:9px 11px;margin-top:9px">' +
       '<div class="row"><strong class="small" style="flex:1;min-width:170px">' + esc(d.label) + "</strong>" +
-      "<span>" + (targets.length ? targets.map(t => '<code class="std">' + esc(t) + "</code>").join(" ") : '<span class="tiny muted">not mapped \u2014 ignored</span>') + "</span></div>" +
+      "<span>" + (targets.length ? targets.map(t => codeHTML(t)).join(" ") : '<span class="tiny muted">not mapped \u2014 ignored</span>') + "</span></div>" +
       '<details style="margin-top:6px"><summary class="tiny muted" style="cursor:pointer">change</summary><div style="columns:2;margin-top:6px">' +
       CATALOG.filter(x => x.s === subj && (S.settings.showSubs || x.lvl === 1)).map(x =>
         '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-irdom="' + esc(d.key) + '" data-code="' + x.c + '"' +
@@ -3749,26 +3827,86 @@ function unitsTaught(lp) {
   });
   return out;
 }
-/* what the planner says you taught on a given date, as gradebook standards */
+/* The Reveal lesson the planner has for Math on a date, or null. Only when
+   the planner's Math is following the pacing guide (see curriculum.js). */
+function revealStepOn(dateISO, lp) {
+  const R = window.RevealPacing;
+  lp = lp || readPlanner();
+  if (!R || !lp) return null;
+  const rec = (lp.days || {})[dateISO];
+  const sb = lp.subjects.find(x => x.id === "math");
+  const e = rec && rec.entries && rec.entries.math;
+  if (!rec || rec.noSchool || !e || !e.taught || !R.on(sb)) return null;
+  return R.find(e.pos);
+}
+/* what to call marks from that day: "Lesson 2-3", "Unit 2 test". The
+   unit test was "Unit 2 assessment" in v60 and v61, which were never
+   published; the planner calls it the test, so this does too (v62). */
+function revealCtx(step) {
+  if (!step) return "";
+  if (step.k === "L") return "Lesson " + step.u + "-" + step.n;
+  if (step.k === "assess") return "Unit " + step.u + " test";
+  if (step.k === "probe") return "Unit " + step.u + " probe";
+  if (step.k === "review") return "Unit " + step.u + " review";
+  return step.t;
+}
+/* What the planner says you taught on a given date, as gradebook standards.
+   Math following the pacing guide is known to the lesson, so it gives that
+   lesson's standards (a unit test, its unit's) rather than the whole unit's;
+   a day the guide gives no grade 2 standard (an opener, Unit 1) gives none.
+   Everything else is still by unit, from the map on the Planning tab. */
 function standardsTaughtOn(dateISO) {
   const lp = readPlanner();
   if (!lp) return [];
   const rec = (lp.days || {})[dateISO];
   if (!rec || !rec.entries) return [];
   const out = [];
+  const step = revealStepOn(dateISO, lp);
   Object.keys(rec.entries).forEach(sid => {
     const e = rec.entries[sid];
     if (!e || !e.taught) return;
     const u = unitOf(e.pos);
     if (!u) return;
     const sb = lp.subjects.find(x => x.id === sid);
-    unitStandards(sid, u).forEach(c => {
+    const lesson = sid === "math" && step ? step : null;
+    const bmw = sid === "reading" ? benchmarkWeekOn(dateISO, lp) : null;
+    const codes = lesson ? window.RevealPacing.oregon(lesson)
+      : bmw ? window.BenchmarkScope.codes(bmw.pos, "reading")
+      : unitStandards(sid, u);
+    codes.forEach(c => {
       if (byCode[c] && !out.some(x => x.code === c)) {
-        out.push({ code: c, subject: sb ? sb.name : sid, unit: u });
+        out.push({ code: c, subject: sb ? sb.name : sid, unit: u,
+          ctx: lesson ? revealCtx(lesson) : bmw ? "Benchmark U" + bmw.pos.unit + " W" + bmw.pos.week : "",
+          lesson: lesson ? window.RevealPacing.name(lesson) : bmw ? "Benchmark Unit " + bmw.pos.unit + " \u00b7 Week " + bmw.pos.week : "" });
       }
     });
   });
+  /* Writing is an open field in the planner, so it has no position of its
+     own. Benchmark's writing and grammar go with its reading week, so on a
+     day Writing was taught they come from that day's Reading position. */
+  const wr = rec.entries.writing, bw = benchmarkWeekOn(dateISO, lp, true);
+  if (wr && wr.taught && bw) {
+    window.BenchmarkScope.codes(bw.pos, "writing").forEach(c => {
+      if (byCode[c] && !out.some(x => x.code === c)) {
+        out.push({ code: c, subject: "Writing", unit: Number(bw.pos.unit), ctx: "Benchmark U" + bw.pos.unit + " W" + bw.pos.week + " writing",
+          lesson: "Benchmark Unit " + bw.pos.unit + " \u00b7 Week " + bw.pos.week });
+      }
+    });
+  }
   return out;
+}
+/* The Benchmark week the planner has for Reading on a date, or null.
+   anyTaught: Writing uses the week even on a day Reading was skipped. */
+function benchmarkWeekOn(dateISO, lp, anyTaught) {
+  const B = window.BenchmarkScope;
+  lp = lp || readPlanner();
+  if (!B || !lp) return null;
+  const rec = (lp.days || {})[dateISO];
+  const sb = lp.subjects.find(x => x.id === "reading");
+  const e = rec && rec.entries && rec.entries.reading;
+  if (!rec || rec.noSchool || !e || !e.pos || (!e.taught && !anyTaught) || !B.on(sb)) return null;
+  const w = B.week(e.pos);
+  return w ? { pos: e.pos, week: w, unit: B.unit(e.pos.unit) } : null;
 }
 
 /* ---------- learning the mapping instead of asking for it ----------
@@ -3809,7 +3947,7 @@ function mappingSuggestion(code, dateISO) {
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     /* only ever offer a subject whose catalog side matches the standard, so
-       a maths unit is never offered for an ELA code */
+       a math unit is never offered for an ELA code */
     if (subjCatalog(u.sbId) !== byCode[code].s) continue;
     if (unitStandards(u.sbId, u.unit).includes(code)) continue;
     return { sbId: u.sbId, name: u.name, unit: u.unit, code: code };
@@ -3822,7 +3960,7 @@ function mappingPromptHTML(code, dateISO) {
   return '<div class="card pad" id="mapprompt" style="margin-top:10px;border-color:var(--accent)">' +
     '<div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">' +
     '<span class="small">The planner has <b>' + esc(s.name) + " unit " + s.unit +
-    "</b> taught on this date. Does it cover <code class=\"std\">" + esc(s.code) + "</code>?</span>" +
+    "</b> taught on this date. Does it cover " + codeHTML(s.code) + "?</span>" +
     '<span style="flex:1"></span>' +
     '<button class="btn sm primary" onclick="linkUnit(\'' + esc(s.sbId) + "'," + s.unit + ",'" + esc(s.code) + "')\">Yes, link it</button>" +
     '<button class="btn sm" onclick="dismissMapPrompt()">Not now</button>' +
@@ -3846,6 +3984,90 @@ function stopMapPrompts() {
   dismissMapPrompt();
 }
 
+/* ---------- Reveal Math pacing ----------
+   The twelve units against what the planner recorded: the guide's days for
+   each (flex days included), the days actually spent, and for the unit in
+   hand every lesson with its standards and how many students have a mark
+   on them since it was taught. Nothing here is stored. */
+function revealPacingHTML(lp) {
+  const R = window.RevealPacing;
+  const sb = lp && lp.subjects.find(x => x.id === "math");
+  if (!R || !R.on(sb)) return "";
+  const days = lp.days || {}, per = {}, lessonDate = {};
+  let here = null, hereDate = "";
+  Object.keys(days).sort().forEach(k => {
+    const r = days[k];
+    if (!r || !r.saved || r.noSchool || !r.entries) return;
+    const e = r.entries.math;
+    if (!e || !e.taught || !e.pos || !R.unit(e.pos.unit)) return;
+    const u = Number(e.pos.unit);
+    const o = per[u] = per[u] || { n: 0, from: k, to: k };
+    o.n++; o.to = k;
+    const st = R.find(e.pos);
+    if (st) { if (!lessonDate[st.i]) lessonDate[st.i] = k; here = st; hereDate = k; }
+  });
+  let html = '<div class="card pad"><div class="sectionhead"><h2>Reveal Math pacing</h2><span class="spacer"></span>' +
+    '<span class="hint">' + R.TOTAL + " days in the guide</span></div>";
+  html += '<div style="overflow-x:auto"><table><thead><tr><th>Unit</th><th class="c">Guide</th><th class="c">Taught</th><th>When</th></tr></thead><tbody>' +
+    R.UNITS.map(u => {
+      const a = per[u.u], mine = here && here.u === u.u;
+      const over = a ? a.n - u.total : 0;
+      return "<tr" + (mine ? ' style="font-weight:650"' : "") + "><td>" + u.u + " \u00b7 " + esc(u.title) + (mine ? ' <span class="chip tiny">now</span>' : "") + "</td>" +
+        '<td class="c num">' + u.total + '</td><td class="c num">' + (a ? a.n : "\u2014") +
+        (over > 0 ? ' <span class="tiny muted">+' + over + "</span>" : "") + "</td>" +
+        '<td class="tiny muted">' + (a ? esc(a.from.slice(5) + " \u2013 " + a.to.slice(5)) : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  if (here) {
+    const U = R.unit(here.u);
+    html += '<h3 style="margin-top:14px">Unit ' + U.u + " \u00b7 " + esc(U.title) + '</h3><p class="hint">Last recorded: ' + esc(R.name(here)) + " on " + esc(hereDate) + ".</p>";
+    html += '<div style="overflow-x:auto"><table><thead><tr><th>Lesson</th><th>Standards</th><th class="c">Marked</th></tr></thead><tbody>' +
+      U.steps.filter(s => s.k === "L" || s.k === "assess").map(s => {
+        const codes = R.oregon(s).filter(c => byCode[c]);
+        const since = lessonDate[s.i];
+        const n = since && S.students.length ? new Set(S.scores.filter(x => !x.source && codes.includes(x.std) && x.date >= since).map(x => x.sid)).size : null;
+        return "<tr><td>" + (s.k === "L" ? '<span class="num">' + s.u + "-" + s.n + "</span> " : "") + esc(s.k === "L" ? s.t : "Unit assessment") +
+          (s.tg && s.tg.length ? '<div class="tiny muted">' + s.tg.map(esc).join(" ") + "</div>" : "") + "</td>" +
+          "<td>" + (codes.length ? codes.map(c => codeHTML(c)).join(" ") : '<span class="tiny muted">grade 1 review</span>') + "</td>" +
+          '<td class="c num">' + (n == null ? '<span class="tiny muted">' + (since ? "" : "not yet") + "</span>" : n + " of " + S.students.length) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  } else {
+    html += '<p class="hint">Once the planner has a saved day of Math, the unit in hand shows here lesson by lesson.</p>';
+  }
+  return html + "</div>";
+}
+
+/* ---------- Benchmark Advance: the unit in hand ----------
+   The latest saved Reading position's unit, its three weeks, and for each
+   the standards and how many students have a mark on them. */
+function benchmarkHTML(lp) {
+  const B = window.BenchmarkScope;
+  const sb = lp && lp.subjects.find(x => x.id === "reading");
+  if (!B || !B.on(sb)) return "";
+  let at = null;
+  Object.keys(lp.days || {}).sort().forEach(k => {
+    const w = benchmarkWeekOn(k, lp);
+    if (w && lp.days[k].saved) at = { k: k, w: w };
+  });
+  let html = '<div class="card pad"><div class="sectionhead"><h2>Benchmark Advance</h2><span class="spacer"></span>' +
+    '<span class="hint">standards matched from the skill names</span></div>';
+  if (!at) return html + '<p class="hint">Once the planner has a saved day of Reading, the unit in hand shows here week by week.</p></div>';
+  const U = at.w.unit;
+  html += "<h3>Unit " + U.u + " \u00b7 " + esc(U.title) + '</h3><p class="hint">' + esc(U.eq) + " Last recorded: Week " + at.w.week.w + " on " + esc(at.k) + ".</p>";
+  html += '<div style="overflow-x:auto"><table><thead><tr><th>Week</th><th>Reading</th><th>Writing and grammar</th><th class="c">Marked</th></tr></thead><tbody>' +
+    U.weeks.map(w => {
+      const P = B.parts(U.u, w), rc = [], wc = [];
+      P.reading.forEach(x => x.codes.forEach(c => { if (byCode[c] && rc.indexOf(c) < 0) rc.push(c); }));
+      P.writing.forEach(x => x.codes.forEach(c => { if (byCode[c] && wc.indexOf(c) < 0) wc.push(c); }));
+      const all = rc.concat(wc);
+      const n = S.students.length ? new Set(S.scores.filter(x => !x.source && all.includes(x.std)).map(x => x.sid)).size : null;
+      return "<tr" + (w.w === at.w.week.w ? ' style="font-weight:650"' : "") + "><td>" + w.w + '<div class="tiny muted">' + esc((w.anchor || []).map(a => a.t).join(" \u00b7 ")) + "</div></td>" +
+        "<td>" + rc.map(c => codeHTML(c)).join(" ") + "</td><td>" + wc.map(c => codeHTML(c)).join(" ") +
+        '<div class="tiny muted">' + esc(w.writing) + "</div></td>" +
+        '<td class="c num">' + (n == null ? "" : n + " of " + S.students.length) + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  return html + "</div>";
+}
+
 /* ============================================================
    TAB — PLANNING
    ============================================================ */
@@ -3862,13 +4084,16 @@ function renderPlanning() {
   const taught = unitsTaught(lp);
   let html = '<div class="stack">';
 
+  html += revealPacingHTML(lp);
+  html += benchmarkHTML(lp);
+
   /* ---- what is coming up / what was taught today ---- */
   const todayStds = standardsTaughtOn(todayISO());
   html += '<div class="card pad"><div class="sectionhead"><h2>Today</h2><span class="spacer"></span>' +
     '<span class="hint">' + esc(Object.keys(taught).length) + " units taught so far</span></div>";
   if (todayStds.length) {
     html += '<p class="small">From what the planner says you taught today:</p><div class="namelist">' +
-      todayStds.map(t => '<span><code class="std">' + esc(t.code) + "</code> " + esc(byCode[t.code].lbl) + "</span>").join("") + "</div>" +
+      todayStds.map(t => '<span>' + codeHTML(t.code) + " " + esc(byCode[t.code].lbl) + "</span>").join("") + "</div>" +
       '<button class="btn sm" style="margin-top:6px" onclick="gotoTab(\'enter\')">Go and mark these</button>';
   } else {
     html += '<p class="hint">Nothing mapped for today yet. Either the day is not saved in the planner, or the units it covers have no standards attached below.</p>';
@@ -3881,6 +4106,7 @@ function renderPlanning() {
     const t = taught[k];
     const codes = unitStandards(t.sbId, t.unit);
     const sb = lp.subjects.find(x => x.id === t.sbId);
+    if (!codes.length && t.sbId === "math" && window.RevealPacing && window.RevealPacing.priorUnit(t.unit)) return;
     if (!codes.length) { gaps.push({ t: t, sb: sb }); return; }
     codes.forEach(c => {
       const n = new Set(S.scores.filter(x => x.std === c && x.source !== "iready").map(x => x.sid)).size;
@@ -3897,7 +4123,7 @@ function renderPlanning() {
     if (thin.length) {
       html += '<table style="margin-top:6px"><thead><tr><th>Unit</th><th>Standard</th><th class="c">Students with a mark</th></tr></thead><tbody>' +
         thin.slice(0, 25).map(x => "<tr><td>" + esc((x.sb ? x.sb.name : x.t.sbId) + " \u00b7 Unit " + x.t.unit) +
-          '</td><td><code class="std">' + esc(x.code) + "</code> " + esc(byCode[x.code].lbl) +
+          '</td><td>' + codeHTML(x.code) + " " + esc(byCode[x.code].lbl) +
           '</td><td class="c num" style="color:' + (x.n ? "var(--s2)" : "var(--s1)") + ';font-weight:650">' +
           x.n + " of " + S.students.length + "</td></tr>").join("") + "</tbody></table>";
     }
@@ -3942,26 +4168,33 @@ function renderPlanning() {
   /* ---- the mapping itself ---- */
   html += '<div class="divider"></div><div class="card pad"><div class="sectionhead"><h2>Units and standards</h2><span class="spacer"></span>' +
     '<span class="hint">tick the standards each unit covers</span></div>' +
-    '<p class="hint">Only you can say what your Reveal and Benchmark units actually cover, so nothing is filled in by default. Unit level is enough \u2014 you do not need this per lesson.</p>';
+    '<p class="hint">' + (window.RevealPacing
+      ? "Math is filled in from the Reveal pacing guide and is known lesson by lesson. Reading is filled in from the Benchmark scope and sequence, week by week; Benchmark prints skill names rather than codes, so those were matched from the names. Change any unit here and the change is kept."
+      : "Only you can say what your Reveal and Benchmark units actually cover, so nothing is filled in by default. Unit level is enough \u2014 you do not need this per lesson.") + '</p>';
   subs.forEach(sb => {
     const cat = subjCatalog(sb.id);
     const maxSeen = Math.max(0, ...Object.keys(taught).map(k => taught[k]).filter(t => t.sbId === sb.id).map(t => t.unit));
-    const shown = Math.max(maxSeen + 2, Number(S.unitCount && S.unitCount[sb.id]) || 0, 8);
+    const shown = Math.max(maxSeen + 2, Number(S.unitCount && S.unitCount[sb.id]) || 0, 8,
+      sb.id === "math" && window.RevealPacing ? window.RevealPacing.UNITS.length : 0,
+      sb.id === "reading" && window.BenchmarkScope ? window.BenchmarkScope.UNITS.length : 0);
     html += '<h3 style="margin-top:16px">' + esc(sb.name) + ' <span class="tiny muted">' + esc(sb.curriculum || "") + " \u00b7 " + cat + " standards</span></h3>";
     for (let u = 1; u <= shown; u++) {
       const codes = unitStandards(sb.id, u);
       const t = taught[unitKey(sb.id, u)];
+      const ru = sb.id === "math" && window.RevealPacing ? window.RevealPacing.unit(u)
+        : sb.id === "reading" && window.BenchmarkScope ? window.BenchmarkScope.unit(u) : null;
       html += '<div style="border:1px solid var(--rule);border-radius:6px;padding:8px 11px;margin-top:8px' +
         (codes.length ? "" : ";background:#FCFBF8") + '">' +
         '<div class="row"><strong class="small" style="min-width:64px">Unit ' + u + "</strong>" +
+        (ru ? '<span class="tiny muted">' + esc(ru.title) + (sb.id === "math" && window.RevealPacing.priorUnit(u) ? " \u00b7 grade 1 review" : "") + "</span>" : "") +
         (t ? '<span class="chip tiny">taught ' + t.days + " day" + (t.days === 1 ? "" : "s") + "</span>" : '<span class="tiny muted">not yet taught</span>') +
         '<span style="flex:1">' + (codes.length
-          ? codes.map(c => '<code class="std">' + esc(c) + "</code>").join(" ")
+          ? codes.map(c => codeHTML(c)).join(" ")
           : '<span class="tiny muted">no standards attached</span>') + "</span></div>" +
         '<details style="margin-top:6px"><summary class="tiny muted" style="cursor:pointer">choose standards</summary><div style="columns:2;margin-top:6px">' +
         CATALOG.filter(x => x.s === cat && (S.settings.showSubs || x.lvl === 1)).map(x =>
           '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-usub="' + esc(sb.id) + '" data-unit="' + u + '" data-code="' + x.c + '"' +
-          (codes.indexOf(x.c) >= 0 ? " checked" : "") + "><span>" + esc(x.c + " " + x.lbl) + "</span></label>").join("") +
+          (codes.indexOf(x.c) >= 0 ? " checked" : "") + "><span>" + esc(dispCode(x.c) + " " + x.lbl) + "</span></label>").join("") +
         "</div></details></div>";
     }
     html += '<button class="btn sm" style="margin-top:8px" onclick="addUnitRow(\'' + esc(sb.id) + "'," + shown + ')">Show another unit</button>';
@@ -3986,17 +4219,116 @@ function addUnitRow(sbId, shown) {
   save(); renderPlanning();
 }
 
+/* ---------- Grading by Reveal lesson (v62) ----------
+   The Enter card's Math is graded by the guide's day. By default that is the
+   lesson the planner recorded on the date; choosing another (catching up on
+   last week's exit tickets, say) offers that lesson's standards and names
+   the assignment after it. An assignment is standard + date + "What was
+   it?", so choosing a lesson the planner has on record also moves the date
+   to the day it was taught, which is when the work was done and which
+   quarter it counts in; a toast says so, and the date can be changed back.
+   A name typed into "What was it?" is never replaced, only one this made. */
+function lessonRowShown() {
+  return !!window.RevealPacing && (UI.subject === "Math" || UI.subject === "All");
+}
+/* the dates the planner recorded a guide day as taught, oldest first */
+function revealDatesOf(i) {
+  const lp = readPlanner();
+  if (!lp || !window.RevealPacing) return [];
+  return Object.keys(lp.days || {}).sort().filter(k => { const s = revealStepOn(k, lp); return s && s.i === i; });
+}
+function lessonFromCtx(ctx) {
+  const R = window.RevealPacing;
+  if (!R || !ctx) return null;
+  const s = R.FLAT.find(x => revealCtx(x) === ctx);
+  return s ? s.i : null;
+}
+function enterLessonStep() {
+  const R = window.RevealPacing;
+  if (!R) return null;
+  if (UI.enterLesson != null && R.FLAT[UI.enterLesson]) return R.FLAT[UI.enterLesson];
+  return revealStepOn(UI.enterDate);
+}
+function lessonCodes(step) {
+  const act = activeCodes(UI.subject);
+  return step ? window.RevealPacing.oregon(step).filter(c => byCode[c] && act.indexOf(c) >= 0) : [];
+}
+function shortDate(iso) {
+  const d = new Date(iso + "T12:00:00");
+  return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()] + " " + d.getDate();
+}
+function lessonLabel(s) { return s.k === "L" ? s.u + "-" + s.n + " \u00b7 " + s.t : s.t; }
+function lessonPickHTML() {
+  if (!lessonRowShown()) return "";
+  const R = window.RevealPacing, lp = readPlanner();
+  const dayStep = revealStepOn(UI.enterDate, lp);
+  const step = enterLessonStep();
+  /* when each guide day was taught, from the planner, for the list */
+  const taught = {};
+  if (lp) Object.keys(lp.days || {}).sort().forEach(k => { const x = revealStepOn(k, lp); if (x) taught[x.i] = k; });
+  const following = UI.enterLesson == null || (dayStep && dayStep.i === UI.enterLesson);
+  const opts = '<option value=""' + (following ? " selected" : "") + ">This day\u2019s lesson" +
+      (dayStep ? " (" + esc(R.name(dayStep)) + ")" : " (none in the planner)") + "</option>" +
+    R.UNITS.map(u => '<optgroup label="Unit ' + u.u + " \u00b7 " + esc(u.title) + '">' +
+      u.steps.map(x => {
+        const none = !R.oregon(x).some(c => byCode[c]);
+        return '<option value="' + x.i + '"' + (!following && step && step.i === x.i ? " selected" : "") + (none ? " disabled" : "") + ">" +
+          esc(lessonLabel(x)) + (taught[x.i] ? " \u00b7 taught " + shortDate(taught[x.i]) : "") + (none ? " \u00b7 no grade 2 standards" : "") + "</option>";
+      }).join("") + "</optgroup>").join("");
+  let h = '<div class="row lessonpick" style="margin-top:10px;align-items:flex-end">' +
+    '<label class="fld" style="flex:1;min-width:min(100%,16rem)">Reveal lesson<select id="e-lesson">' + opts + "</select></label></div>";
+  if (step) {
+    const codes = lessonCodes(step), ctx = revealCtx(step);
+    h += '<div class="row" style="margin-top:8px;gap:6px;align-items:center">' +
+      '<span class="tiny muted pickhead" style="letter-spacing:.04em">IN THIS LESSON</span>' +
+      (codes.length ? codes.map(c => '<button class="btn sm' + (c === UI.enterStd ? " primary" : "") + '" data-pick="' + c + '" data-pickctx="' + esc(ctx) + '"' +
+        ' title="' + esc(R.name(step)) + '">' + esc(byCode[c].lbl) + "</button>").join("")
+        : '<span class="tiny muted">No grade 2 standards to mark on this day' + (R.oregon(step).length ? " that are switched on in Setup" : "") + ".</span>") +
+      "</div>";
+    if (step.tg && step.tg.length) h += '<div class="hint" style="margin-top:6px">' + esc(step.tg.join(" ")) + "</div>";
+  }
+  return h;
+}
+function chooseLesson(v) {
+  const R = window.RevealPacing;
+  if (v === "" || v == null || !R) { UI.enterLesson = null; renderEnter(); return; }
+  const i = Number(v), step = R.FLAT[i];
+  if (!step) return;
+  UI.enterLesson = i;
+  let msg = "";
+  const onDay = revealStepOn(UI.enterDate);
+  if (!onDay || onDay.i !== i) {
+    const dates = revealDatesOf(i);
+    if (dates.length) {
+      UI.enterDate = dates[dates.length - 1];
+      msg = "Dated " + shortDate(UI.enterDate) + ", when " + R.name(step) + " was taught. Change the date if the work is from another day.";
+    }
+  }
+  const codes = lessonCodes(step);
+  if (codes.length && codes.indexOf(UI.enterStd) < 0) UI.enterStd = codes[0];
+  /* name it after the lesson: replace a name this made, never one typed,
+     and never beside unnamed marks, which would split one assignment */
+  const c = revealCtx(step);
+  const unnamed = S.scores.some(x => x.std === UI.enterStd && x.date === UI.enterDate && !x.ctx && !x.source);
+  if (UI.enterCtx ? lessonFromCtx(UI.enterCtx) != null : !unnamed) UI.enterCtx = c;
+  renderEnter();
+  if (msg) toast(msg);
+}
+
 /* the row of standards the planner says today's lessons covered */
 function plannerPickHTML() {
   const t = standardsTaughtOn(UI.enterDate);
   if (!t.length) return "";
   const codes = activeCodes(UI.subject);
-  const show = t.filter(x => codes.indexOf(x.code) >= 0);
+  /* Math is offered by the lesson row above, whenever that is shown */
+  const show = t.filter(x => codes.indexOf(x.code) >= 0 && !(lessonRowShown() && byCode[x.code].s === "Math"));
   if (!show.length) return "";
   return '<div class="row" style="margin-top:10px;gap:6px;align-items:center">' +
     '<span class="tiny muted pickhead" style="letter-spacing:.04em">TAUGHT THIS DAY</span>' +
-    show.map(x => '<button class="btn sm' + (x.code === UI.enterStd ? " primary" : "") + '" data-pick="' + x.code + '" title="' + esc(x.subject + " Unit " + x.unit) + '">' +
-      esc(byCode[x.code].lbl) + "</button>").join("") + "</div>";
+    show.map(x => '<button class="btn sm' + (x.code === UI.enterStd ? " primary" : "") + '" data-pick="' + x.code + '"' +
+      (x.ctx ? ' data-pickctx="' + esc(x.ctx) + '"' : "") + ' title="' + esc(x.lesson || (x.subject + " Unit " + x.unit)) + '">' +
+      esc(byCode[x.code].lbl) + "</button>").join("") +
+    (show[0].lesson ? '<span class="tiny muted">' + esc(show[0].lesson) + "</span>" : "") + "</div>";
 }
 
 /* part11 is now empty: the planner snapshot lives in suite-sync.js, which all
@@ -4058,6 +4390,7 @@ function gotoAssignment(a) {
     paintSubjSwitch();
   }
   UI.enterStd = a.std; UI.enterDate = a.date; UI.enterCtx = a.ctx || "";
+  UI.enterLesson = lessonFromCtx(UI.enterCtx);
   UI.tab = "enter";
   renderEnter();
 }
@@ -4081,6 +4414,7 @@ function jumpUnfinished() {
 function newAssignment() {
   UI.enterDate = todayISO();
   UI.enterCtx = "";
+  UI.enterLesson = null;
   renderEnter();
   const box = document.getElementById("e-ctx");
   if (box) box.focus();
@@ -4090,7 +4424,7 @@ function assignmentLabelText(a) {
   const d = new Date(a.date + "T12:00:00");
   const when = isNaN(d) ? a.date
     : d.getDate() + " " + ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()];
-  return when + " \u00b7 " + a.std + " " + a.label +
+  return when + " \u00b7 " + dispCode(a.std) + " " + a.label +
     (a.ctx ? " \u00b7 " + a.ctx : "") +
     (a.fresh ? " \u00b7 new" : " \u00b7 " + a.done + "/" + a.total);
 }

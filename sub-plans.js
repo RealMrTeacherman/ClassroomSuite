@@ -259,8 +259,25 @@
     var e = rec.entries[subjectId];
     if (!e) return null;
     var sb = lp.subjects.find(function (x) { return x.id === subjectId; });
-    var p = e.pos || {}, where = "";
-    if (p.unit && p.week && p.day) where = "Unit " + p.unit + " · Week " + p.week + " · Day " + p.day;
+    var p = e.pos || {}, where = "", targets = [], materials = [];
+    /* Math following the Reveal pacing guide (curriculum.js) prints the
+       lesson by name, with its "I can" targets and materials, which is
+       what a sub needs; "Unit 2 · Lesson 3" alone is not. */
+    /* A day stored as a probe or a test (it has a `k`) is named from the
+       guide even with the guide switched off since (v61). */
+    var RP = window.RevealPacing, step = RP && (RP.on(sb) || (sb && sb.id === "math" && p.k)) ? RP.find(p) : null;
+    var BS = window.BenchmarkScope, bw = BS && BS.on(sb) ? BS.week(p) : null;
+    if (step) {
+      where = RP.name(step);
+      targets = (step.tg || []).slice();
+      materials = (step.m || []).concat(step.tr || []);
+    } else if (bw) {
+      /* Benchmark Reading: the week's focus and texts are what a sub needs */
+      where = "Unit " + p.unit + " · Week " + p.week + " · Day " + p.day;
+      targets = (bw.comp || []).slice(0, 2);
+      materials = (bw.anchor || []).map(function (a) { return a.kind + ": \u201c" + a.t + "\u201d"; });
+    }
+    else if (p.unit && p.week && p.day) where = "Unit " + p.unit + " · Week " + p.week + " · Day " + p.day;
     else if (p.unit && p.lesson) where = "Unit " + p.unit + " · Lesson " + p.lesson;
     else if (p.lesson) where = "Lesson " + p.lesson;
     else if (p.text) where = String(p.text);
@@ -271,7 +288,7 @@
          (WIN's reads "Reading M/Th · Math T/F"), which is wrong on a
          Wednesday. Its name is the honest label. */
       label: free ? (sb ? sb.name : subjectId) : (sb && sb.curriculum ? sb.curriculum : (sb ? sb.name : subjectId)),
-      where: where, note: e.note || "",
+      where: where, note: e.note || "", targets: targets, materials: materials,
       /* Skip in the planner means the lesson is not happening. The sub plan
          used to print its position anyway. */
       taught: e.taught !== false,
@@ -390,6 +407,11 @@
         return;
       }
       if (l && l.where) h += '<span class="w"><b>' + esc(l.label) + "</b> &middot; " + esc(l.where) + "</span>";
+      if (l && !noted["rv|" + b.subject]) {
+        noted["rv|" + b.subject] = true;
+        if (l.targets && l.targets.length) h += "<p><b>Learning targets:</b> " + esc(l.targets.join(" ")) + "</p>";
+        if (l.materials && l.materials.length) h += "<p><b>Materials:</b> " + esc(l.materials.join(", ")) + "</p>";
+      }
       if (l && l.note && !noted[b.subject]) { noted[b.subject] = true; h += "<p><b>My note:</b> " + nl(l.note) + "</p>"; }
       if (l && l.free && !l.where && !l.note) h += '<p class="muted">Nothing is written for this block today.</p>';
       if (b.detail) h += "<p>" + nl(b.detail) + "</p>";
