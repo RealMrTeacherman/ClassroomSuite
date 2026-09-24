@@ -680,6 +680,8 @@ let UI = {
   /* The Reveal day being graded, as an index into the guide, or null to
      follow the date: the lesson the planner has on it (v62). */
   enterLesson: null,
+  /* the unit being looked through in the Unit menu, or null for the lesson's own */
+  enterUnit: null,
   enterStudent: "",
   groupWindow: "0",
   groupEvidence: "both",
@@ -951,10 +953,15 @@ function renderEnter() {
     UI.enterDate = e.target.value;
     /* where the planner has a lesson on the new date, that is the lesson */
     if (revealStepOn(UI.enterDate)) UI.enterLesson = null;
+    UI.enterUnit = null;
     renderEnter();
   };
   const ls = document.getElementById("e-lesson");
   if (ls) ls.onchange = e => chooseLesson(e.target.value);
+  const us = document.getElementById("e-unit");
+  if (us) us.onchange = e => { UI.enterUnit = Number(e.target.value); renderEnter(); };
+  const back = el.querySelector("[data-lesson-day]");
+  if (back) back.onclick = () => chooseLesson("");
   const ctx = document.getElementById("e-ctx");
   if (ctx) {
     ctx.oninput = e => { UI.enterCtx = e.target.value; };
@@ -4258,25 +4265,48 @@ function shortDate(iso) {
   return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()] + " " + d.getDate();
 }
 function lessonLabel(s) { return s.k === "L" ? s.u + "-" + s.n + " \u00b7 " + s.t : s.t; }
+/* Two menus, Unit then day (v63): one list of all 143 guide days was
+   long to scroll. Choosing a unit only browses (UI.enterUnit); nothing about
+   the assignment changes until a day in it is chosen, so looking through
+   the units can never move the date. */
+function unitRange(u, taught) {
+  const ds = u.steps.map(x => taught[x.i]).filter(Boolean).sort();
+  return ds.length ? " \u00b7 taught " + shortDate(ds[0]) + (ds.length > 1 ? "\u2013" + shortDate(ds[ds.length - 1]) : "") : "";
+}
 function lessonPickHTML() {
   if (!lessonRowShown()) return "";
   const R = window.RevealPacing, lp = readPlanner();
   const dayStep = revealStepOn(UI.enterDate, lp);
   const step = enterLessonStep();
-  /* when each guide day was taught, from the planner, for the list */
+  /* when each guide day was taught, from the planner, for the lists */
   const taught = {};
-  if (lp) Object.keys(lp.days || {}).sort().forEach(k => { const x = revealStepOn(k, lp); if (x) taught[x.i] = k; });
-  const following = UI.enterLesson == null || (dayStep && dayStep.i === UI.enterLesson);
-  const opts = '<option value=""' + (following ? " selected" : "") + ">This day\u2019s lesson" +
-      (dayStep ? " (" + esc(R.name(dayStep)) + ")" : " (none in the planner)") + "</option>" +
-    R.UNITS.map(u => '<optgroup label="Unit ' + u.u + " \u00b7 " + esc(u.title) + '">' +
-      u.steps.map(x => {
-        const none = !R.oregon(x).some(c => byCode[c]);
-        return '<option value="' + x.i + '"' + (!following && step && step.i === x.i ? " selected" : "") + (none ? " disabled" : "") + ">" +
-          esc(lessonLabel(x)) + (taught[x.i] ? " \u00b7 taught " + shortDate(taught[x.i]) : "") + (none ? " \u00b7 no grade 2 standards" : "") + "</option>";
-      }).join("") + "</optgroup>").join("");
+  let latest = null;
+  if (lp) Object.keys(lp.days || {}).sort().forEach(k => {
+    const x = revealStepOn(k, lp);
+    if (x) { taught[x.i] = k; if (k <= UI.enterDate) latest = x; }
+  });
+  const following = !!dayStep && (UI.enterLesson == null || dayStep.i === UI.enterLesson);
+  const gradeable = x => R.oregon(x).some(c => byCode[c]);
+  const shownU = UI.enterUnit != null && R.unit(UI.enterUnit) ? Number(UI.enterUnit)
+    : step ? step.u : latest ? latest.u : 2;
+  const unitOpts = R.UNITS.map(u => {
+    const none = !u.steps.some(gradeable);
+    return '<option value="' + u.u + '"' + (u.u === shownU ? " selected" : "") + (none ? " disabled" : "") + ">Unit " + u.u + " \u00b7 " + esc(u.title) +
+      unitRange(u, taught) + (none ? " \u00b7 grade 1 review" : "") + "</option>";
+  }).join("");
+  const inUnit = step && step.u === shownU;
+  const dayOpts = (inUnit ? "" : '<option value="" selected disabled>Pick a day in Unit ' + shownU + "</option>") +
+    R.unit(shownU).steps.map(x => {
+      const none = !gradeable(x);
+      return '<option value="' + x.i + '"' + (inUnit && step.i === x.i ? " selected" : "") + (none ? " disabled" : "") + ">" +
+        esc(lessonLabel(x)) + (dayStep && dayStep.i === x.i ? " \u00b7 this day" : taught[x.i] ? " \u00b7 taught " + shortDate(taught[x.i]) : "") +
+        (none ? " \u00b7 no grade 2 standards" : "") + "</option>";
+    }).join("");
   let h = '<div class="row lessonpick" style="margin-top:10px;align-items:flex-end">' +
-    '<label class="fld" style="flex:1;min-width:min(100%,16rem)">Reveal lesson<select id="e-lesson">' + opts + "</select></label></div>";
+    '<label class="fld" style="flex:1;min-width:min(100%,14rem)">Reveal unit<select id="e-unit">' + unitOpts + "</select></label>" +
+    '<label class="fld" style="flex:2;min-width:min(100%,16rem)">Lesson<select id="e-lesson">' + dayOpts + "</select></label>" +
+    (dayStep && !following ? '<button class="btn sm" data-lesson-day title="' + esc(R.name(dayStep)) + '">Back to this day\u2019s lesson</button>' : "") +
+    "</div>";
   if (step) {
     const codes = lessonCodes(step), ctx = revealCtx(step);
     h += '<div class="row" style="margin-top:8px;gap:6px;align-items:center">' +
@@ -4284,17 +4314,20 @@ function lessonPickHTML() {
       (codes.length ? codes.map(c => '<button class="btn sm' + (c === UI.enterStd ? " primary" : "") + '" data-pick="' + c + '" data-pickctx="' + esc(ctx) + '"' +
         ' title="' + esc(R.name(step)) + '">' + esc(byCode[c].lbl) + "</button>").join("")
         : '<span class="tiny muted">No grade 2 standards to mark on this day' + (R.oregon(step).length ? " that are switched on in Setup" : "") + ".</span>") +
-      "</div>";
+      '<span class="tiny muted lessonname">' + esc(R.name(step)) + "</span></div>";
     if (step.tg && step.tg.length) h += '<div class="hint" style="margin-top:6px">' + esc(step.tg.join(" ")) + "</div>";
+  } else {
+    h += '<div class="hint" style="margin-top:8px">The planner has no Reveal lesson on this date. Pick one above, or choose a standard.</div>';
   }
   return h;
 }
 function chooseLesson(v) {
   const R = window.RevealPacing;
-  if (v === "" || v == null || !R) { UI.enterLesson = null; renderEnter(); return; }
+  if (v === "" || v == null || !R) { UI.enterLesson = null; UI.enterUnit = null; renderEnter(); return; }
   const i = Number(v), step = R.FLAT[i];
   if (!step) return;
   UI.enterLesson = i;
+  UI.enterUnit = null;
   let msg = "";
   const onDay = revealStepOn(UI.enterDate);
   if (!onDay || onDay.i !== i) {
@@ -4391,6 +4424,7 @@ function gotoAssignment(a) {
   }
   UI.enterStd = a.std; UI.enterDate = a.date; UI.enterCtx = a.ctx || "";
   UI.enterLesson = lessonFromCtx(UI.enterCtx);
+  UI.enterUnit = null;
   UI.tab = "enter";
   renderEnter();
 }
@@ -4415,6 +4449,7 @@ function newAssignment() {
   UI.enterDate = todayISO();
   UI.enterCtx = "";
   UI.enterLesson = null;
+  UI.enterUnit = null;
   renderEnter();
   const box = document.getElementById("e-ctx");
   if (box) box.focus();
