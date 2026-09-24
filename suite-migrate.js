@@ -396,9 +396,9 @@
      "Closing clean-up is the last ten minutes of whatever our last
      in-classroom activity is." Tue, Thu and Fri end in the room, so it stays
      at 2:15. Monday and Wednesday end in PE, so it comes before PE: Monday
-     Health/SEL 1:30-1:45, clean-up 1:45, PE 1:55 to dismissal at 2:30 (the
-     same shape as Wednesday, which has no shoutouts either); Wednesday GID &
-     Class Store to 12:10, clean-up 12:10, PE 12:20.
+     Health/SEL 1:30-1:45, clean-up 1:45, PE 1:55, then shoutouts 2:20 and
+     bussers out 2:25; Wednesday GID & Class Store to 12:10, clean-up 12:10,
+     PE 12:20.
 
      And the three Health/SEL specials (Mon 1:30, Thu 1:55, Fri 1:55) are
      Health/SEL: they carried no subject, so its card said Skipped every day.
@@ -432,12 +432,8 @@
       var clean = find(tpl, "2:15", /clean/i);
       if (!clean) return;
       clean.t = "1:45";
-      var shout = find(tpl, "2:20", /shout/i);
-      if (shout) tpl.splice(tpl.indexOf(shout), 1);
-      var bus = find(tpl, "2:25", /bussers/i);
-      if (bus) { bus.t = "2:30"; bus.l = "Dismissal"; }
-      else if (!tpl.some(function (b) { return b && /dismissal/i.test(b.l || ""); }))
-        tpl.push({ t: "2:30", l: "Dismissal", s: "", n: "" });
+      /* Shoutouts (2:20) and bussers out (2:25) stay, per the teacher (v53):
+         v52 removed them on the guess that PE ran to dismissal. */
       T[d] = tpl.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
     });
 
@@ -472,6 +468,35 @@
     mark("end-of-day-2026");
   }
 
+  /* v52 took Monday's shoutouts (2:20) and bussers out (2:25) away and put
+     a bare 2:30 Dismissal in their place. They happen on Monday too, so put
+     them back — only where the day still has exactly what v52 left: PE at
+     1:55, clean-up at 1:45, and that 2:30 Dismissal with neither block
+     present. Flagged, once, like endOfDay() (v53). */
+  function mondayShoutouts() {
+    if (done()["monday-shoutouts-2026"]) return;
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !st.templates || typeof st.templates !== "object") return;
+    var T = st.templates, touched = false;
+    [1, 2, 4, 5].forEach(function (d) {
+      var tpl = Array.isArray(T[d]) ? T[d] : null; if (!tpl) return;
+      function has(t, re) { return tpl.some(function (b) { return b && b.t === t && re.test(b.l || ""); }); }
+      if (!has("1:55", /(^|\u2014\s*)PE\s*$/) || !has("1:45", /clean/i)) return;
+      if (tpl.some(function (b) { return b && /shout|bussers/i.test(b.l || ""); })) return;
+      var dis = null;
+      tpl.forEach(function (b) { if (b && b.t === "2:30" && b.l === "Dismissal" && !b.s) dis = b; });
+      if (!dis) return;
+      tpl.splice(tpl.indexOf(dis), 1);
+      tpl.push({ t: "2:20", l: "Shoutouts", s: "", n: "Bonus Mighty Mustangs" });
+      tpl.push({ t: "2:25", l: "Bussers out \u00b7 dismissal 2:30", s: "", n: dis.n || "" });
+      T[d] = tpl.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
+      touched = true;
+    });
+    if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { return; } }
+    mark("monday-shoutouts-2026");
+  }
+
   /* The same day in the sub plan's own block list. Converges, like
      wednesdayPE(): reloading the private standing-notes file can bring the
      old rows back, so they are put right on every load. Only rows that are
@@ -495,7 +520,7 @@
         hit = true; return;
       }
       if (row(b, "1:55", "2:20", "Specials 2", "MTRF")) {
-        out.push(like(b, { start: "1:55", end: "2:30", title: "Specials 2", days: "M" }));
+        out.push(like(b, { start: "1:55", end: "2:20", title: "Specials 2", days: "M" }));
         out.push(like(b, { start: "1:55", end: "2:15", title: "Specials 2", days: "T" }));
         out.push(like(b, { start: "1:55", end: "2:15", title: "Specials 2", days: "RF", subject: "health" }));
         hit = true; return;
@@ -503,7 +528,16 @@
       if (row(b, "2:15", "2:30", "Clean-up, shoutouts, dismissal", "MTRF")) {
         out.push(like(b, { start: "1:45", end: "1:55", title: "Closing clean-up", days: "M" }));
         out.push(like(b, { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "TRF" }));
-        out.push(like(b, { start: "2:30", end: "", title: "Dismissal", days: "M" }));
+        out.push(like(b, { start: "2:20", end: "2:30", title: "Shoutouts, dismissal", days: "M" }));
+        hit = true; return;
+      }
+      /* v52's Monday rows, from before shoutouts came back (v53) */
+      if (row(b, "1:55", "2:30", "Specials 2", "M")) {
+        out.push(like(b, { start: "1:55", end: "2:20", title: "Specials 2", days: "M" }));
+        hit = true; return;
+      }
+      if (row(b, "2:30", "", "Dismissal", "M")) {
+        out.push(like(b, { start: "2:20", end: "2:30", title: "Shoutouts, dismissal", days: "M" }));
         hit = true; return;
       }
       if (row(b, "11:40", "12:20", "GID and Class Store", "W")) {
@@ -522,6 +556,63 @@
     try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
   }
 
+  /* Walk to WIN, from Monday 28 September 2026 (v55). WIN Time on Monday
+     and Thursday is Walk to Read; on Tuesday and Friday, Walk to Math. It
+     starts next week, so nothing changes before that date: the first load
+     on or after it renames the blocks. Only the planner's own labels are
+     renamed ("WIN — Reading small groups", "WIN — Math small groups", and
+     the subject's "Reading M/Th · Math T/F"), so a label he has typed is
+     kept. Flagged, once: these are names he can edit in Settings. */
+  var WALK_START = "2026-09-28";
+  function todayKey() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function walkToWin() {
+    if (done()["walk-to-win-2026"] || todayKey() < WALK_START) return;
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !Array.isArray(st.subjects) || !st.templates || typeof st.templates !== "object") return;
+    var RENAME = { 1: ["WIN \u2014 Reading small groups", "WIN \u2014 Walk to Read"],
+                   4: ["WIN \u2014 Reading small groups", "WIN \u2014 Walk to Read"],
+                   2: ["WIN \u2014 Math small groups", "WIN \u2014 Walk to Math"],
+                   5: ["WIN \u2014 Math small groups", "WIN \u2014 Walk to Math"] };
+    Object.keys(RENAME).forEach(function (d) {
+      var tpl = st.templates[d];
+      if (!Array.isArray(tpl)) return;
+      tpl.forEach(function (b) { if (b && b.s === "win" && b.l === RENAME[d][0]) b.l = RENAME[d][1]; });
+    });
+    st.subjects.forEach(function (x) {
+      if (x && x.id === "win" && x.curriculum === "Reading M/Th \u00b7 Math T/F") x.curriculum = "Walk to Read M/Th \u00b7 Walk to Math T/F";
+    });
+    try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { return; }
+    mark("walk-to-win-2026");
+  }
+  /* The sub plan's one M/T/R/F WIN row becomes one row per pairing, from the
+     same date. Converges, like subPlanEndOfDay(), since reloading the
+     private standing-notes file can bring the old row back; only the exact
+     old default row is replaced, and its notes go to both new rows. */
+  function subPlanWalkToWin() {
+    if (todayKey() < WALK_START) return;
+    var raw, sp;
+    try { raw = localStorage.getItem("suite:subplan:v1"); sp = raw && JSON.parse(raw); } catch (e) { return; }
+    if (!sp || !Array.isArray(sp.blocks)) return;
+    var out = [], hit = false;
+    sp.blocks.forEach(function (b) {
+      if (b && b.start === "12:05" && b.end === "1:00" && b.title === "WIN time" && b.days === "MTRF" && b.subject === "win") {
+        [["WIN \u2014 Walk to Read", "MR"], ["WIN \u2014 Walk to Math", "TF"]].forEach(function (x) {
+          out.push({ start: "12:05", end: "1:00", title: x[0], days: x[1], subject: "win",
+            detail: String(b.detail || ""), emergency: String(b.emergency || "") });
+        });
+        hit = true; return;
+      }
+      out.push(b);
+    });
+    if (!hit) return;
+    sp.blocks = out;
+    try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
+  }
+
   function runAll() {
     /* Science and Social Studies covers too much variety to be "Lesson 4", and
        Writing runs on its own rhythm rather than the curriculum's unit, week
@@ -534,7 +625,10 @@
     wednesdayPE();
     wednesdayDismissal();
     endOfDay();
+    mondayShoutouts();
     subPlanEndOfDay();
+    walkToWin();
+    subPlanWalkToWin();
     repairDays();
     skipUnscheduled();
   }

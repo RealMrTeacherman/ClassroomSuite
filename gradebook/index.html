@@ -609,7 +609,7 @@ function blankState() {
     overrides: {},
     groupPins: {},
     settings: { rule: "weighted", teacher: "", year: y + "\u2013" + (y + 1), showSubs: false,
-      orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 },
+      orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 }, orfAgainst: "eoy",
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
       ireadyAutoScore: true, ireadyInReport: false, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
@@ -1437,9 +1437,35 @@ function parseDelimited(text) {
   return rows.filter(r => r.some(c => c.trim() !== ""));
 }
 function normName(s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, ""); }
+/* "ELD Maria Lopez" in the running-records tool is Maria Lopez with a tag
+   typed in front, not a child whose first name is "ELD Maria". Left in, the
+   tag defeated every match below and the child never linked. The tag is
+   recognised only as a whole word at the start or end of a name (or of
+   either half of "Last, First"): bare "ELD" in capitals, or "(ELD)" /
+   "[ELD]" in any case — so Eldon, Elder and a surname Eld are left alone.
+   fluency-extras.js carries the same rule for the tool's own roster. */
+function stripEldTag(s) {
+  const raw = String(s == null ? "" : s);
+  let eld = false;
+  const SEP = "[\\s\\-\\u2013\\u2014:|/]";
+  const pats = [
+    new RegExp("^ELD(?:" + SEP + "+|$)"),
+    new RegExp("^[(\\[]\\s*eld\\s*[)\\]]" + SEP + "*", "i"),
+    new RegExp("(?:^|" + SEP + "+)ELD$"),
+    new RegExp(SEP + "*[(\\[]\\s*eld\\s*[)\\]]$", "i")
+  ];
+  const parts = raw.split(",").map(part => {
+    let t = part.trim(), prev;
+    do { prev = t; pats.forEach(re => { const n = t.replace(re, "").trim(); if (n !== t) { eld = true; t = n; } }); } while (t !== prev);
+    return t;
+  });
+  const name = parts.filter(Boolean).join(", ");
+  if (!name) return { name: raw.trim(), eld: false };
+  return { name: eld ? name : raw.trim(), eld: eld };
+}
 function matchStudent(first, last, sid) {
   if (sid) { const m = S.students.find(s => s.sid && s.sid.trim() === String(sid).trim()); if (m) return m; }
-  const f = normName(first), l = normName(last);
+  const f = normName(stripEldTag(first).name), l = normName(stripEldTag(last).name);
   let m = S.students.find(s => normName(s.first) === f && normName(s.last) === l);
   if (m) return m;
   m = S.students.find(s => normName(s.last) === l && normName(s.first).startsWith(f.slice(0, 3)));
@@ -2248,8 +2274,14 @@ function pctBand(wcpm, season) {
   return 0;
 }
 function normAt(p, season) { return ORF_NORMS[p] ? ORF_NORMS[p][season] : null; }
+/* Report card marks are graded against END-OF-YEAR expectations: a 3 is the
+   end-of-year 50th percentile (100 in grade 2) whenever the check was taken,
+   so a fall 50 — on the fall 50th — is a 1, as it would be on the report
+   card. "season" is the older behaviour, each check against its own window's
+   norms, kept as a choice on the Fluency tab. */
+function orfBasis() { return S.settings.orfAgainst === "season" ? "season" : "eoy"; }
 function wcpmToMark(wcpm, season) {
-  const band = pctBand(wcpm, season);
+  const band = pctBand(wcpm, orfBasis() === "eoy" ? 2 : season);
   if (band == null) return null;
   const cuts = S.settings.orfCuts;                        /* percentile floor for each mark */
   if (band >= cuts[4]) return 4;
@@ -2271,14 +2303,15 @@ function readOrfDB() {
   } catch (e) { return null; }
 }
 function splitOrfName(n) {
-  n = String(n || "").trim();
-  if (n.indexOf(",") > -1) { const b = n.split(","); return { last: b[0].trim(), first: b.slice(1).join(",").trim() }; }
+  const tag = stripEldTag(n);
+  n = tag.name;
+  if (n.indexOf(",") > -1) { const b = n.split(","); return { last: b[0].trim(), first: b.slice(1).join(",").trim(), eld: tag.eld }; }
   const parts = n.split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return { last: parts[0] || "", first: "" };
+  if (parts.length <= 1) return { last: parts[0] || "", first: "", eld: tag.eld };
   const SUF = /^(jr|sr|ii|iii|iv)\.?$/i;
   let i = parts.length - 1;
   while (i > 0 && SUF.test(parts[i])) i--;
-  return { first: parts.slice(0, i).join(" "), last: parts.slice(i).join(" ") };
+  return { first: parts.slice(0, i).join(" "), last: parts.slice(i).join(" "), eld: tag.eld };
 }
 function orfStudentToLocal(orfSid, db) {
   if (S.orfLink[orfSid]) {
@@ -2289,7 +2322,7 @@ function orfStudentToLocal(orfSid, db) {
   if (!os) return null;
   const p = splitOrfName(os.name);
   const m = matchStudent(p.first, p.last, "");
-  if (m) { S.orfLink[orfSid] = m.id; }
+  if (m) { S.orfLink[orfSid] = m.id; if (p.eld) m.eld = true; }
   return m;
 }
 function importOrfRoster() {
@@ -2301,9 +2334,9 @@ function importOrfRoster() {
     const p = splitOrfName(os.name);
     let m = matchStudent(p.first, p.last, "");
     if (!m) {
-      m = { id: uid(), first: p.first, last: p.last, sid: "", eld: false };
+      m = { id: uid(), first: p.first, last: p.last, sid: "", eld: !!p.eld };
       S.students.push(m); added++;
-    } else linked++;
+    } else { linked++; if (p.eld) m.eld = true; }
     S.orfLink[os.id] = m.id;
   });
   save(); renderORF();
@@ -2395,7 +2428,7 @@ function resolveStudent(raw, people) {
   if (raw == null) return null;
   let label = String(raw);
   if (people[label]) label = people[label];
-  label = label.trim();
+  label = stripEldTag(label).name.trim();
   if (!label) return null;
   let first = "", last = "";
   if (label.indexOf(",") >= 0) { const p = label.split(","); last = p[0]; first = p[1] || ""; }
@@ -2409,6 +2442,7 @@ function resolveStudent(raw, people) {
 /* ---------- writing ORF results into the gradebook ---------- */
 function syncOrfScores() {
   const code = S.settings.orfStandard;
+  S.settings.orfMarksBasis = orfBasis();
   S.scores = S.scores.filter(x => x.source !== "orf");
   if (!S.settings.orfAutoScore) { save(); return; }
   S.orf.filter(r => !r.exclude).forEach(r => {
@@ -2486,15 +2520,23 @@ function renderORF() {
   /* conversion settings */
   html += '<div class="card pad"><div class="sectionhead"><h3>How WCPM becomes a 1\u20134</h3><span class="spacer"></span>' +
     '<label class="row small" style="gap:6px"><input type="checkbox" id="orf-auto"' + (S.settings.orfAutoScore ? " checked" : "") + "> Turn readings into marks automatically</label></div>" +
-    '<p class="hint">Percentiles come from Hasbrouck &amp; Tindal (2017) grade 2 norms, and the season is read from each check\u2019s date using the windows below. Change the cut points if Creswell uses different ones.</p>' +
-    '<table style="margin-top:10px"><thead><tr><th>Mark</th><th>Student is at or above</th><th class="c">Fall</th><th class="c">Winter</th><th class="c">Spring</th></tr></thead><tbody>' +
+    '<label class="fld" style="margin-top:8px">Grade every check against<select id="orf-against">' +
+      '<option value="eoy"' + (orfBasis() === "eoy" ? " selected" : "") + '>End-of-year expectations (the report card)</option>' +
+      '<option value="season"' + (orfBasis() === "season" ? " selected" : "") + '>The norms for the season it was taken in</option></select></label>' +
+    '<p class="hint">' + (orfBasis() === "eoy"
+      ? "Every check is measured against the spring norms, whenever it was read, because report card marks are graded against end-of-year expectations. A 3 is the end-of-year 50th percentile, so fall and winter marks run lower by design."
+      : "Each check is measured against the norms for its own season, read from its date using the windows below.") +
+    ' Percentiles come from Hasbrouck &amp; Tindal (2017) grade 2 norms. Change the cut points if Creswell uses different ones.</p>' +
+    '<table style="margin-top:10px"><thead><tr><th>Mark</th><th>Student is at or above</th>' +
+    (orfBasis() === "eoy" ? '<th class="c">End of year</th>' : '<th class="c">Fall</th><th class="c">Winter</th><th class="c">Spring</th>') + '</tr></thead><tbody>' +
     [4, 3, 2].map(mk => {
       const p = cuts[mk];
       return "<tr><td>" + markHTML(mk) + '</td><td><select data-cut="' + mk + '">' +
         [90, 75, 50, 25, 10].map(x => '<option value="' + x + '"' + (x === p ? " selected" : "") + ">" + x + "th percentile</option>").join("") +
-        '</select></td><td class="c num">' + normAt(p, 0) + '</td><td class="c num">' + normAt(p, 1) + '</td><td class="c num">' + normAt(p, 2) + "</td></tr>";
+        '</select></td>' + (orfBasis() === "eoy" ? '<td class="c num">' + normAt(p, 2) + "</td>"
+          : '<td class="c num">' + normAt(p, 0) + '</td><td class="c num">' + normAt(p, 1) + '</td><td class="c num">' + normAt(p, 2) + "</td>") + "</tr>";
     }).join("") +
-    "<tr><td>" + markHTML(1) + '</td><td colspan="4" class="muted small">anything below the cut for a 2</td></tr>' +
+    "<tr><td>" + markHTML(1) + '</td><td colspan="' + (orfBasis() === "eoy" ? 2 : 4) + '" class="muted small">anything below the cut for a 2</td></tr>' +
     "</tbody></table>" +
     '<div class="row" style="margin-top:12px">' +
     '<label class="fld">Fall window opens<input type="text" id="orf-sf" value="' + esc((S.settings.orfSeason || {}).fall || "08-01") + '" size="6" placeholder="MM-DD"></label>' +
@@ -2595,6 +2637,8 @@ function renderORF() {
       syncOrfScores(); renderORF();
     };
   });
+  const ag = document.getElementById("orf-against");
+  if (ag) ag.onchange = () => { S.settings.orfAgainst = ag.value === "season" ? "season" : "eoy"; syncOrfScores(); renderORF(); };
   el.querySelectorAll("[data-cut]").forEach(sl => {
     sl.onchange = () => {
       S.settings.orfCuts[Number(sl.dataset.cut)] = Number(sl.value);
@@ -2881,7 +2925,7 @@ function mergeStudents(fromId, toId) {
   });
 
   if (!String(to.sid || "").trim() && String(from.sid || "").trim()) to.sid = from.sid;
-  if (from.eld) to.eld = true;
+  if (from.eld || hasEldTag(from)) to.eld = true;
 
   S.students = S.students.filter(s => s.id !== fromId);
   return res;
@@ -2950,11 +2994,42 @@ function mergeLikely(dropId, keepId) {
   toast("Merged \u00b7 undo from Setup");
 }
 
-function autoMergeDuplicates(silent) {
-  const pairs = findDuplicatePairs().filter(p => p.matches.length === 1);
-  if (!pairs.length) return null;
-  try { window.localStorage.setItem(PREMERGE_KEY, JSON.stringify(S)); } catch (e) { }
+/* A gradebook student named "ELD Maria Lopez" — brought over from the
+   running-records roster by an older build, or typed that way — is Maria
+   Lopez with the ELD box that already exists for the purpose. Take the tag
+   off and tick the box. Converges: a tag is wrong every time it is seen.
+   If Maria Lopez is already on the roster, the renamed record is now the
+   same name twice, and the exact-repeat rule below folds them together. */
+function isEldOnly(x) { return /^\s*(?:ELD|[(\[]\s*eld\s*[)\]])\s*$/.test(String(x || "")) || /^\s*[(\[]\s*eld\s*[)\]]\s*$/i.test(String(x || "")); }
+function hasEldTag(s) { return stripEldTag(s.first).eld || stripEldTag(s.last).eld || isEldOnly(s.first) || isEldOnly(s.last); }
+function untagEldNames() {
   const log = [];
+  S.students.forEach(s => {
+    if (!hasEldTag(s)) return;
+    const was = fullName(s);
+    const f = stripEldTag(s.first), l = stripEldTag(s.last);
+    if (isEldOnly(s.first) || isEldOnly(s.last)) {
+      /* "ELD" landed in a name box of its own (first "ELD", last "Maria
+         Lopez"): split what is left again, the way the ORF bridge would */
+      const p = splitOrfName(isEldOnly(s.first) ? s.last : s.first);
+      s.first = p.first; s.last = p.last;
+    } else {
+      if (f.eld) s.first = f.name;
+      if (l.eld) s.last = l.name;
+    }
+    s.eld = true;
+    log.push("\u201c" + was + "\u201d is " + fullName(s) + ", with ELD ticked");
+  });
+  return log;
+}
+
+function autoMergeDuplicates(silent) {
+  const before = S.students.some(hasEldTag) ? JSON.stringify(S) : null;
+  const renamed = untagEldNames();
+  const pairs = findDuplicatePairs().filter(p => p.matches.length === 1);
+  if (!pairs.length && !renamed.length) return null;
+  try { window.localStorage.setItem(PREMERGE_KEY, before || JSON.stringify(S)); } catch (e) { }
+  const log = renamed.slice();
   let moved = 0, dropped = 0;
   pairs.forEach(p => {
     const label = (partialToken(p.from) || "?") + " \u2192 " + fullName(p.matches[0]);
@@ -2965,7 +3040,7 @@ function autoMergeDuplicates(silent) {
   S.mergeLog = log;
   save();
   if (!silent) { render(); toast("Merged " + pairs.length + " duplicate" + (pairs.length === 1 ? "" : "s")); }
-  return { count: pairs.length, moved: moved, dropped: dropped, log: log };
+  return { count: pairs.length, renamed: renamed.length, moved: moved, dropped: dropped, log: log };
 }
 function hasPremerge() { try { return !!window.localStorage.getItem(PREMERGE_KEY); } catch (e) { return false; } }
 function undoMerge() {
@@ -4076,13 +4151,19 @@ if (S.settings.subject) UI.subject = S.settings.subject;
 paintSubjSwitch();
 const mergeRes = autoMergeDuplicates(true);
 syncIreadyScores();
+/* ORF marks made under the other basis (every build before v59 graded each
+   check against its own season) are rebuilt once. Converges: hand-entered
+   marks are never touched, and a matching basis does nothing. */
+if (S.settings.orfMarksBasis !== orfBasis() && S.orf.length) syncOrfScores();
 if (S.settings.orfAutoLink) {
   const pulled = syncFromOrf(true);
   if (pulled) setTimeout(() => toast("Brought in " + pulled + " new reading" + (pulled === 1 ? "" : "s") + " from your ORF tool"), 600);
 }
 render();
 openTabFromHash();
-if (mergeRes) setTimeout(() => toast("Merged " + mergeRes.count + " duplicate student" + (mergeRes.count === 1 ? "" : "s") + " \u2014 see Setup"), 300);
+if (mergeRes) setTimeout(() => toast((mergeRes.count
+  ? "Merged " + mergeRes.count + " duplicate student" + (mergeRes.count === 1 ? "" : "s")
+  : "Took the ELD tag off " + mergeRes.renamed + " name" + (mergeRes.renamed === 1 ? "" : "s")) + " \u2014 see Setup"), 300);
 initAssignmentKeys();
 initSync();
 initPWA();

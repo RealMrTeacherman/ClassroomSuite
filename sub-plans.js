@@ -26,6 +26,10 @@
 
   /* ---------- storage ---------- */
   function blank() {
+    /* Walk to WIN starts Monday 28 September 2026 (same date as suite-migrate.js) */
+    var now = new Date();
+    var walk = (now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" +
+      String(now.getDate()).padStart(2, "0")) >= "2026-09-28";
     return {
       intro: "", contact: "", signal: "", trusted: "",
       incentives: "", consequences: "", arrival: "", closing: "",
@@ -43,19 +47,26 @@
         { start: "10:40", end: "11:00", title: "Math small groups", days: "MTRF", subject: "math", detail: "", emergency: "" },
         { start: "11:00", end: "11:40", title: "Lunch & recess", days: "MTRF", subject: "", detail: "", emergency: "" },
         { start: "11:40", end: "12:05", title: "Writing", days: "MTRF", subject: "writing", detail: "", emergency: "" },
-        { start: "12:05", end: "1:00", title: "WIN time", days: "MTRF", subject: "win", detail: "", emergency: "" },
+        /* Walk to WIN from 28 September 2026: Read on M/Th, Math on T/F.
+           Before then, the one WIN row (suite-migrate.js converts a stored one). */
+      ].concat(walk ? [
+        { start: "12:05", end: "1:00", title: "WIN \u2014 Walk to Read", days: "MR", subject: "win", detail: "", emergency: "" },
+        { start: "12:05", end: "1:00", title: "WIN \u2014 Walk to Math", days: "TF", subject: "win", detail: "", emergency: "" }
+      ] : [
+        { start: "12:05", end: "1:00", title: "WIN time", days: "MTRF", subject: "win", detail: "", emergency: "" }
+      ], [
         { start: "1:00", end: "1:30", title: "Science / Social Studies", days: "MTRF", subject: "science", detail: "", emergency: "" },
         /* Closing clean-up is the last ten minutes of the last period in the
-           room: 2:15 on Tue, Thu and Fri; before PE on Monday (and Wednesday),
-           which runs to dismissal. Health/SEL is Mon 1:30, Thu and Fri 1:55. */
+           room: 2:15 on Tue, Thu and Fri; before PE on Monday (then shoutouts
+           and dismissal) and Wednesday. Health/SEL is Mon 1:30, Thu, Fri 1:55. */
         { start: "1:30", end: "1:45", title: "Specials 1", days: "M", subject: "health", detail: "", emergency: "" },
         { start: "1:30", end: "1:55", title: "Specials 1", days: "TRF", subject: "", detail: "", emergency: "" },
         { start: "1:45", end: "1:55", title: "Closing clean-up", days: "M", subject: "", detail: "", emergency: "" },
-        { start: "1:55", end: "2:30", title: "Specials 2", days: "M", subject: "", detail: "", emergency: "" },
+        { start: "1:55", end: "2:20", title: "Specials 2", days: "M", subject: "", detail: "", emergency: "" },
         { start: "1:55", end: "2:15", title: "Specials 2", days: "T", subject: "", detail: "", emergency: "" },
         { start: "1:55", end: "2:15", title: "Specials 2", days: "RF", subject: "health", detail: "", emergency: "" },
         { start: "2:15", end: "2:30", title: "Clean-up, shoutouts, dismissal", days: "TRF", subject: "", detail: "", emergency: "" },
-        { start: "2:30", end: "", title: "Dismissal", days: "M", subject: "", detail: "", emergency: "" },
+        { start: "2:20", end: "2:30", title: "Shoutouts, dismissal", days: "M", subject: "", detail: "", emergency: "" },
         /* Wednesday is an early-release day with its own shape. It used to
            have no blocks at all, so a Wednesday sub plan printed an empty
            schedule. */
@@ -71,7 +82,7 @@
         { start: "12:10", end: "12:20", title: "Closing clean-up", days: "W", subject: "", detail: "", emergency: "" },
         { start: "12:20", end: "12:55", title: "PE", days: "W", subject: "", detail: "", emergency: "" },
         { start: "12:55", end: "", title: "Dismissal", days: "W", subject: "", detail: "", emergency: "" }
-      ]
+      ])
     };
   }
   function read() {
@@ -437,10 +448,48 @@
       return (gb.settings && gb.settings.teacher) || "";
     } catch (e) { return ""; }
   }
+  /* Printing a sub plan marks that day with the planner's own "Sub" flag
+     (v54). The planner's open-text subjects then skip it when they carry
+     text forward, so instructions written for the sub never become the next
+     day's "What we did" or its "after …" line. The flag shows on the day's
+     Notes & schedule changes chips and can be tapped off there (an
+     emergency plan printed ahead of time, say).
+
+     The day can live in three places: the planner's working draft, a saved
+     record in DAYS, or an unsaved draft in PENDING. This file has its own
+     DAYS and persist(), so the planner's are reached through the global
+     scope rather than by name. */
+  function plannerGlobal(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+  function markSub(iso) {
+    try {
+      var W = window, days = plannerGlobal("DAYS"), pend = plannerGlobal("PENDING"), live = lpDraft();
+      if (!days || typeof days !== "object" || Array.isArray(days)) return;
+      var add = function (rec) {
+        if (!rec || typeof rec !== "object") return false;
+        if (!Array.isArray(rec.flags)) rec.flags = [];
+        if (rec.flags.indexOf("Sub") >= 0) return false;
+        rec.flags.push("Sub"); return true;
+      };
+      var here = !!(live && live.__key === iso), changed = false;
+      if (here && add(live)) changed = true;
+      if (days[iso]) {
+        if (add(days[iso])) changed = true;
+        if (changed) { if (typeof W.invalidateDayCache === "function") W.invalidateDayCache(); if (typeof W.persist === "function") W.persist(); }
+      } else if (here) {
+        if (changed && typeof W.stashDraft === "function") W.stashDraft();
+      } else if (pend && typeof pend === "object" && typeof W.buildDraft === "function") {
+        var rec = pend[iso] || W.buildDraft(iso);
+        if (add(rec)) { delete rec.__key; pend[iso] = rec; changed = true; if (typeof W.queuePending === "function") W.queuePending(); }
+      }
+      if (changed && here && typeof W.render === "function") W.render();
+    } catch (e) { }
+  }
+
   function doPrint(kind, iso) {
     if (!hasContent()) { alert("Add your standing notes first — the editor is on this panel."); return; }
     var box = document.getElementById("subprint");
     box.innerHTML = (kind === "glance" ? buildGlance(iso, teacherName()) : buildFull(iso, teacherName()));
+    markSub(iso);
     document.body.setAttribute("data-subprint", "1");
     window.print();
     setTimeout(function () { document.body.removeAttribute("data-subprint"); }, 500);

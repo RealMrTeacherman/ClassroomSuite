@@ -1,3 +1,94 @@
+/* ---- a sub day's open text does not carry forward ----
+   An open-text subject (Science, WIN, Writing, Health/SEL) starts each day
+   with the last day's text, and its "after …" line quotes it. After a sub
+   day that was the sub's instructions: "Walk students to music at 1:30",
+   "slideshow is in the sub drive". So a day flagged "Sub" — which printing a
+   sub plan now sets — is passed over when an open-text subject looks back.
+   Stepper subjects (Phonics, Reading, Math) still count it: those lessons
+   happened, and skipping them would put the unit, week and day wrong.
+
+   The planner is protected, so its lastTaught() is wrapped rather than
+   edited. It is a top-level function declaration, so it lives on window and
+   every caller that reaches it by name — suggest(), provenance(), and the
+   sub plan's stale-text warning — gets this one (v54). */
+(function () {
+  if (typeof window.lastTaught !== "function" || typeof window.sortedDayKeys !== "function") return;
+  if (window.lastTaught.__skipsSub) return;
+  var orig = window.lastTaught;
+  function g(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+  function isSub(rec) { return !!rec && Array.isArray(rec.flags) && rec.flags.indexOf("Sub") >= 0; }
+  var wrapped = function (sb, beforeKey) {
+    if (!sb || sb.schema !== "free") return orig(sb, beforeKey);
+    var days = g("DAYS");
+    if (!days) return orig(sb, beforeKey);
+    var keys = window.sortedDayKeys();
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (k >= beforeKey) continue;
+      var rec = days[k];
+      if (!rec || rec.noSchool || rec.saved === false || isSub(rec)) continue;
+      var e = rec.entries && rec.entries[sb.id];
+      if (e && e.taught && e.pos) return { pos: e.pos, from: k };
+    }
+    return null;
+  };
+  wrapped.__skipsSub = true;
+  window.lastTaught = wrapped;
+
+  /* An unsaved draft opened before its sub day was flagged may already hold
+     the sub's text as its pre-fill. Where an open-text field is word for
+     word what the old rule copied from a Sub day, it was carried, not
+     typed, so it takes the new suggestion. Saved days are his record and
+     are never touched. Converges on every load. */
+  function unbake() {
+    var S = g("S"), pend = g("PENDING"), days = g("DAYS");
+    if (!S || !Array.isArray(S.subjects) || !days) return false;
+    var free = S.subjects.filter(function (x) { return x && x.schema === "free"; });
+    var changedPending = false, changedDays = false;
+    function fix(rec, dk) {
+      var hit = false;
+      if (!rec || rec.saved || !rec.entries) return false;
+      free.forEach(function (sb) {
+        var e = rec.entries[sb.id];
+        if (!e || !e.pos || !String(e.pos.text || "").trim()) return;
+        var was = orig(sb, dk);
+        if (!was || !isSub(days[was.from]) || !was.pos || was.pos.text !== e.pos.text) return;
+        var now = wrapped(sb, dk);
+        e.pos = now ? JSON.parse(JSON.stringify(now.pos)) : { text: "" };
+        hit = true;
+      });
+      return hit;
+    }
+    if (pend && typeof pend === "object") Object.keys(pend).forEach(function (dk) { if (fix(pend[dk], dk)) changedPending = true; });
+    Object.keys(days).forEach(function (dk) { if (fix(days[dk], dk)) changedDays = true; });
+    if (changedPending && typeof window.queuePending === "function") {
+      window.queuePending();
+      if (typeof window.flushPending === "function") window.flushPending();
+    }
+    if (changedDays && typeof window.persist === "function") window.persist();
+    return changedPending || changedDays;
+  }
+  window.__suiteUnbake = unbake;
+
+  /* If the planner already drew the open day from the old answer and
+     nothing has been typed, draw it again; a day with edits, or saved, is
+     left. The planner boots asynchronously, so wait until it has loaded its
+     subjects (S starts as an empty shell) rather than trust script timing. */
+  function redraw() {
+    var d = g("draft");
+    if (d && !d.saved && d.__key && !g("dirty") && typeof window.render === "function") {
+      try { (0, eval)("draft = null"); window.render(); } catch (e) { }
+    }
+  }
+  var tries = 0;
+  (function whenLoaded() {
+    var S = g("S");
+    if (!S || !Array.isArray(S.subjects) || !S.subjects.length) { if (++tries < 80) setTimeout(whenLoaded, 50); return; }
+    try { unbake(); } catch (e) { }
+    redraw();
+  })();
+})();
+
 /* ---- the planner's subject cards follow the day, not the subject list ----
    The Today rail and each Week card list subjects in the order they were
    added (Phonics, Reading, Writing, Math, Science, WIN …), while each card
