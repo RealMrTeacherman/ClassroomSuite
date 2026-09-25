@@ -165,6 +165,24 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 .entryrow input.note{border:1px solid var(--line);background:transparent;border-radius:6px;width:190px;font-size:13px;padding:5px 8px}
 .entryrow input.note:hover{border-color:var(--line)}
 .entryrow input.note:focus{border-color:var(--line-strong);background:var(--panel)}
+/* several standards at once (v70): the name column, then one 1-4 per
+   standard, each labelled with its code, then All; they wrap rather than
+   scroll when a unit test has six */
+.mg-legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:10px;font-size:13px;color:var(--ink-2)}
+.mg-std{display:inline-flex;align-items:center;gap:4px}
+.mg-x{border:0;background:none;color:var(--ink-3);font-size:17px;line-height:1;min-width:24px;min-height:24px;padding:0;border-radius:6px}
+.mg-x:hover{color:var(--ink)}
+.mg-add{display:inline-flex;align-items:center;gap:6px}
+.mg-add select{max-width:16rem}
+.entryrow.mgrow{align-items:flex-start;padding:10px 16px;gap:10px 18px}
+.mg-who{flex:0 0 13rem;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mg-who .nm{flex:1 1 100%}
+.mg-who input.note{width:auto;flex:1 1 6rem;min-width:0}
+.mg-cells{flex:1;display:flex;flex-wrap:wrap;gap:8px 16px}
+.mg-cell{display:flex;flex-direction:column;gap:3px}
+.mg-lbl{font-size:12px;font-weight:600;color:var(--ink-2)}
+.mg-prev{font-weight:400;color:var(--ink-3)}
+.mg-all{padding-left:16px;border-left:1px dashed var(--line-strong)}
 
 /* ---------- tables ---------- */
 table{border-collapse:collapse;width:100%;font-size:13.5px}
@@ -314,6 +332,15 @@ summary.tiny,summary.small{padding:4px 0}
   .entryrow .scale{order:3}
   .entryrow button[data-miss]{order:4}
   .entryrow input.note{flex:1 1 130px;width:auto;order:5;border-color:var(--line)}
+  /* several at once: each standard its own line, label left, 1-4 right */
+  .entryrow.mgrow{flex-direction:column;align-items:stretch;padding:12px}
+  .mg-who{flex:none}
+  .mg-who .nm{flex:1 1 auto}
+  .mg-who button[data-miss-all]{order:2}
+  .mg-who input.note{flex:1 1 100%;order:5}
+  .mg-cells{flex-direction:column;gap:6px}
+  .mg-cell{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .mg-all{padding:6px 0 0;border-left:0;border-top:1px dashed var(--line-strong)}
   .rcline{grid-template-columns:1fr;gap:5px}
   .rcline select.override{justify-self:start}
   .stdrow{flex-wrap:wrap}
@@ -682,6 +709,9 @@ let UI = {
   enterLesson: null,
   /* the unit being looked through in the Unit menu, or null for the lesson's own */
   enterUnit: null,
+  /* the standards being graded together, or null for one at a time (v70) */
+  enterMulti: null,
+  lastAll: null,
   enterStudent: "",
   groupWindow: "0",
   groupEvidence: "both",
@@ -877,6 +907,7 @@ function renderEnter() {
       "</optgroup>";
   }).join("");
 
+  const multi = multiCodes();
   const std = byCode[UI.enterStd];
 
   let html = '<div class="stack">';
@@ -888,12 +919,12 @@ function renderEnter() {
      empty assignment keeps it open, because choosing is the next step. */
   const foldKey = UI.enterStd + "|" + UI.enterDate + "|" + (UI.enterCtx || "");
   const foldable = !!std && phoneLayout() &&
-    S.scores.some(x => x.std === UI.enterStd && x.date === UI.enterDate && (x.ctx || "") === (UI.enterCtx || "") && !x.source);
+    S.scores.some(x => (multi ? multi.indexOf(x.std) >= 0 : x.std === UI.enterStd) && x.date === UI.enterDate && (x.ctx || "") === (UI.enterCtx || "") && !x.source);
   const foldOpen = UI.enterFold && UI.enterFold.key === foldKey ? UI.enterFold.open : false;
   html += (foldable
       ? '<details class="card pad stdfold"' + (foldOpen ? " open" : "") +
         ' ontoggle="UI.enterFold={key:' + esc(JSON.stringify(foldKey)).replace(/'/g, "&#39;") + ',open:this.open}">' +
-        '<summary>' + codeHTML(std.c) + " " + esc(std.lbl) +
+        '<summary>' + (multi ? esc(multi.length + " standards together") : codeHTML(std.c) + " " + esc(std.lbl)) +
         '<span class="tiny"> \u00b7 ' + esc(UI.enterDate.slice(5)) + (UI.enterCtx ? " \u00b7 " + esc(UI.enterCtx) : "") + "</span>" +
         '<span class="stdfold-change">Change</span></summary>'
       : '<div class="card pad">') +
@@ -907,14 +938,20 @@ function renderEnter() {
     plannerPickHTML() +
     (foldable ? "</details>" : "</div>");
 
-  if (std) {
+  if (std && multi) {
+    html += multiRosterHTML(multi);
+  } else if (std) {
+    const sib = siblingCodes();
     const roster = sortedStudents();
     html += '<div class="card"><div class="pad" style="padding-bottom:8px"><div class="sectionhead" style="margin:0">' +
       "<h2>" + esc(std.lbl) + "</h2><span class=\"spacer\"></span>" +
       '<span class="hint" style="max-width:320px">Tap a number. It saves as you go. Tap the same number again to clear.</span>' +
       '<button class="btn brass" onclick="logRestAsMissing()">Log the rest as not turned in</button>' +
       (UI.lastMissingBatch && UI.lastMissingBatch.length ? '<button class="btn sm" onclick="undoMissingBatch()">Undo those ' + UI.lastMissingBatch.length + "</button>" : "") +
-      "</div></div>";
+      "</div>" +
+      (sib.length ? '<div class="row" style="margin-top:8px;gap:8px;align-items:center"><span class="tiny muted">\u201c' + esc(UI.enterCtx) + "\u201d on this date also covers " +
+        esc(sib.map(c => dispCode(c)).join(", ")) + '.</span><button class="btn sm" data-multi="' + esc([UI.enterStd].concat(sib).join(" ")) + '">Grade all ' + (sib.length + 1) + " together</button></div>" : "") +
+      "</div>";
     html += '<div id="rosterlist">';
     roster.forEach(st => {
       const todayScore = S.scores.find(x => x.sid === st.id && x.std === UI.enterStd && x.date === UI.enterDate);
@@ -948,7 +985,7 @@ function renderEnter() {
   el.innerHTML = html;
 
   wireAssignmentBar(el);
-  document.getElementById("e-std").onchange = e => { UI.enterStd = e.target.value; renderEnter(); };
+  document.getElementById("e-std").onchange = e => { UI.enterStd = e.target.value; UI.enterMulti = null; renderEnter(); };
   document.getElementById("e-date").onchange = e => {
     UI.enterDate = e.target.value;
     /* where the planner has a lesson on the new date, that is the lesson */
@@ -968,11 +1005,17 @@ function renderEnter() {
     ctx.onchange = () => renderEnter();
   }
 
-  el.querySelectorAll(".scale button").forEach(b => {
+  if (multi) wireMulti(el, multi);
+  else el.querySelectorAll(".scale button").forEach(b => {
     b.onclick = () => setScore(b.dataset.sid, UI.enterStd, Number(b.dataset.v));
+  });
+  el.querySelectorAll("[data-multi]").forEach(b => {
+    b.onclick = () => startMulti(b.dataset.multi.split(" "), b.dataset.pickctx || "");
   });
   el.querySelectorAll("[data-pick]").forEach(b => {
     b.onclick = () => {
+      /* while grading together, a chip puts its standard in or takes it out */
+      if (multi) { toggleMultiCode(b.dataset.pick); return; }
       UI.enterStd = b.dataset.pick;
       /* Name the assignment after the lesson, but only when that cannot
          split one: an assignment is standard + date + "What was it?", so
@@ -986,7 +1029,7 @@ function renderEnter() {
   el.querySelectorAll("[data-miss]").forEach(b => {
     b.onclick = () => toggleMissingHere(b.dataset.miss);
   });
-  el.querySelectorAll("input.note").forEach(inp => {
+  el.querySelectorAll("input.note[data-sid]").forEach(inp => {
     inp.onchange = () => {
       const rec = S.scores.find(x => x.sid === inp.dataset.sid && x.std === UI.enterStd && x.date === UI.enterDate);
       if (rec) { rec.note = inp.value; save(); } else if (inp.value) { toast("Give a mark first, then the note saves with it"); }
@@ -995,6 +1038,7 @@ function renderEnter() {
 }
 
 function setScore(sid, code, v) {
+  UI.lastAll = null;
   const i = S.scores.findIndex(x => x.sid === sid && x.std === code && x.date === UI.enterDate);
   const st = S.students.find(x => x.id === sid);
   if (i >= 0 && S.scores[i].v === v) {
@@ -1011,6 +1055,7 @@ function setScore(sid, code, v) {
   save(); renderEnter();
 }
 function undoLast() {
+  if (UI.lastAll) { undoAll(); return; }
   if (!S.scores.length) return;
   S.scores.pop(); UI.log.push("Undid last entry"); save(); renderEnter();
 }
@@ -4311,8 +4356,8 @@ function lessonPickHTML() {
     const codes = lessonCodes(step), ctx = revealCtx(step);
     h += '<div class="row" style="margin-top:8px;gap:6px;align-items:center">' +
       '<span class="tiny muted pickhead" style="letter-spacing:.04em">IN THIS LESSON</span>' +
-      (codes.length ? codes.map(c => '<button class="btn sm' + (c === UI.enterStd ? " primary" : "") + '" data-pick="' + c + '" data-pickctx="' + esc(ctx) + '"' +
-        ' title="' + esc(R.name(step)) + '">' + esc(byCode[c].lbl) + "</button>").join("")
+      (codes.length ? codes.map(c => '<button class="btn sm' + (pickOn(c) ? " primary" : "") + '" data-pick="' + c + '" data-pickctx="' + esc(ctx) + '"' +
+        (UI.enterMulti ? ' aria-pressed="' + pickOn(c) + '"' : "") + ' title="' + esc(R.name(step)) + '">' + esc(byCode[c].lbl) + "</button>").join("") + multiButtonHTML(codes, ctx)
         : '<span class="tiny muted">No grade 2 standards to mark on this day' + (R.oregon(step).length ? " that are switched on in Setup" : "") + ".</span>") +
       '<span class="tiny muted lessonname">' + esc(R.name(step)) + "</span></div>";
     if (step.tg && step.tg.length) h += '<div class="hint" style="margin-top:6px">' + esc(step.tg.join(" ")) + "</div>";
@@ -4328,6 +4373,7 @@ function chooseLesson(v) {
   if (!step) return;
   UI.enterLesson = i;
   UI.enterUnit = null;
+  UI.enterMulti = null;
   let msg = "";
   const onDay = revealStepOn(UI.enterDate);
   if (!onDay || onDay.i !== i) {
@@ -4348,6 +4394,8 @@ function chooseLesson(v) {
   if (msg) toast(msg);
 }
 
+function pickOn(c) { return UI.enterMulti ? UI.enterMulti.indexOf(c) >= 0 : c === UI.enterStd; }
+function uniqCodes(a) { return a.filter((c, i) => a.indexOf(c) === i); }
 /* the row of standards the planner says today's lessons covered */
 function plannerPickHTML() {
   const t = standardsTaughtOn(UI.enterDate);
@@ -4358,10 +4406,173 @@ function plannerPickHTML() {
   if (!show.length) return "";
   return '<div class="row" style="margin-top:10px;gap:6px;align-items:center">' +
     '<span class="tiny muted pickhead" style="letter-spacing:.04em">TAUGHT THIS DAY</span>' +
-    show.map(x => '<button class="btn sm' + (x.code === UI.enterStd ? " primary" : "") + '" data-pick="' + x.code + '"' +
+    show.map(x => '<button class="btn sm' + (pickOn(x.code) ? " primary" : "") + '" data-pick="' + x.code + '"' + (UI.enterMulti ? ' aria-pressed="' + pickOn(x.code) + '"' : "") +
       (x.ctx ? ' data-pickctx="' + esc(x.ctx) + '"' : "") + ' title="' + esc(x.lesson || (x.subject + " Unit " + x.unit)) + '">' +
-      esc(byCode[x.code].lbl) + "</button>").join("") +
+      esc(byCode[x.code].lbl) + "</button>").join("") + multiButtonHTML(uniqCodes(show.map(x => x.code)), show[0].ctx || "") +
     (show[0].lesson ? '<span class="tiny muted">' + esc(show[0].lesson) + "</span>" : "") + "</div>";
+}
+
+/* ============================================================
+   GRADING SEVERAL STANDARDS AT ONCE (v70)
+   An assessment that covers more than one standard (a Reveal unit test,
+   a probe, a lesson with two standards, or anything named the same on the
+   same day) used to be graded one standard at a time: pick it, go down the
+   roster, pick the next, go down again. UI.enterMulti holds the standards
+   being graded together; each student's row carries a 1-4 for each, and
+   an "All" 1-4 that gives every one the same mark in one tap.
+
+   Nothing new is stored. Each mark is still its own record under its own
+   standard, date and "What was it?", so each standard is still its own
+   assignment everywhere else: the stepper, the report card, groups.
+   ============================================================ */
+function multiCodes() {
+  if (!UI.enterMulti) return null;
+  const act = activeCodes(UI.subject);
+  const codes = UI.enterMulti.filter((c, i, a) => byCode[c] && act.indexOf(c) >= 0 && a.indexOf(c) === i);
+  if (codes.length < 2) { UI.enterMulti = null; if (codes[0]) UI.enterStd = codes[0]; return null; }
+  UI.enterMulti = codes;
+  if (codes.indexOf(UI.enterStd) < 0) UI.enterStd = codes[0];
+  return codes;
+}
+/* start grading these together; name it the way a chip would, never
+   beside unnamed marks, which would split an assignment in two */
+function startMulti(codes, ctx) {
+  UI.enterMulti = codes.slice();
+  UI.lastAll = null;
+  if (ctx && !UI.enterCtx && !codes.some(c => S.scores.some(x => x.std === c && x.date === UI.enterDate && !x.ctx && !x.source))) UI.enterCtx = ctx;
+  if (codes.indexOf(UI.enterStd) < 0) UI.enterStd = codes[0];
+  renderEnter();
+}
+function stopMulti() { UI.enterMulti = null; UI.lastAll = null; renderEnter(); }
+function toggleMultiCode(c) {
+  const codes = (UI.enterMulti || []).slice(), i = codes.indexOf(c);
+  if (i >= 0) {
+    if (codes.length <= 2) { toast("Grading together needs two standards. Choose One at a time to grade just one."); return; }
+    codes.splice(i, 1);
+  } else codes.push(c);
+  UI.enterMulti = codes;
+  renderEnter();
+}
+/* other standards already marked under this date and name: the rest of
+   the same assessment, when it was graded one standard at a time */
+function siblingCodes() {
+  if (!UI.enterCtx || !UI.enterStd) return [];
+  const act = activeCodes(UI.subject), out = [];
+  S.scores.concat(S.missing).forEach(x => {
+    if (x.source || x.excused || x.date !== UI.enterDate || (x.ctx || "") !== UI.enterCtx) return;
+    if (x.std !== UI.enterStd && byCode[x.std] && act.indexOf(x.std) >= 0 && out.indexOf(x.std) < 0) out.push(x.std);
+  });
+  return out;
+}
+function multiButtonHTML(codes, ctx) {
+  if (UI.enterMulti || codes.length < 2) return "";
+  return '<button class="btn sm" data-multi="' + esc(codes.join(" ")) + '"' + (ctx ? ' data-pickctx="' + esc(ctx) + '"' : "") +
+    ">Grade all " + codes.length + " together</button>";
+}
+function multiRosterHTML(codes) {
+  const add = activeCodes(UI.subject).filter(c => codes.indexOf(c) < 0);
+  let h = '<div class="card"><div class="pad" style="padding-bottom:8px"><div class="sectionhead" style="margin:0">' +
+    "<h2>" + codes.length + " standards together</h2><span class=\"spacer\"></span>" +
+    '<span class="hint" style="max-width:340px">Tap a number under each standard, or under All to give every standard the same mark. Tap it again to clear.</span>' +
+    '<button class="btn brass" onclick="logRestAsMissingMulti()">Log the rest as not turned in</button>' +
+    (UI.lastMissingBatch && UI.lastMissingBatch.length ? '<button class="btn sm" onclick="undoMissingBatch()">Undo those ' + UI.lastMissingBatch.length + "</button>" : "") +
+    '<button class="btn sm ghost" data-multi-stop>One at a time</button></div>' +
+    '<div class="mg-legend">' + codes.map(c => '<span class="mg-std">' + codeHTML(c) + " " + esc(byCode[c].lbl) +
+      '<button class="mg-x" data-multi-drop="' + c + '" aria-label="Stop grading ' + esc(dispCode(c)) + ' here" title="Take this one out">\u00d7</button></span>').join("") +
+      (add.length ? '<label class="mg-add">Add a standard<select id="e-multi-add"><option value="">Choose\u2026</option>' +
+        add.map(c => '<option value="' + c + '">' + esc(dispCode(c) + " \u2014 " + byCode[c].lbl) + "</option>").join("") + "</select></label>" : "") +
+    "</div></div>";
+  h += '<div id="rosterlist" class="mg">';
+  sortedStudents().forEach(st => {
+    const recs = codes.map(c => S.scores.find(x => x.sid === st.id && x.std === c && x.date === UI.enterDate) || null);
+    const same = recs.every(r => r) && recs.every(r => r.v === recs[0].v) ? recs[0].v : 0;
+    const miss = codes.every(c => hasScore(st.id, c, UI.enterDate) || missingFor(st.id, c, UI.enterDate)) && codes.some(c => missingFor(st.id, c, UI.enterDate));
+    const note = (recs.find(r => r && r.note) || {}).note || "";
+    h += '<div class="entryrow mgrow"' + (miss ? ' style="background:var(--s1-bg)"' : "") + ">" +
+      '<div class="mg-who"><span class="nm">' + esc(fullName(st)) + (st.eld ? ' <span class="chip eld">ELD</span>' : "") + "</span>" +
+      '<button class="btn sm' + (miss ? "" : " ghost") + '" data-miss-all="' + st.id + '" title="No work received from this student" style="' + (miss ? "border-color:var(--s1);color:var(--s1);font-weight:650;background:#fff" : "") + '">' + (miss ? "no work \u2713" : "no work") + "</button>" +
+      '<input class="note" data-note-all="' + st.id + '" placeholder="note" value="' + esc(note) + '"></div>' +
+      '<div class="mg-cells">' + codes.map((c, i) => {
+        const prior = scoresFor(st.id, c).filter(x => x.date !== UI.enterDate), prev = prior.length ? prior[prior.length - 1] : null;
+        return '<div class="mg-cell"><span class="mg-lbl" title="' + esc(byCode[c].lbl) + '">' + esc(dispCode(c)) +
+          (prev ? ' <span class="mg-prev">was ' + prev.v + "</span>" : "") + "</span>" +
+          '<span class="scale">' + [1, 2, 3, 4].map(v => '<button data-v="' + v + '" data-sid="' + st.id + '" data-std="' + c + '" aria-pressed="' + (recs[i] && recs[i].v === v ? "true" : "false") +
+            '" title="' + esc(dispCode(c)) + ": mark " + v + '">' + v + "</button>").join("") + "</span></div>";
+      }).join("") +
+      '<div class="mg-cell mg-all"><span class="mg-lbl">All</span><span class="scale">' + [1, 2, 3, 4].map(v =>
+        '<button data-v="' + v + '" data-all="' + st.id + '" aria-pressed="' + (same === v ? "true" : "false") + '" title="Every standard: mark ' + v + '">' + v + "</button>").join("") +
+      "</span></div></div></div>";
+  });
+  return h + "</div></div>";
+}
+function wireMulti(el, codes) {
+  el.querySelectorAll(".mg .scale button[data-std]").forEach(b => { b.onclick = () => setScore(b.dataset.sid, b.dataset.std, Number(b.dataset.v)); });
+  el.querySelectorAll(".mg .scale button[data-all]").forEach(b => { b.onclick = () => setAllScores(b.dataset.all, codes, Number(b.dataset.v)); });
+  el.querySelectorAll("[data-miss-all]").forEach(b => { b.onclick = () => toggleMissingAll(b.dataset.missAll, codes); });
+  el.querySelectorAll("[data-multi-drop]").forEach(b => { b.onclick = () => toggleMultiCode(b.dataset.multiDrop); });
+  const stop = el.querySelector("[data-multi-stop]"); if (stop) stop.onclick = stopMulti;
+  const addSel = document.getElementById("e-multi-add");
+  if (addSel) addSel.onchange = () => { if (addSel.value) toggleMultiCode(addSel.value); };
+  el.querySelectorAll("input[data-note-all]").forEach(inp => {
+    inp.onchange = () => {
+      const recs = S.scores.filter(x => x.sid === inp.dataset.noteAll && x.date === UI.enterDate && codes.indexOf(x.std) >= 0);
+      if (!recs.length) { if (inp.value) toast("Give a mark first, then the note saves with it"); return; }
+      recs.forEach(r => { r.note = inp.value; }); save();
+    };
+  });
+}
+/* one tap, every standard; tapping the mark they all already have clears
+   them all. Undo last puts back exactly what was there before. */
+function setAllScores(sid, codes, v) {
+  const st = S.students.find(x => x.id === sid);
+  const cur = codes.map(c => S.scores.find(x => x.sid === sid && x.std === c && x.date === UI.enterDate) || null);
+  const clear = cur.every(r => r && r.v === v);
+  UI.lastAll = { before: codes.map((c, i) => ({ std: c, rec: cur[i] ? Object.assign({}, cur[i]) : null })), sid: sid, date: UI.enterDate,
+    missing: S.missing.filter(m => m.sid === sid && m.date === UI.enterDate && codes.indexOf(m.std) >= 0).map(m => Object.assign({}, m)) };
+  codes.forEach((c, i) => {
+    if (clear) { S.scores = S.scores.filter(x => x !== cur[i]); return; }
+    if (cur[i]) { cur[i].v = v; cur[i].ctx = UI.enterCtx || ""; }
+    else S.scores.push({ id: uid(), sid: sid, std: c, v: v, date: UI.enterDate, note: "", ctx: UI.enterCtx || "" });
+    clearMissingOnScore(sid, c, UI.enterDate);
+  });
+  UI.log.push(clear ? "Cleared " + fullName(st) + " \u2014 all " + codes.length : fullName(st) + " \u2014 all " + codes.length + " = " + v);
+  save(); renderEnter();
+}
+function undoAll() {
+  const u = UI.lastAll; UI.lastAll = null;
+  u.before.forEach(b => {
+    S.scores = S.scores.filter(x => !(x.sid === u.sid && x.std === b.std && x.date === u.date));
+    if (b.rec) S.scores.push(b.rec);
+  });
+  /* a mark clears a student's "no work"; put those back as they were */
+  S.missing.forEach(m => { const o = u.missing.find(x => x.id === m.id); if (o) Object.assign(m, o); });
+  UI.log.push("Undid last entry"); save(); renderEnter();
+}
+function toggleMissingAll(sid, codes) {
+  const date = UI.enterDate;
+  const open = codes.map(c => missingFor(sid, c, date)).filter(Boolean);
+  const unmarked = codes.filter(c => !hasScore(sid, c, date) && !missingFor(sid, c, date));
+  if (open.length && !unmarked.length) { S.missing = S.missing.filter(m => open.indexOf(m) < 0); save(); renderEnter(); return; }
+  if (codes.some(c => hasScore(sid, c, date))) { toast("That student already has marks for this one"); return; }
+  unmarked.forEach(c => S.missing.push({ id: uid(), sid: sid, std: c, date: date, ctx: UI.enterCtx || "", received: null, excused: false }));
+  save(); renderEnter();
+}
+/* everyone with no mark on any of these standards and nothing logged yet */
+function logRestAsMissingMulti() {
+  const codes = multiCodes(), date = UI.enterDate;
+  if (!codes) return;
+  const batch = [];
+  sortedStudents().forEach(st => {
+    if (codes.some(c => hasScore(st.id, c, date) || missingFor(st.id, c, date))) return;
+    codes.forEach(c => {
+      const rec = { id: uid(), sid: st.id, std: c, date: date, ctx: UI.enterCtx || "", received: null, excused: false };
+      S.missing.push(rec); batch.push(rec.id);
+    });
+  });
+  UI.lastMissingBatch = batch;
+  save(); renderEnter();
+  const n = batch.length / codes.length;
+  toast(batch.length ? "Logged " + n + (n === 1 ? " student" : " students") + " as not turned in" : "Everyone has a mark for this one");
 }
 
 /* part11 is now empty: the planner snapshot lives in suite-sync.js, which all
@@ -4423,6 +4634,7 @@ function gotoAssignment(a) {
     paintSubjSwitch();
   }
   UI.enterStd = a.std; UI.enterDate = a.date; UI.enterCtx = a.ctx || "";
+  UI.enterMulti = null;
   UI.enterLesson = lessonFromCtx(UI.enterCtx);
   UI.enterUnit = null;
   UI.tab = "enter";
@@ -4446,6 +4658,7 @@ function jumpUnfinished() {
   gotoAssignment(list[(i + 1) % list.length]);
 }
 function newAssignment() {
+  UI.enterMulti = null;
   UI.enterDate = todayISO();
   UI.enterCtx = "";
   UI.enterLesson = null;
