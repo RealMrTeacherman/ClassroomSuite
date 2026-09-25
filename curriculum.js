@@ -962,6 +962,199 @@
   }
   function uniq(a) { var o = []; a.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
 
+  /* ---- in families' words (v68) ----
+     The teacher asked for Math in parent-friendly language, summarised,
+     rather than the guide's "I can" targets one per line ("Identify
+     patterns when skip counting by 5s"). Each lesson has a plain phrase
+     here, written as the middle of a sentence; the week's phrases are
+     merged into one line (see famSummary). A lesson missing from this
+     table falls back to its first "I can", so nothing is ever dropped. */
+  var FAM_MATH = {
+    "1|1": "sharing our own math stories", "1|2": "making sense of problems and trying different ways to solve them",
+    "1|3": "using math to describe real-life situations", "1|4": "explaining our thinking",
+    "1|5": "finding and continuing patterns", "1|6": "working well on our own and in groups",
+    "2|1": "seeing how 10 tens make 100", "2|2": "learning what each digit means in a 3-digit number",
+    "2|3": "reading and writing numbers up to 1,000", "2|4": "breaking 3-digit numbers into hundreds, tens, and ones in different ways",
+    "2|5": "comparing 3-digit numbers",
+    "3|1": "counting by 1s up to 1,000", "3|2": "skip counting by 5s", "3|3": "skip counting by 10s and 100s",
+    "3|4": "learning about even and odd numbers", "3|5": "showing even numbers as doubles (like 4 + 4)",
+    "3|6": "skip counting to find the total in an array (objects set out in rows)", "3|7": "writing addition equations to match an array",
+    "4|1": "solving adding-on word problems", "4|2": "solving taking-away word problems",
+    "4|3": "working through two-step problems that add on and take away",
+    "4|4": "solving putting-together word problems", "4|5": "solving taking-apart word problems",
+    "4|6": "working through two-step problems that put together and take apart",
+    "4|7": "solving comparing word problems (finding the bigger amount)", "4|8": "solving comparing word problems (finding the smaller amount)",
+    "4|9": "working through two-step comparing problems", "4|10": "working through two-step word problems with addition and subtraction",
+    "5|1": "adding within 20 by counting on", "5|2": "adding within 20 using other quick strategies",
+    "5|3": "adding 2-digit numbers with base-ten blocks", "5|4": "learning that numbers can be added in any order",
+    "5|5": "breaking both numbers into tens and ones to add", "5|6": "using a number line to add",
+    "5|7": "breaking just one number apart to add", "5|8": "changing numbers into friendlier ones to add",
+    "5|9": "adding three or more 2-digit numbers", "5|10": "solving one-step and two-step addition word problems",
+    "6|1": "subtracting within 20 by counting up or back", "6|2": "subtracting within 20 by making a 10",
+    "6|3": "subtracting 2-digit numbers with base-ten blocks", "6|4": "regrouping to subtract 2-digit numbers (sometimes called borrowing)",
+    "6|5": "using a number line to subtract", "6|6": "breaking numbers apart to subtract",
+    "6|7": "changing numbers into friendlier ones to subtract", "6|8": "using addition to solve subtraction",
+    "6|9": "solving one-step subtraction word problems", "6|10": "solving two-step subtraction word problems",
+    "7|1": "measuring length in inches", "7|2": "measuring length in feet and yards",
+    "7|3": "comparing lengths in inches, feet, and yards", "7|4": "learning how inches, feet, and yards are related",
+    "7|5": "estimating length in inches, feet, and yards using everyday objects",
+    "7|6": "measuring length in centimeters and meters", "7|7": "comparing lengths in centimeters and meters",
+    "7|8": "learning how centimeters and meters are related", "7|9": "estimating length in centimeters and meters using everyday objects",
+    "7|10": "solving word problems about length", "7|11": "solving length problems on a number line",
+    "8|1": "learning what each coin is worth", "8|2": "counting a mix of coins",
+    "8|3": "counting money with dollar bills and coins", "8|4": "telling time to the nearest five minutes",
+    "8|5": "knowing whether a time is a.m. or p.m.",
+    "9|1": "adding 10 or 100 in our heads", "9|2": "adding 3-digit numbers without regrouping",
+    "9|3": "adding 3-digit numbers with regrouping (sometimes called carrying)",
+    "9|4": "breaking 3-digit numbers into hundreds, tens, and ones to add", "9|5": "breaking just one number apart to add 3-digit numbers",
+    "9|6": "changing numbers into friendlier ones to add", "9|7": "explaining our addition strategies",
+    "10|1": "subtracting 10 or 100 in our heads", "10|2": "subtracting 3-digit numbers without regrouping",
+    "10|3": "counting back to subtract 3-digit numbers", "10|4": "counting up to subtract 3-digit numbers",
+    "10|5": "regrouping tens to subtract 3-digit numbers", "10|6": "regrouping tens and hundreds to subtract 3-digit numbers",
+    "10|7": "changing numbers into friendlier ones to subtract", "10|8": "explaining our subtraction strategies",
+    "10|9": "solving word problems with addition and subtraction",
+    "11|1": "making picture graphs", "11|2": "making bar graphs", "11|3": "solving problems with bar graphs",
+    "11|4": "measuring objects to collect data", "11|5": "reading line plots", "11|6": "making line plots",
+    "12|1": "recognizing flat (2-D) shapes", "12|2": "drawing flat (2-D) shapes", "12|3": "recognizing solid (3-D) shapes",
+    "12|4": "finding equal shares", "12|5": "splitting shapes into halves, thirds, and fourths",
+    "12|6": "splitting rectangles into rows and columns of equal squares"
+  };
+  function famMath(st) {
+    var p = FAM_MATH[st.u + "|" + st.n];
+    if (p) return p;
+    var t = famPhrase((st.tg || [])[0]) || st.t || "";
+    return t.charAt(0).toLowerCase() + t.slice(1);
+  }
+  /* Consecutive phrases that open (and maybe close) the same way become
+     one: "skip counting by 5s" + "skip counting by 10s and 100s" is "skip
+     counting by 5s, 10s, and 100s", "making picture graphs" + "making bar
+     graphs" is "making picture and bar graphs". They must share two or
+     more words at the start, or share words and differ by single words
+     only ("reading" / "making" line plots); anything else stays as
+     written, so "counting a mix of coins" never runs into "counting
+     money with dollar bills". */
+  function listJoin(a) {
+    if (a.length < 2) return a.join("");
+    var sep = a.some(function (x) { return /, /.test(x); }) ? "; " : ", ";
+    return a.length === 2 ? a[0] + " and " + a[1] : a.slice(0, -1).join(sep) + sep + "and " + a[a.length - 1];
+  }
+  function mergeMids(mids) {
+    /* "10s and 100s", "inches, feet, and yards": single words run together */
+    var flat = [], single = true;
+    mids.forEach(function (m) {
+      var parts = m.split(/,\s*(?:and\s+)?|\s+and\s+/);
+      if (parts.some(function (x) { return !x || /\s/.test(x); })) single = false;
+      flat = flat.concat(parts);
+    });
+    return single ? uniq(flat) : mids;
+  }
+  function oneWords(m) { return m.split(/,\s*(?:and\s+)?|\s+and\s+/).every(function (x) { return x && !/\s/.test(x); }); }
+  function famSummary(phrases) {
+    var groups = [];
+    phrases.forEach(function (ph) {
+      var w = ph.split(" "), g = groups[groups.length - 1];
+      if (g) {
+        if (g.pre != null) {
+          var n = w.length - g.pre - g.suf;
+          var mid = w.slice(g.pre, w.length - g.suf).join(" ");
+          if (n > 0 && w.slice(0, g.pre).join(" ") === g.head && w.slice(w.length - g.suf).join(" ") === g.tail && (g.pre >= 2 || oneWords(mid))) {
+            g.mids.push(mid); return;
+          }
+        } else {
+          var a = g.words, pre = 0, suf = 0;
+          while (pre < a.length && pre < w.length && a[pre] === w[pre]) pre++;
+          while (suf < a.length - pre && suf < w.length - pre && a[a.length - 1 - suf] === w[w.length - 1 - suf]) suf++;
+          var m1 = a.slice(pre, a.length - suf).join(" "), m2 = w.slice(pre, w.length - suf).join(" ");
+          if (pre + suf >= 2 && m1 && m2 && (pre >= 2 || (oneWords(m1) && oneWords(m2)))) {
+            g.pre = pre; g.suf = suf; g.head = a.slice(0, pre).join(" "); g.tail = a.slice(a.length - suf).join(" ");
+            g.mids = [a.slice(pre, a.length - suf).join(" "), w.slice(pre, w.length - suf).join(" ")];
+            return;
+          }
+        }
+      }
+      groups.push({ words: w, pre: null });
+    });
+    var out = groups.map(function (g) {
+      if (g.pre == null) return g.words.join(" ");
+      return [g.head, listJoin(mergeMids(g.mids)), g.tail].filter(Boolean).join(" ");
+    });
+    var s = listJoin(out);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  /* Reading's one goal for the week. v68 picked it; v69, the teacher's
+     call: both columns are skills the class works on all week, and he
+     picks whichever is most useful for families to practise at home. So
+     the sheet lists every one of the week's metacognitive and fix-up
+     strategies and comprehension strategies in plain words, and he
+     chooses. Until he does, the default is v68's: the first metacognitive
+     strategy, or in Units 7 to 10 (which only say "Apply Strategies"
+     there) the first comprehension strategy. */
+  var FAM_META = [
+    [/^Metacognitive: Ask Questions About Characters/, "Asking questions about the characters and events in stories"],
+    [/^Metacognitive: Ask Questions/, "Asking questions as we read to help us understand"],
+    [/^Metacognitive: Create Mental Images of Characters/, "Picturing the characters and events in stories to help us understand them"],
+    [/^Metacognitive: Create Mental Images/, "Making mental images to help us understand what we read"],
+    [/^Metacognitive: Draw Inferences/, "Making inferences: using clues to figure out what the author doesn\u2019t say outright"],
+    [/^Metacognitive: Make Connections/, "Making connections between what we read and our own lives"],
+    [/^Metacognitive: Distinguish Between Important/, "Picking out the most important ideas in what we read"],
+    [/^Metacognitive: Summarize/, "Summing up what we read in our own words"],
+    [/^Fix-Up: Reread/, "Rereading when something doesn\u2019t make sense"],
+    [/^Fix-Up: Read On/, "Reading on to clear up a confusing part"],
+    [/^Fix-Up: Stop and Think About the Author/, "Stopping to think about why the author wrote something"],
+    [/^Fix-Up: Read Out Loud/, "Reading out loud to help us understand"],
+    [/^Fix-Up: Read More Slowly/, "Slowing down and thinking about the words"]
+  ];
+  var FAM_COMP = [
+    [/^Identify Main Topic/, "Finding the main topic and key details in what we read"],
+    [/^Explain How Images/, "Using pictures and photos to help us understand what we read"],
+    [/^Recount Stories.*\(Recount/, "Retelling stories and finding their lesson or message"],
+    [/^Recount Stories/, "Figuring out the lesson or message of a story"],
+    [/^Describe the Overall Structure/, "Noticing how a story begins, builds, and ends"],
+    [/^Compare and Contrast/, "Comparing the most important points in two texts on the same topic"],
+    [/^Introduce Poetry/, "Reading poetry"],
+    [/^Describe How Characters Respond/, "Talking about how characters respond to big events and challenges"],
+    [/^Use Illustrations and Words/, "Using the words and pictures to understand characters, setting, and plot"],
+    [/^Describe a Connection/, "Connecting the events, ideas, or steps in what we read"],
+    [/^Acknowledge Differences in the Points of View/, "Noticing how different characters see things differently"],
+    [/^Compare Two Versions/, "Comparing two versions of the same story"],
+    [/^Identify Main Purpose/, "Figuring out why an author wrote a text"],
+    [/^Distinguish Between Important/, "Picking out the most important ideas in what we read"],
+    [/^Ask and Answer Questions/, "Asking and answering questions about the key details in what we read"],
+    [/^Use Text Features/, "Using headings, captions, and other text features to find facts"],
+    [/^Analyze How the Author/, "Looking at the reasons an author gives to support their points"]
+  ];
+  function famLookup(table, t) {
+    for (var i = 0; i < table.length; i++) if (table[i][0].test(t)) return table[i][1];
+    return null;
+  }
+  function famComp(c) {
+    var poem = /^Read a Poem: Understand (.+)$/.exec(c);
+    return poem ? "Reading poems and noticing " + poem[1].toLowerCase() : famLookup(FAM_COMP, c) || c;
+  }
+  /* [{ src, t, col }]: src is the scope and sequence's own wording, which
+     is what a choice is saved as; the default comes first in its column */
+  function famGoalOptions(w) {
+    var o = [], seen = {};
+    function add(src, t, col) { if (t && !seen[t]) { seen[t] = 1; o.push({ src: src, t: t, col: col }); } }
+    (w.meta || []).forEach(function (x) { if (!/Apply/.test(x)) add(x, famLookup(FAM_META, x), "meta"); });
+    (w.comp || []).forEach(function (x) { add(x, famComp(x), "comp"); });
+    return o;
+  }
+  function famGoalDefault(opts) {
+    return opts.filter(function (x) { return x.col === "meta" && /^Metacognitive:/.test(x.src); })[0] ||
+      opts.filter(function (x) { return x.col === "comp"; })[0] || opts[0] || null;
+  }
+  function goalStore() {
+    var rd = sub("reading");
+    return (rd && rd.goal && typeof rd.goal === "object") ? rd.goal : FAM.goal || (FAM.goal = {});
+  }
+  function saveGoal(k, src) {
+    var rd = sub("reading");
+    var st = rd ? (rd.goal && typeof rd.goal === "object" ? rd.goal : (rd.goal = {})) : goalStore();
+    st[k] = src;
+    if (rd) persistSettings();
+  }
+
   /* [{ head, lines[] }] for the week starting Monday `mon` */
   function familySections(mon) {
     var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(mon, i); });
@@ -972,22 +1165,30 @@
 
     var m = sub("math");
     if (m && m.on) {
-      var mp = project(m, from, to), lines = [], units = [], wrap = {};
+      /* v68: the week's lessons as one plain-language line per unit, the
+         opener folded into it ("Starting Unit 3, Patterns within Numbers:
+         counting by 1s ..."), a unit's review and test one line after it */
+      var mp = project(m, from, to), lines = [], units = [], segs = [], seg = {};
+      var segOf = function (n) {
+        if (!seg[n]) { seg[n] = { u: n, open: false, ph: [], review: false, assess: false }; segs.push(seg[n]); }
+        return seg[n];
+      };
       Object.keys(mp).sort().forEach(function (k) {
         var e = mp[k]; if (!e.taught) return;
         var st = on(m) ? find(e.pos) : null;
-        if (!st) { var f = OWN.fmt(m, e.pos); if (f && f !== "\u2014") lines.push("Math " + f); return; }
+        if (!st) { var f = OWN.fmt(m, e.pos); if (f && f !== "\u2014") segs.push({ own: "Math " + f }); return; }
         var u = unit(st.u); if (u && units.indexOf(u) < 0) units.push(u);
-        if (st.k === "L") lines.push(famPhrase((st.tg || [])[0]) || st.t);
-        else if (st.k === "open") lines.push("Starting Unit " + st.u + ": " + (u ? u.title : ""));
-        else if (st.k === "review" || st.k === "assess") {
-          /* one line for a unit's review and test, where its first one fell */
-          var w0 = wrap[st.u];
-          if (!w0) { w0 = wrap[st.u] = { at: lines.length }; lines.push(""); }
-          w0[st.k] = true;
-          lines[w0.at] = w0.review && w0.assess ? "Unit " + st.u + " review and test"
-            : w0.assess ? "Unit " + st.u + " test" : "Reviewing Unit " + st.u;
-        }
+        if (st.k === "L") segOf(st.u).ph.push(famMath(st));
+        else if (st.k === "open") segOf(st.u).open = true;
+        else if (st.k === "review" || st.k === "assess") segOf(st.u)[st.k] = true;
+      });
+      segs.forEach(function (g) {
+        if (g.own) { lines.push(g.own); return; }
+        var u = unit(g.u), sum = g.ph.length ? famSummary(uniq(g.ph)) : "";
+        if (g.open) lines.push("Starting Unit " + g.u + ", " + (u ? u.title : "") + (sum ? ": " + sum.charAt(0).toLowerCase() + sum.slice(1) : ""));
+        else if (sum) lines.push(sum);
+        if (g.review || g.assess) lines.push(g.review && g.assess ? "Unit " + g.u + " review and test"
+          : g.assess ? "Unit " + g.u + " test" : "Reviewing Unit " + g.u);
       });
       lines = uniq(lines.filter(Boolean));
       if (lines.length) out.push({ head: "Math" + (units.length ? " \u00b7 " + units.map(function (u) { return "Unit " + u.u + ", " + u.title; }).join(" \u2192 ") : ""), lines: lines });
@@ -1016,19 +1217,27 @@
          words; the week's spelling words, pasted into the sheet, instead */
       var rl = [], pl = [], rUnits = [], skills = [], words = [];
       if (bm && weeks[0]) spellKey = "bm:" + weeks[0].unit + "|" + weeks[0].week;
+      var goalOpts = [], goal = null;
       weeks.forEach(function (p) {
         var u = bm ? window.BenchmarkScope.unit(p.unit) : null, w = bm ? window.BenchmarkScope.week(p) : null;
         if (u && rUnits.indexOf(u) < 0) rUnits.push(u);
         if (w && w.phonics && w.phonics["Primary Skill"]) skills.push(w.phonics["Primary Skill"]);
+        /* v68: the week's own Tier 2 / Tier 3 words, not the unit's word
+           bank, and one of the week's comprehension goals */
+        if (w && w.words) words = words.concat(w.words.ga || [], w.words.ds || []);
+        if (w && !goalOpts.length) goalOpts = famGoalOptions(w);
       });
-      rUnits.forEach(function (u) {
-        if (u.eq) rl.push("Our big question: " + u.eq);
-        words = words.concat(u.wordBank || []);
-      });
+      if (!words.length) rUnits.forEach(function (u) { words = words.concat(u.wordBank || []); });
+      rUnits.forEach(function (u) { if (u.eq) rl.push("Our big question: " + u.eq); });
+      if (goalOpts.length) {
+        var saved = goalStore()[spellKey];
+        goal = goalOpts.filter(function (x) { return x.src === saved; })[0] || famGoalDefault(goalOpts);
+        if (goal) rl.push({ t: goal.t, goal: true });
+      }
       words = uniq(words);
       if (words.length) rl.push("Words to listen for: " + words.join(", "));
       if (!bm) weeks.forEach(function (p) { rl.push("Reading " + OWN.fmt(rd, p)); });
-      if (rl.length) out.push({ head: "Reading" + (rUnits.length ? " \u00b7 " + rUnits.map(function (u) { return "Unit " + u.u + ", " + u.title; }).join(" \u2192 ") : ""), lines: uniq(rl) });
+      if (rl.length) out.push({ head: "Reading" + (rUnits.length ? " \u00b7 " + rUnits.map(function (u) { return "Unit " + u.u + ", " + u.title; }).join(" \u2192 ") : ""), id: "reading", lines: uniq(rl) });
       uniq(skills).forEach(function (x) { pl.push("Sounds and spelling: " + x); });
     }
     var spell = parseSpelling(spellingStore()[spellKey]);
@@ -1042,7 +1251,7 @@
       topics = uniq(topics);
       if (topics.length) out.push({ head: "Science and social studies", id: "science", lines: topics });
     }
-    return { from: days[0], to: days[4], sections: out, spellKey: spellKey };
+    return { from: days[0], to: days[4], sections: out, spellKey: spellKey, goalOpts: goalOpts || [], goal: goal || null };
   }
   /* ---- spelling words (v66): pasted into the sheet, one list per week ---- */
   function spellingStore() {
@@ -1087,7 +1296,7 @@
     var h = "<p>Here\u2019s a peek at what we\u2019re learning the week of " + e$(mdy(r.from)) + ".</p>";
     r.sections.forEach(function (s) {
       h += (s.head ? "<p" + (s.id ? ' data-fam-head="' + s.id + '"' : "") + "><b>" + e$(s.head) + "</b></p>" : "") + "<ul>" + s.lines.map(function (l) {
-        return typeof l === "object" ? "<li data-fam-spell>" + e$(l.t) + "</li>" : "<li>" + e$(l) + "</li>";
+        return typeof l === "object" ? "<li " + (l.goal ? "data-fam-goal" : "data-fam-spell") + ">" + e$(l.t) + "</li>" : "<li>" + e$(l) + "</li>";
       }).join("") + "</ul>";
     });
     if (!r.sections.length) h += "<p>Nothing is planned for this week yet.</p>";
@@ -1110,7 +1319,7 @@
       '<div class="fam-nav"><button class="ghost" data-fam-wk="-7" aria-label="Previous week">\u2039</button>' +
       "<b>" + e$(mdy(r.from) + " \u2013 " + mdy(r.to)) + '</b><button class="ghost" data-fam-wk="7" aria-label="Next week">\u203a</button></div>' +
       '<label class="fam-spell">This week\u2019s spelling words<textarea id="fam-spell" rows="3" placeholder="Paste the list here: one per line, or separated by commas">' +
-        e$(spellingStore()[r.spellKey] || "") + "</textarea></label>" +
+        e$(spellingStore()[r.spellKey] || "") + "</textarea></label>" + goalPicker(r) +
       '<p class="hint">' + (/^bm:/.test(r.spellKey) ? "Kept with Benchmark Unit " + e$(r.spellKey.slice(3).replace("|", ", Week ")) + ", so it\u2019s here next year too. " : "") +
         "Built from the planner and the Reveal and Benchmark guides. Your day notes are never included. Edit anything before you copy.</p>" +
       '<div class="fam-prev" contenteditable="true" spellcheck="true">' + familyHTML(r) + "</div>" +
@@ -1121,6 +1330,40 @@
       var el = document.querySelector("dialog.sheet .fam-prev");
       if (el) patchSpelling(el, parseSpelling(ta.value));
     });
+    Array.prototype.forEach.call(document.querySelectorAll('dialog.sheet input[name="fam-goal"]'), function (rb) {
+      rb.addEventListener("change", function () {
+        var o = r.goalOpts[Number(rb.value)]; if (!rb.checked || !o) return;
+        saveGoal(k, o.src);
+        var el = document.querySelector("dialog.sheet .fam-prev");
+        if (el) patchGoal(el, o.t);
+      });
+    });
+  }
+  /* the week's reading goals to choose from, in two groups as the scope
+     and sequence prints them */
+  function goalPicker(r) {
+    if (!r.goalOpts || !r.goalOpts.length) return "";
+    var h = '<fieldset class="fam-goal"><legend>This week\u2019s reading goal for families</legend>';
+    [["meta", "Metacognitive and fix-up strategies"], ["comp", "Comprehension strategies"]].forEach(function (c) {
+      var items = "";
+      r.goalOpts.forEach(function (o, i) {
+        if (o.col !== c[0]) return;
+        items += '<label><input type="radio" name="fam-goal" value="' + i + '"' + (r.goal === o ? " checked" : "") + "> " + e$(o.t) + "</label>";
+      });
+      if (items) h += '<div class="fam-goal-col"><span>' + c[1] + "</span>" + items + "</div>";
+    });
+    return h + "</fieldset>";
+  }
+  /* swap the goal line in place, so hand edits elsewhere are kept; if it
+     was deleted by hand, it goes back in under the big question */
+  function patchGoal(el, text) {
+    var li = el.querySelector("[data-fam-goal]");
+    if (li) { li.textContent = text; return; }
+    var head = el.querySelector('[data-fam-head="reading"]'), ul = head && head.nextElementSibling;
+    if (!ul || ul.tagName !== "UL") return;
+    li = document.createElement("li"); li.setAttribute("data-fam-goal", ""); li.textContent = text;
+    var q = Array.prototype.filter.call(ul.children, function (x) { return /^Our big question:/.test(x.textContent); })[0];
+    ul.insertBefore(li, q ? q.nextSibling : ul.firstChild);
   }
   function copyFamily() {
     var el = document.querySelector("dialog.sheet .fam-prev");
@@ -1172,6 +1415,12 @@
     ".fam-bar{display:flex;justify-content:flex-end;margin:-4px 0 12px}" +
     ".fam-spell{display:flex;flex-direction:column;gap:4px;margin:4px 0 6px;font-size:13px;font-weight:600;color:var(--ink-2)}" +
     ".fam-spell textarea{font:inherit;font-weight:400;font-size:14.5px;color:var(--ink);background:var(--card);border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;resize:vertical;max-width:100%;box-sizing:border-box}" +
+    ".fam-goal{border:0;margin:6px 0 8px;padding:0;min-width:0}" +
+    ".fam-goal legend{font-size:13px;font-weight:600;color:var(--ink-2);padding:0;margin-bottom:4px}" +
+    ".fam-goal-col{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px}" +
+    ".fam-goal-col span{font-size:12.5px;color:var(--ink-3)}" +
+    ".fam-goal label{display:flex;align-items:flex-start;gap:8px;font-size:14.5px;color:var(--ink);line-height:1.35;padding:5px 0;min-height:32px;box-sizing:border-box}" +
+    ".fam-goal input{margin:2px 0 0;flex:none;width:18px;height:18px}" +
     ".fam-nav{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:14.5px}" +
     ".fam-prev{border:1.5px solid var(--line-2);border-radius:10px;padding:10px 14px;background:var(--card);color:var(--ink);font-family:var(--body);font-size:14.5px;line-height:1.5;max-height:52vh;overflow:auto;overflow-wrap:anywhere}" +
     ".fam-prev p{margin:8px 0 2px}.fam-prev ul{margin:2px 0 6px;padding-left:20px}.fam-prev li{margin:2px 0}" +
