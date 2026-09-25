@@ -897,6 +897,286 @@
     ".rv-table select{max-width:100%;font-size:14px;padding:5px 6px;border:1.5px solid var(--line-2);border-radius:8px;background:var(--card)}";
   document.head.appendChild(css);
 
+  /* ================= The week ahead, for families (v64) =================
+     A button on the Week tab builds bullet points for a family email:
+     Math from the Reveal guide, Reading and phonics from Benchmark (the
+     teacher's call: Benchmark's phonics skill and sight words match what the
+     class does in ECRI), and Science / SS from the topic line on its card.
+     Nothing comes from the day notes, which are where sub instructions and
+     other teacher-only things go. WIN Time is left out.
+
+     A week ahead is mostly unsaved days, so each subject is walked forward
+     the way the planner suggests a next day, one scheduled school day at a
+     time from the last day taught: a saved day is used as saved (skipped
+     means left out), a closed day or a day with no block for the subject is
+     passed over. The preview is editable, and copied as HTML with a plain
+     text copy beside it, so it pastes into an email as a bulleted list. */
+  var FAM = { start: null };
+  function famKey(d) { return key(d); }
+  function scheduled(sb, d) {
+    return (S.templates[d.getDay()] || []).some(function (b) { return b && b.s === sb.id; });
+  }
+  function lastTaughtBefore(sb, k) {
+    var ks = Object.keys(DAYS).filter(function (x) { return x < k; }).sort().reverse();
+    for (var i = 0; i < ks.length; i++) {
+      var r = DAYS[ks[i]], e = r && r.entries && r.entries[sb.id];
+      if (!r || !r.saved || r.noSchool) continue;
+      if (e && e.taught && e.pos) return { k: ks[i], pos: e.pos };
+    }
+    return null;
+  }
+  function nextPos(sb, p) { return sb.schema === "free" ? Object.assign({}, p) : window.advance(sb, p); }
+  /* { dateKey: {pos, taught} } for the subject on the school days from..to */
+  function project(sb, fromKey, toKey) {
+    var out = {}, base = lastTaughtBefore(sb, fromKey);
+    var pos = base ? nextPos(sb, base.pos) : Object.assign({}, sb.start);
+    var d = base ? addDays(parseKey(base.k), 1) : parseKey(fromKey), guard = 0;
+    while (famKey(d) <= toKey && guard++ < 400) {
+      var k = famKey(d);
+      if (dayStatus(d).school && scheduled(sb, d)) {
+        var r = DAYS[k], e = r && r.saved && r.entries && r.entries[sb.id];
+        if (e) {
+          if (k >= fromKey) out[k] = { pos: e.pos, taught: !!e.taught };
+          if (e.taught && e.pos) pos = nextPos(sb, e.pos);
+        } else {
+          if (k >= fromKey) out[k] = { pos: pos, taught: true };
+          pos = nextPos(sb, pos);
+        }
+      }
+      d = addDays(d, 1);
+    }
+    return out;
+  }
+  function weekStartFor(d) { return addDays(d, -((d.getDay() + 6) % 7)); }
+  /* the week the Week tab shows; from Friday on, "ahead" is the next one */
+  function defaultWeek() {
+    var today = new Date(), shown = weekStartFor(cursor), now = weekStartFor(today);
+    var dow = today.getDay();
+    if (famKey(shown) === famKey(now) && (dow === 5 || dow === 6 || dow === 0)) return addDays(now, 7);
+    return shown;
+  }
+  function mdy(d) { return MON[d.getMonth()] + " " + d.getDate(); }
+  function famPhrase(t) {
+    var x = String(t || "").trim().replace(/^I can\s+/i, "").replace(/[.\s]+$/, "");
+    return x ? x.charAt(0).toUpperCase() + x.slice(1) : "";
+  }
+  function uniq(a) { var o = []; a.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
+
+  /* [{ head, lines[] }] for the week starting Monday `mon` */
+  function familySections(mon) {
+    var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(mon, i); });
+    var from = famKey(days[0]), to = famKey(days[4]), out = [];
+    /* A general overview of the topics, not a day-by-day (v65, the
+       teacher's call): no weekdays, no closed-day lines, and the quick
+       check-ins (probes, diagnostics) left out as not topics. */
+
+    var m = sub("math");
+    if (m && m.on) {
+      var mp = project(m, from, to), lines = [], units = [], wrap = {};
+      Object.keys(mp).sort().forEach(function (k) {
+        var e = mp[k]; if (!e.taught) return;
+        var st = on(m) ? find(e.pos) : null;
+        if (!st) { var f = OWN.fmt(m, e.pos); if (f && f !== "\u2014") lines.push("Math " + f); return; }
+        var u = unit(st.u); if (u && units.indexOf(u) < 0) units.push(u);
+        if (st.k === "L") lines.push(famPhrase((st.tg || [])[0]) || st.t);
+        else if (st.k === "open") lines.push("Starting Unit " + st.u + ": " + (u ? u.title : ""));
+        else if (st.k === "review" || st.k === "assess") {
+          /* one line for a unit's review and test, where its first one fell */
+          var w0 = wrap[st.u];
+          if (!w0) { w0 = wrap[st.u] = { at: lines.length }; lines.push(""); }
+          w0[st.k] = true;
+          lines[w0.at] = w0.review && w0.assess ? "Unit " + st.u + " review and test"
+            : w0.assess ? "Unit " + st.u + " test" : "Reviewing Unit " + st.u;
+        }
+      });
+      lines = uniq(lines.filter(Boolean));
+      if (lines.length) out.push({ head: "Math" + (units.length ? " \u00b7 " + units.map(function (u) { return "Unit " + u.u + ", " + u.title; }).join(" \u2192 ") : ""), lines: lines });
+    }
+
+    var rd = sub("reading"), pl = [];
+    /* the spelling list is kept per Benchmark week, so next year that week
+       already has it; with no Benchmark week to go by, per calendar week */
+    var spellKey = "wk:" + from;
+    if (rd && rd.on) {
+      /* A calendar week often straddles two Benchmark weeks. Both at once
+         was seven texts, two phonics skills and twenty sight words, too much
+         for a family email, so this uses the Benchmark week that covers the
+         most of this week's Reading days (a tie goes to the later one). */
+      var rp = project(rd, from, to), weeks = [], count = {}, first = {};
+      Object.keys(rp).sort().forEach(function (k) {
+        var e = rp[k]; if (!e.taught || !e.pos) return;
+        var id = e.pos.unit + "|" + e.pos.week;
+        count[id] = (count[id] || 0) + 1; first[id] = first[id] || e.pos;
+      });
+      var best = null;
+      Object.keys(count).forEach(function (id) { if (!best || count[id] >= count[best]) best = id; });
+      if (best) weeks.push(first[best]);
+      var bm = window.BenchmarkScope && bmOn(rd);
+      /* v66, the teacher's call: no stories-and-texts line and no sight
+         words; the week's spelling words, pasted into the sheet, instead */
+      var rl = [], pl = [], rUnits = [], skills = [], words = [];
+      if (bm && weeks[0]) spellKey = "bm:" + weeks[0].unit + "|" + weeks[0].week;
+      weeks.forEach(function (p) {
+        var u = bm ? window.BenchmarkScope.unit(p.unit) : null, w = bm ? window.BenchmarkScope.week(p) : null;
+        if (u && rUnits.indexOf(u) < 0) rUnits.push(u);
+        if (w && w.phonics && w.phonics["Primary Skill"]) skills.push(w.phonics["Primary Skill"]);
+      });
+      rUnits.forEach(function (u) {
+        if (u.eq) rl.push("Our big question: " + u.eq);
+        words = words.concat(u.wordBank || []);
+      });
+      words = uniq(words);
+      if (words.length) rl.push("Words to listen for: " + words.join(", "));
+      if (!bm) weeks.forEach(function (p) { rl.push("Reading " + OWN.fmt(rd, p)); });
+      if (rl.length) out.push({ head: "Reading" + (rUnits.length ? " \u00b7 " + rUnits.map(function (u) { return "Unit " + u.u + ", " + u.title; }).join(" \u2192 ") : ""), lines: uniq(rl) });
+      uniq(skills).forEach(function (x) { pl.push("Sounds and spelling: " + x); });
+    }
+    var spell = parseSpelling(spellingStore()[spellKey]);
+    if (spell.length) pl.push({ t: spellLine(spell), spell: true });
+    if (pl.length) out.push({ head: "Phonics", id: "phonics", lines: pl });
+
+    var sc = sub("science");
+    if (sc && sc.on) {
+      var sp = project(sc, from, to), topics = [];
+      Object.keys(sp).sort().forEach(function (k) { var e = sp[k]; if (e.taught && e.pos && e.pos.text) topics.push(String(e.pos.text).trim()); });
+      topics = uniq(topics);
+      if (topics.length) out.push({ head: "Science and social studies", id: "science", lines: topics });
+    }
+    return { from: days[0], to: days[4], sections: out, spellKey: spellKey };
+  }
+  /* ---- spelling words (v66): pasted into the sheet, one list per week ---- */
+  function spellingStore() {
+    var rd = sub("reading");
+    return (rd && rd.spelling && typeof rd.spelling === "object") ? rd.spelling : FAM.spell || (FAM.spell = {});
+  }
+  /* one per line, or commas, or numbered: "1. boat", "- road", "• snow" */
+  function parseSpelling(t) {
+    return uniq(String(t || "").split(/[\n,;\t]+/).map(function (x) {
+      return x.replace(/^\s*(?:\d+\s*[.):-]|[-\u2022*\u00b7])\s*/, "").trim();
+    }).filter(Boolean));
+  }
+  function spellLine(words) { return "Spelling words to practice at home: " + words.join(", "); }
+  function saveSpelling(k, text) {
+    var rd = sub("reading");
+    var st = rd ? (rd.spelling && typeof rd.spelling === "object" ? rd.spelling : (rd.spelling = {})) : spellingStore();
+    if (String(text || "").trim()) st[k] = String(text); else delete st[k];
+    if (rd) persistSettings();
+  }
+  /* put the typed list into the preview without rebuilding it, so edits
+     made by hand elsewhere in it are kept */
+  function patchSpelling(el, words) {
+    var li = el.querySelector("[data-fam-spell]"), text = words.length ? spellLine(words) : "";
+    if (li) {
+      if (text) { li.textContent = text; return; }
+      var ul0 = li.parentNode; li.remove();
+      if (ul0 && !ul0.children.length) { var hd = ul0.previousElementSibling; ul0.remove(); if (hd && hd.hasAttribute("data-fam-head")) hd.remove(); }
+      return;
+    }
+    if (!text) return;
+    var head = el.querySelector('[data-fam-head="phonics"]'), ul = head && head.nextElementSibling && head.nextElementSibling.tagName === "UL" ? head.nextElementSibling : null;
+    if (!ul) {
+      head = document.createElement("p"); head.setAttribute("data-fam-head", "phonics"); head.innerHTML = "<b>Phonics</b>";
+      ul = document.createElement("ul");
+      var before = el.querySelector('[data-fam-head="science"]');
+      if (before) { el.insertBefore(head, before); el.insertBefore(ul, before); } else { el.appendChild(head); el.appendChild(ul); }
+    }
+    li = document.createElement("li"); li.setAttribute("data-fam-spell", ""); li.textContent = text;
+    ul.appendChild(li);
+  }
+  function familyHTML(r) {
+    var h = "<p>Here\u2019s a peek at what we\u2019re learning the week of " + e$(mdy(r.from)) + ".</p>";
+    r.sections.forEach(function (s) {
+      h += (s.head ? "<p" + (s.id ? ' data-fam-head="' + s.id + '"' : "") + "><b>" + e$(s.head) + "</b></p>" : "") + "<ul>" + s.lines.map(function (l) {
+        return typeof l === "object" ? "<li data-fam-spell>" + e$(l.t) + "</li>" : "<li>" + e$(l) + "</li>";
+      }).join("") + "</ul>";
+    });
+    if (!r.sections.length) h += "<p>Nothing is planned for this week yet.</p>";
+    return h;
+  }
+  /* the editable preview as plain text, for mail that takes no formatting */
+  function familyText(el) {
+    var t = [];
+    Array.prototype.forEach.call(el.children, function (n) {
+      if (n.tagName === "UL") Array.prototype.forEach.call(n.children, function (li) { t.push("\u2022 " + li.textContent.trim()); });
+      else { if (t.length) t.push(""); t.push(n.textContent.trim()); }
+    });
+    return t.join("\n");
+  }
+  function openFamily(mon) {
+    FAM.start = mon || FAM.start || defaultWeek();
+    var r = familySections(FAM.start);
+    openSheet(
+      "<h2>The week ahead, for families</h2>" +
+      '<div class="fam-nav"><button class="ghost" data-fam-wk="-7" aria-label="Previous week">\u2039</button>' +
+      "<b>" + e$(mdy(r.from) + " \u2013 " + mdy(r.to)) + '</b><button class="ghost" data-fam-wk="7" aria-label="Next week">\u203a</button></div>' +
+      '<label class="fam-spell">This week\u2019s spelling words<textarea id="fam-spell" rows="3" placeholder="Paste the list here: one per line, or separated by commas">' +
+        e$(spellingStore()[r.spellKey] || "") + "</textarea></label>" +
+      '<p class="hint">' + (/^bm:/.test(r.spellKey) ? "Kept with Benchmark Unit " + e$(r.spellKey.slice(3).replace("|", ", Week ")) + ", so it\u2019s here next year too. " : "") +
+        "Built from the planner and the Reveal and Benchmark guides. Your day notes are never included. Edit anything before you copy.</p>" +
+      '<div class="fam-prev" contenteditable="true" spellcheck="true">' + familyHTML(r) + "</div>" +
+      '<div class="sheetbar"><button class="ghost" data-sheet-cancel>Close</button><button class="primary" data-fam-copy>Copy for email</button></div>');
+    var ta = document.getElementById("fam-spell"), k = r.spellKey;
+    if (ta) ta.addEventListener("input", function () {
+      saveSpelling(k, ta.value);
+      var el = document.querySelector("dialog.sheet .fam-prev");
+      if (el) patchSpelling(el, parseSpelling(ta.value));
+    });
+  }
+  function copyFamily() {
+    var el = document.querySelector("dialog.sheet .fam-prev");
+    if (!el) return;
+    var html = el.innerHTML, text = familyText(el);
+    function fallback() {
+      try {
+        var rg = document.createRange(); rg.selectNodeContents(el);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg);
+        var okk = document.execCommand && document.execCommand("copy");
+        toast(okk ? "Copied. Paste it into your email." : "Selected. Copy it with \u2318C or Ctrl+C.");
+      } catch (x) { toast("Select the text and copy it."); }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        })]).then(function () { toast("Copied. Paste it into your email."); }, fallback);
+        return;
+      }
+    } catch (x) { }
+    fallback();
+  }
+  if (typeof window.renderWeek === "function") {
+    var ownWeek = window.renderWeek;
+    window.renderWeek = function () {
+      ownWeek.apply(this, arguments);
+      try {
+        var nav = main.querySelector(".datenav");
+        if (nav && !main.querySelector("[data-fam]")) {
+          var bar = document.createElement("div");
+          bar.className = "fam-bar";
+          bar.innerHTML = '<button class="ghost" data-fam>Week ahead for families</button>';
+          nav.insertAdjacentElement("afterend", bar);
+        }
+      } catch (x) { }
+    };
+  }
+  document.addEventListener("click", function (ev) {
+    var t = ev.target && ev.target.closest ? ev.target : null;
+    if (!t) return;
+    if (t.closest("[data-fam]")) { FAM.start = defaultWeek(); openFamily(FAM.start); return; }
+    var wk = t.closest("[data-fam-wk]");
+    if (wk) { openFamily(addDays(FAM.start, Number(wk.dataset.famWk))); return; }
+    if (t.closest("[data-fam-copy]")) copyFamily();
+  });
+  css.textContent +=
+    ".fam-bar{display:flex;justify-content:flex-end;margin:-4px 0 12px}" +
+    ".fam-spell{display:flex;flex-direction:column;gap:4px;margin:4px 0 6px;font-size:13px;font-weight:600;color:var(--ink-2)}" +
+    ".fam-spell textarea{font:inherit;font-weight:400;font-size:14.5px;color:var(--ink);background:var(--card);border:1.5px solid var(--line-2);border-radius:8px;padding:8px 10px;resize:vertical;max-width:100%;box-sizing:border-box}" +
+    ".fam-nav{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:14.5px}" +
+    ".fam-prev{border:1.5px solid var(--line-2);border-radius:10px;padding:10px 14px;background:var(--card);color:var(--ink);font-family:var(--body);font-size:14.5px;line-height:1.5;max-height:52vh;overflow:auto;overflow-wrap:anywhere}" +
+    ".fam-prev p{margin:8px 0 2px}.fam-prev ul{margin:2px 0 6px;padding-left:20px}.fam-prev li{margin:2px 0}" +
+    ".fam-prev:focus{outline:2px solid var(--ink-3);outline-offset:2px}";
+
   /* The planner boots asynchronously. If it has already drawn, draw again
      so Math picks all of this up; if not, its first render will. */
   try {
