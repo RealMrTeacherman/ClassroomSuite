@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Small Groups</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#EDF0F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="../groups-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../suite-icon-180.png">
+<script src="../suite-theme-boot.js"></script>
+<style>
+  /* The board is a projector surface: it keeps its own bright colours in
+     every suite look, the way the approved math board did. Only the setup
+     drawer and the arranging tray use the suite's own tokens. */
+  :root{
+    --paper:#EDF1F5; --card:#FFFFFF; --ink:#16202B; --ink-soft:#56677A; --rule:#CBD6E0;
+    --font:"Century Gothic","Questrial","Futura","Trebuchet MS","Verdana",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+
+  .board{min-height:100vh;height:100vh;display:flex;flex-direction:column;
+    padding:clamp(10px,1.2vw,20px);
+    padding-top:calc(clamp(10px,1.2vw,20px) + env(safe-area-inset-top,0px));
+    /* the corner switcher floats over the bottom right */
+    padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));
+    gap:clamp(8px,1vw,16px)}
+  html:fullscreen .board{padding-bottom:clamp(10px,1.2vw,20px)}
+  html:fullscreen #suitenav,html:fullscreen #suitebanner{display:none!important}
+
+  .bar{display:flex;align-items:center;gap:clamp(10px,1.5vw,24px);flex-wrap:wrap}
+  .title{font-size:clamp(1.3rem,2.4vw,2.4rem);font-weight:700;letter-spacing:.01em;margin:0;padding:2px 6px;border-radius:8px;outline:none}
+  .title:focus{background:#fff;box-shadow:0 0 0 3px #9BC4E8}
+  .spacer{flex:1 1 auto}
+  .board button,.drawer button,.tray button{font-family:inherit;font-size:clamp(.82rem,1.05vw,1.05rem);font-weight:700;color:var(--ink);
+    background:var(--card);border:2px solid var(--rule);border-radius:12px;padding:9px 14px;cursor:pointer}
+  .board button:hover,.drawer button:hover{border-color:#8FA3B5}
+  .board button:focus-visible,.drawer button:focus-visible{outline:3px solid #9BC4E8;outline-offset:2px}
+  .board button.primary,.drawer button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .board button.flag{border-color:#B01E55;color:#B01E55}
+
+  .grid{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(10px,1.2vw,20px);min-height:0}
+  .group{position:relative;display:flex;flex-direction:column;background:var(--card);border:4px solid var(--gc);border-radius:22px;
+    padding:clamp(10px,1.2vw,20px);min-height:0;overflow:hidden}
+  .group-head{display:flex;align-items:center;gap:clamp(8px,1vw,16px);min-width:0}
+  .medallion{flex:0 0 auto;width:clamp(58px,6.4vw,110px);height:clamp(58px,6.4vw,110px);border-radius:50%;background:var(--gt);
+    display:grid;place-items:center;border:3px solid var(--gc)}
+  .medallion svg{width:78%;height:78%;display:block}
+  .group-name{font-size:clamp(1.8rem,4.4vw,4.6rem);font-weight:700;line-height:.95;color:var(--gc);padding:2px 8px;border-radius:10px;outline:none;min-width:0;overflow-wrap:anywhere}
+  .group-name:focus{background:#F3F7FA;box-shadow:0 0 0 3px #9BC4E8}
+
+  .station-row{margin-top:clamp(8px,1vw,14px);display:flex;align-items:stretch;gap:6px;background:var(--sc);border-radius:16px;padding:6px}
+  .board .station-main{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:clamp(8px,1vw,16px);background:transparent;color:#fff;border:none;
+    border-radius:12px;padding:clamp(4px,.7vw,12px) clamp(6px,1vw,16px);text-align:left;cursor:pointer}
+  .board .station-main:hover{background:rgba(255,255,255,.15)}
+  .station-main svg{flex:0 0 auto;width:clamp(26px,2.9vw,52px);height:clamp(26px,2.9vw,52px)}
+  .station-label{font-size:clamp(1.15rem,2.5vw,2.7rem);font-weight:700;line-height:1.02;overflow-wrap:anywhere}
+  .page{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#fff;color:var(--sc);
+    border-radius:12px;padding:clamp(3px,.5vw,9px) clamp(8px,1vw,18px);min-width:clamp(66px,6.5vw,118px)}
+  .page-label{font-size:clamp(.6rem,.85vw,1rem);font-weight:700;line-height:1;opacity:.72}
+  .page-num{font-size:clamp(1.1rem,2.2vw,2.4rem);font-weight:700;line-height:1.05;min-width:1.6ch;text-align:center;border-radius:6px;outline:none}
+  .page-num:focus{box-shadow:0 0 0 3px #9BC4E8}
+  .page.blank{background:rgba(255,255,255,.18);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.65)}
+
+  .names{margin-top:clamp(8px,1vw,14px);padding-top:clamp(6px,.8vw,12px);border-top:2px dashed var(--rule);display:flex;flex-wrap:wrap;
+    gap:clamp(5px,.6vw,10px);align-content:flex-start;overflow:auto;min-height:0;flex:1 1 auto}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--gt);color:var(--ink);border-radius:999px;
+    padding:clamp(4px,.5vw,9px) clamp(10px,1.1vw,18px);font-size:clamp(.95rem,1.7vw,1.9rem);font-weight:700;line-height:1.1}
+  .arranging .chip.guest{box-shadow:inset 0 0 0 2px var(--gc)}
+  .arranging .chip.guest::after{content:"visitor";font-size:.5em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gc);opacity:.85}
+  .empty{color:var(--ink-soft);font-size:clamp(.9rem,1.4vw,1.3rem)}
+
+  /* ---------- arranging ---------- */
+  .arranging .group{border-style:dashed}
+  .arranging .chip{cursor:grab;user-select:none;-webkit-user-select:none}
+  .arranging .chip.sel{outline:4px solid #1F6FB2;outline-offset:2px}
+  .drop-hot{box-shadow:0 0 0 5px #9BC4E8 inset}
+  .board .chip .x{border:none;background:transparent;color:var(--gc);font-size:1em;line-height:1;padding:0 2px;cursor:pointer}
+  .board .add{border:2px dashed var(--rule);background:transparent;color:var(--ink-soft);border-radius:999px;
+    padding:clamp(4px,.5vw,9px) clamp(10px,1.1vw,18px);font-size:clamp(.85rem,1.3vw,1.3rem)}
+  .addform{display:inline-flex;gap:6px;align-items:center}
+  .addform input{font:inherit;font-size:1rem;padding:6px 10px;border:2px solid var(--rule);border-radius:999px;width:12ch}
+  .tray{background:var(--suite-panel,#fff);border:2px dashed #1F6FB2;border-radius:16px;padding:10px 12px;
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;--gt:#E6EEF6;--gc:#1F6FB2}
+  .tray[hidden],.report[hidden]{display:none}
+  .tray .lbl{font-weight:700;font-size:.95rem;color:#1F4E79;margin-right:6px}
+  .tray .chip{font-size:clamp(.9rem,1.3vw,1.3rem)}
+  .tray .hint{font-size:.85rem;color:var(--ink-soft);flex-basis:100%}
+
+  /* ---------- picker ---------- */
+  .picker{position:fixed;z-index:40;background:var(--card);border:2px solid var(--rule);border-radius:16px;padding:8px;
+    box-shadow:0 14px 34px rgba(22,32,43,.22);display:none;min-width:min(320px,86vw)}
+  .picker.open{display:block}
+  .picker button{display:flex;align-items:center;gap:10px;width:100%;border:none;background:transparent;padding:10px 12px;border-radius:12px;
+    text-align:left;font:700 1.05rem var(--font);color:var(--ink);cursor:pointer}
+  .picker button:hover{background:#EEF3F7}
+  .swatch{width:20px;height:20px;border-radius:6px;flex:0 0 auto;display:inline-block}
+
+  /* ---------- setup drawer ---------- */
+  .drawer{display:none;background:var(--card);border:2px solid var(--rule);border-radius:16px;padding:clamp(10px,1.2vw,18px);
+    max-height:60vh;overflow:auto;font-family:var(--suite-sans,system-ui,sans-serif)}
+  .drawer.open{display:block}
+  .drawer h2{font-size:1rem;margin:16px 0 8px;font-weight:700}
+  .drawer h2:first-child{margin-top:0}
+  .fields{display:flex;flex-wrap:wrap;gap:10px}
+  .field{display:flex;align-items:center;gap:8px;background:#F5F8FA;border-radius:12px;padding:6px 10px}
+  .field input[type=text]{font-family:inherit;font-weight:700;font-size:1rem;color:var(--ink);border:none;background:transparent;outline:none;width:12ch}
+  .field input[type=text]:focus{box-shadow:0 0 0 3px #9BC4E8;border-radius:6px}
+  .pagetoggle{display:flex;align-items:center;gap:5px;font-size:.82rem;font-weight:700;color:var(--ink-soft);padding-left:6px;border-left:2px solid var(--rule);cursor:pointer}
+  .drawer .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;align-items:center}
+  .drawer .note{font-size:.9rem;color:var(--ink-soft);margin:8px 0 0;line-height:1.5}
+  .drawer textarea{width:100%;height:64px;font:.8rem/1.4 ui-monospace,Consolas,monospace;border:2px solid var(--rule);border-radius:12px;padding:8px 10px;background:#F5F8FA}
+  .status{font-size:.9rem;font-weight:700;color:#0F6B6B}
+  .status.warn{color:#B01E55}
+  .report{font-size:.9rem;line-height:1.5;margin:8px 0 0;padding-left:18px}
+  .drawer a{color:#0F6B6B;font-weight:700}
+
+  @media (max-width:820px){
+    .grid{grid-template-columns:1fr;grid-template-rows:repeat(4,minmax(180px,1fr))}
+    .board{height:auto}
+    .drawer{max-height:none}
+  }
+  @media (pointer:coarse){ .addform input,.field input[type=text],.drawer textarea{font-size:16px} }
+  @media print{
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{background:#fff}
+    .bar,.drawer,.picker,.tray,.add,.x{display:none!important}
+    .page.blank{display:none}
+    .board{height:auto;padding:0}
+    .group{break-inside:avoid}
+  }
+  /* ---------- reading groups (v73) ----------
+     A desk tool, not a projector one: it keeps the volunteer tracker's
+     quiet look, and every class is prefixed r- so nothing collides with
+     the math board's .board, .page or .field. */
+  body.tab-reading{background:#DDE2DE}
+  body.tab-reading #board,body.tab-math #reading{display:none!important}
+  #reading{--r-ink:#22282A;--r-soft:#56666A;--r-rule:#BCC5C0;--r-focus:#2F6F8F;color:var(--r-ink);
+    font:15px/1.45 "Segoe UI",Roboto,-apple-system,Helvetica,Arial,sans-serif;
+    padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  #reading button,#reading input,#reading select{font:inherit;color:inherit}
+  #reading .r-btn{padding:8px 14px;border:1px solid var(--r-rule);border-radius:3px;background:#fff;cursor:pointer}
+  #reading .r-btn:hover{background:#F2F5F3}
+  #reading .r-btn.r-primary{background:var(--r-ink);color:#fff;border-color:var(--r-ink);font-weight:600}
+  .r-bar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;padding:16px 22px;background:#fff;border-bottom:1px solid var(--r-rule)}
+  .r-bar h1{margin:0;font-size:21px;font-weight:600;line-height:1.1}
+  .r-bar h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--r-soft)}
+  .r-bar .spacer{flex:1 1 auto}
+  .r-rail{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 22px;background:#E6EAE7;border-bottom:1px solid var(--r-rule)}
+  .r-rail .lbl{font-size:12.5px;color:var(--r-soft);margin-right:4px}
+  #reading .r-utab{min-width:38px;padding:6px 9px;border:1px solid var(--r-rule);background:#fff;border-radius:3px;cursor:pointer;line-height:1.1;text-align:center}
+  .r-utab b{display:block;font-size:13.5px;font-weight:600}
+  .r-utab i{display:block;font-size:10px;font-style:normal;color:var(--r-soft)}
+  #reading .r-utab.on{background:var(--r-ink);border-color:var(--r-ink);color:#fff}
+  .r-utab.on i{color:#C8D2CE}
+  .r-strip{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:flex-end;padding:12px 22px;background:#EFF2F0;border-bottom:1px solid var(--r-rule);font-size:13.5px}
+  .r-field{display:flex;flex-direction:column;gap:4px}
+  .r-field label,.r-field .lab{font-size:12px;color:var(--r-soft)}
+  .r-field input,.r-field select{padding:6px 8px;border:1px solid var(--r-rule);border-radius:3px;background:#fff}
+  .r-wk{display:flex;gap:6px}
+  .r-wk input{width:92px}
+  .r-days{display:flex;gap:9px;align-items:center;color:var(--r-soft)}
+  .r-day{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  #r-blanks{width:56px}
+  .r-note{margin:10px 22px 0;padding:10px 14px;background:#fff;border:1px solid var(--r-rule);border-radius:4px;font-size:13.5px}
+  .r-note ul{margin:6px 0 0;padding-left:18px}
+  .r-note[hidden],.r-loose[hidden],.r-move[hidden]{display:none}
+  .r-loose{margin:12px 22px 0;padding:8px 10px;border:2px dashed var(--r-focus);border-radius:4px;background:#fff;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .r-loose .lbl{font-weight:600;font-size:13.5px;margin-right:6px}
+  .r-loose .r-kid{flex:0 0 auto}
+  .r-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:14px 22px 6px}
+  @media (max-width:900px){.r-board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:520px){.r-board{grid-template-columns:1fr}}
+  .r-col{background:#fff;border:1px solid var(--r-rule);border-radius:4px;display:flex;flex-direction:column;min-height:200px}
+  .r-col.drop,.r-loose.drop{box-shadow:inset 0 0 0 2px var(--r-focus)}
+  .r-head{padding:9px 11px;border-bottom:1px solid rgba(0,0,0,.14);border-radius:3px 3px 0 0}
+  .r-head .nm{font-weight:700;font-size:15px}
+  .r-head .count{float:right;font-size:12px;font-weight:600;opacity:.7}
+  .r-head input{width:100%;margin-top:4px;border:0;border-bottom:1px dotted rgba(0,0,0,.3);background:transparent;font-size:12.5px;padding:2px 0}
+  .r-list{list-style:none;margin:0;padding:8px;display:flex;flex-direction:column;gap:5px;flex:1}
+  .r-kid{display:flex;align-items:center;gap:8px;padding:6px 9px;background:#fff;border:1px solid var(--r-rule);border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none}
+  .r-kid.sel{border-color:var(--r-focus);box-shadow:inset 0 0 0 1px var(--r-focus);background:#EEF6FA}
+  .r-kid .grip{color:#9AA8A2;font-size:12px}
+  .r-kid .v{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--r-soft);margin-left:auto}
+  .r-empty{padding:10px;color:var(--r-soft);font-size:13px;font-style:italic}
+  .r-add{display:flex;gap:5px;padding:0 8px 9px}
+  .r-add input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--r-rule);border-radius:3px}
+  #reading .r-add button{padding:6px 10px;border:1px solid var(--r-rule);background:#F2F5F3;border-radius:3px;cursor:pointer}
+  .r-move{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    margin:0 22px 14px;padding:10px 14px;background:var(--r-ink);color:#fff;border-radius:4px}
+  .r-move .who{font-weight:600}
+  #reading .r-move button{padding:5px 11px;border:0;border-radius:3px;cursor:pointer;background:#EDEFEE;color:var(--r-ink)}
+  #reading .r-move button.out{background:#5E3235;color:#fff}
+  .r-pv{padding:6px 22px 40px}
+  .r-pv h2{font-size:13px;font-weight:600;color:var(--r-soft);margin:0 0 9px}
+  #r-scaler{transform-origin:top left}
+  #r-sheets{display:flex;flex-direction:column;gap:18px}
+  .r-page{width:8.1in;height:10.5in;background:#fff;position:relative;font-family:Calibri,"Segoe UI",Arial,sans-serif;color:#000;
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+  .r-page::before,.r-page::after{content:"";position:absolute;pointer-events:none}
+  .r-page::before{left:0;right:0;top:50%;border-top:1px dashed #B7B7B7}
+  .r-page::after{top:0;bottom:0;left:50%;border-left:1px dashed #B7B7B7}
+  .r-card{padding:.13in;display:flex;flex-direction:column;overflow:hidden}
+  .r-chead{display:flex;align-items:center;gap:.08in;border:1px solid #666;padding:.05in .08in;min-height:.3in}
+  .r-chead .gname{font-weight:700;font-size:11.5pt;line-height:1.05}
+  .r-chead .gsub{font-size:7.5pt;line-height:1.15}
+  .r-chead .wk{margin-left:auto;text-align:right;white-space:nowrap}
+  .r-chead .wk .u{font-size:7pt;line-height:1.15}
+  .r-chead .wk .w{font-size:8.5pt;line-height:1.15}
+  .r-legend{font-size:6.8pt;font-style:italic;color:#3d3d3d;margin:.055in 0 .03in}
+  table.r-t{width:100%;border-collapse:collapse;table-layout:fixed;display:table}
+  table.r-t th,table.r-t td{border:.5pt solid #7F7F7F;padding:1px 3px;font-size:8pt;vertical-align:top}
+  table.r-t th{font-size:7.5pt;font-weight:700;text-align:left;vertical-align:middle}
+  table.r-t td.nm{font-size:8.5pt;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  table.r-t th.d,table.r-t td.d{text-align:center}
+  table.r-t td.day{text-align:center;font-weight:700;font-size:8pt;vertical-align:middle}
+  .r-roster tr{height:.215in}
+  .r-log{margin-top:.07in;flex:1;display:flex;flex-direction:column}
+  .r-log table{height:100%;flex:1}
+  .r-notes{font-size:6.8pt;font-style:italic;color:#3d3d3d;margin:.06in 0 0}
+  .r-rule{border-bottom:.5pt solid #7F7F7F;height:.185in}
+  .r-page,.r-page *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media (pointer:coarse){ #reading input,#reading select{font-size:16px} }
+  @media print{
+    body.tab-reading{background:#fff}
+    body.tab-reading #reading{padding:0}
+    body.tab-reading .r-bar,body.tab-reading .r-rail,body.tab-reading .r-strip,body.tab-reading .r-board,
+    body.tab-reading .r-move,body.tab-reading .r-loose,body.tab-reading .r-note,body.tab-reading .r-pv h2{display:none!important}
+    body.tab-reading .r-pv{padding:0}
+    #r-scaler{transform:none!important;height:auto!important}
+    #r-sheets{display:block}
+    .r-page{box-shadow:none;break-after:page;page-break-after:always}
+    .r-page:last-child{break-after:auto;page-break-after:auto}
+  }
+  @media print{ @page{size:letter;margin:.2in} #suitebanner{display:none!important} }
+</style>
+<link rel="stylesheet" href="../suite-theme.css">
+<script src="../suite-sync.js"></script>
+<script src="../suite-nav.js" defer></script>
+<script src="../suite-boot.js" defer></script>
+<script src="sub-deck-template.js" defer></script>
+<script src="sub-slides.js" defer></script>
+</head>
+<body class="tab-math">
+
+<div class="board" id="board">
+  <div class="bar">
+    <h1 class="title" id="title" contenteditable="true" spellcheck="false">Math Groups</h1>
+    <div class="spacer"></div>
+    <div class="tools">
+      <button id="rotate" class="primary" title="Move every group to the next station (R)">Rotate stations</button>
+      <button id="arrange">Arrange groups</button>
+      <button id="toReading">Reading groups</button>
+      <button id="settings">Setup</button>
+      <button id="full" title="Full screen (F)">Full screen</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <h2>Sub plans</h2>
+    <div class="row" style="margin-top:0">
+      <button id="slides" class="primary">Download sub slides (.pptx)</button>
+      <span class="status" id="slideStatus" role="status"></span>
+    </div>
+    <p class="note">Makes the four-rotation deck for a substitute from this board as it is now: your group names, today’s students, your station names and every page number. It opens in PowerPoint, and Google Slides takes it through File &rarr; Import slides or by uploading it to Drive.</p>
+
+    <h2>Students</h2>
+    <p class="note" id="rosterNote"></p>
+
+    <h2>Station names</h2>
+    <div class="fields" id="stationFields"></div>
+    <div class="row">
+      <button id="lineupBtn">Line up the starting order</button>
+      <span class="note" style="margin:0">Sends Fox to the first station, Bear to the second, and so on.</span>
+    </div>
+
+    <h2>Bring in your old math board</h2>
+    <p class="note">On the old board, open Settings and choose <b>Save backup file</b> or <b>Copy this board’s code</b>. Bring either one in here. Each name is matched to a student in your gradebook; a name that matches no one comes in as a visitor, so nothing is lost.</p>
+    <textarea id="code" spellcheck="false" autocomplete="off" aria-label="Old board code" placeholder="Paste the old board’s code here"></textarea>
+    <div class="row">
+      <button id="applyCode">Bring in the pasted code</button>
+      <button id="upload">Open a backup file</button>
+      <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
+      <span class="status" id="status" role="status"></span>
+    </div>
+    <ul class="report" id="report" hidden></ul>
+    <p class="note">Shortcuts: <b>R</b> rotates stations, <b>F</b> goes full screen. Click a coloured station bar to send one group somewhere else. Everything here saves and syncs with the rest of the suite.</p>
+  </div>
+
+  <div class="tray" id="tray" hidden></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<section id="reading" aria-label="Reading groups">
+  <div class="r-bar">
+    <h1>Reading groups<small>Volunteer cards. Ten units, three weeks each. Names come from the gradebook.</small></h1>
+    <div class="spacer"></div>
+    <button class="r-btn" id="r-toMath">Math board</button>
+    <button class="r-btn" id="r-import">Bring in the old reading tool’s backup</button>
+    <input type="file" id="r-file" accept="application/json,.json" hidden>
+    <button class="r-btn r-primary" id="r-print">Print</button>
+  </div>
+  <nav class="r-rail" id="r-rail" aria-label="Units"></nav>
+  <div class="r-strip">
+    <div class="r-field"><label for="r-uname">Unit name</label><input type="text" id="r-uname" placeholder="e.g. Fables" size="16"></div>
+    <div class="r-field"><label for="r-ustart">Monday of week 1</label><input type="date" id="r-ustart"></div>
+    <div class="r-field"><span class="lab">Week labels on the cards</span>
+      <div class="r-wk">
+        <input type="text" id="r-w0" placeholder="Week 1" aria-label="Week 1 label">
+        <input type="text" id="r-w1" placeholder="Week 2" aria-label="Week 2 label">
+        <input type="text" id="r-w2" placeholder="Week 3" aria-label="Week 3 label">
+      </div></div>
+    <div class="r-field"><label for="r-copy">Start these groups from</label><select id="r-copy"></select></div>
+    <div class="r-field"><label for="r-scope">Print</label>
+      <select id="r-scope"><option value="unit">Whole unit — 3 sheets</option><option value="0">Week 1 only</option><option value="1">Week 2 only</option><option value="2">Week 3 only</option></select></div>
+    <div class="r-days"><span>Days</span><span id="r-dayBoxes"></span></div>
+    <div class="r-field"><label for="r-blanks">Blank rows</label><input type="number" id="r-blanks" min="0" max="6" value="1"></div>
+  </div>
+  <div class="r-note" id="r-report" role="status" hidden></div>
+  <div class="r-loose" id="r-loose" hidden></div>
+  <div class="r-board" id="r-board"></div>
+  <div class="r-move" id="r-move" hidden></div>
+  <div class="r-pv">
+    <h2 id="r-pvTitle">Print preview</h2>
+    <div id="r-scaler"><div id="r-sheets"></div></div>
+  </div>
+</section>
+
+<div class="picker" id="picker" role="menu" aria-label="Choose a station"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var KEY = "suite:groups:v1";
+  var ROSTER_KEY = "gb2_standards_v1";
+  var ANIMALS = {
+    fox: { color: "#C9481E", tint: "#FBE7DE" }, bear: { color: "#6E4630", tint: "#F2E7E0" },
+    tiger: { color: "#D08207", tint: "#FDF0D9" }, lion: { color: "#A9722B", tint: "#F7EBD9" }
+  };
+  var ORDER = ["fox", "bear", "tiger", "lion"];
+  var STATION_COLORS = ["#0F6B6B", "#4B3FA8", "#B01E55", "#2E6B2E"];
+
+  /* ---------------- data ----------------
+     suite:groups:v1 = { v:1, math:{ title, stations[4], pageStations[4],
+       groups:[{animal,name,station,pages:{stationIndex:text}}] x4,
+       place:{ gradebookStudentId: groupIndex },
+       guests:{ id:{ name, group } } } }
+     Names are never stored here: a student is a gradebook id, so renaming
+     or removing someone in the gradebook shows up on this board at once.
+     place and guests are maps keyed by id so the suite's merge takes each
+     student's move on its own, whichever device made it. */
+  function defaults() {
+    return { v: 1, math: {
+      title: "Math Groups",
+      stations: ["Teacher Table", "iReady Goal", "Desk Work", "McGraw Hill"],
+      pageStations: [false, false, true, false],
+      groups: ORDER.map(function (a, i) { return { animal: a, name: a.charAt(0).toUpperCase() + a.slice(1), station: i, pages: {} }; }),
+      place: {}, guests: {}
+    } };
+  }
+  function normalize(o) {
+    var d = defaults();
+    if (!o || typeof o !== "object" || !o.math) return d;
+    var m = o.math, out = d.math;
+    if (typeof m.title === "string" && m.title.trim()) out.title = m.title;
+    if (Array.isArray(m.stations) && m.stations.length === 4) out.stations = m.stations.map(function (s, i) { return String(s || "Station " + (i + 1)); });
+    if (Array.isArray(m.pageStations) && m.pageStations.length === 4) out.pageStations = m.pageStations.map(Boolean);
+    if (Array.isArray(m.groups)) out.groups = out.groups.map(function (g, i) {
+      var s = m.groups[i] || {};
+      return { animal: g.animal, name: (typeof s.name === "string" && s.name.trim()) ? s.name : g.name,
+        station: (typeof s.station === "number" && s.station >= 0 && s.station < 4) ? s.station : i,
+        pages: (s.pages && typeof s.pages === "object") ? s.pages : {} };
+    });
+    if (m.place && typeof m.place === "object") Object.keys(m.place).forEach(function (k) {
+      var v = m.place[k]; if (typeof v === "number" && v >= 0 && v < 4) out.place[k] = v;
+    });
+    if (m.guests && typeof m.guests === "object") Object.keys(m.guests).forEach(function (k) {
+      var g = m.guests[k];
+      if (g && typeof g.name === "string" && typeof g.group === "number" && g.group >= 0 && g.group < 4) out.guests[k] = { name: g.name.slice(0, 40), group: g.group };
+    });
+    return { v: 1, math: out };
+  }
+
+  var G = defaults();
+  var M = function () { return G.math; };
+  function load() {
+    try { var raw = localStorage.getItem(KEY); G = normalize(raw ? JSON.parse(raw) : null); } catch (e) { G = defaults(); }
+  }
+  var saveT = null;
+  function save() {
+    clearTimeout(saveT);
+    saveT = setTimeout(saveNow, 200);
+  }
+  function saveNow() {
+    clearTimeout(saveT);
+    try { localStorage.setItem(KEY, JSON.stringify(G)); } catch (e) { say("Could not save \u2014 browser storage may be full.", true); }
+  }
+
+  /* The roster is the gradebook's. Read-only here. */
+  var roster = [];
+  function readRoster() {
+    var list = [];
+    try {
+      var raw = localStorage.getItem(ROSTER_KEY);
+      var st = raw ? JSON.parse(raw) : null;
+      (st && Array.isArray(st.students) ? st.students : []).forEach(function (s) {
+        if (!s || !s.id) return;
+        list.push({ id: String(s.id), first: String(s.first || "").trim(), last: String(s.last || "").trim() });
+      });
+    } catch (e) { }
+    /* A first name alone on the board, as before; where two children share
+       one, each gets a last initial. */
+    var count = {};
+    list.forEach(function (s) { var k = s.first.toLowerCase(); count[k] = (count[k] || 0) + 1; });
+    list.forEach(function (s) {
+      s.label = s.first || s.last || "(no name)";
+      if (s.first && count[s.first.toLowerCase()] > 1 && s.last) s.label = s.first + " " + s.last.charAt(0) + ".";
+    });
+    list.sort(function (a, b) { return a.label.localeCompare(b.label); });
+    roster = list;
+  }
+  function byId(id) { for (var i = 0; i < roster.length; i++) if (roster[i].id === id) return roster[i]; return null; }
+
+  function members(gi) {
+    var m = M(), out = [];
+    roster.forEach(function (s) { if (m.place[s.id] === gi) out.push({ kind: "student", id: s.id, label: s.label }); });
+    Object.keys(m.guests).forEach(function (k) { if (m.guests[k].group === gi) out.push({ kind: "guest", id: k, label: m.guests[k].name }); });
+    out.sort(function (a, b) { return a.label.localeCompare(b.label); });
+    return out;
+  }
+  function unplaced() { var m = M(); return roster.filter(function (s) { return typeof m.place[s.id] !== "number"; }); }
+
+  /* ---------------- art (unchanged from the approved board) ---------------- */
+  function animalSVG(kind) {
+    var s = function (b) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + "</svg>"; };
+    if (kind === "fox") return s('<path d="M16 10 L38 24 L24 40 Z" fill="#8F3214"/><path d="M84 10 L62 24 L76 40 Z" fill="#8F3214"/>' +
+      '<path d="M50 18 C28 18 16 30 21 48 C26 66 38 80 50 88 C62 80 74 66 79 48 C84 30 72 18 50 18 Z" fill="#C9481E"/>' +
+      '<path d="M50 52 C41 52 35 62 39 71 C43 80 47 85 50 88 C53 85 57 80 61 71 C65 62 59 52 50 52 Z" fill="#FBEFE7"/>' +
+      '<ellipse cx="37" cy="47" rx="4.6" ry="5.4" fill="#2B1710"/><ellipse cx="63" cy="47" rx="4.6" ry="5.4" fill="#2B1710"/><path d="M50 60 L56 66 L44 66 Z" fill="#2B1710"/>');
+    if (kind === "bear") return s('<circle cx="24" cy="28" r="15" fill="#5A3826"/><circle cx="24" cy="28" r="7.5" fill="#C8A489"/>' +
+      '<circle cx="76" cy="28" r="15" fill="#5A3826"/><circle cx="76" cy="28" r="7.5" fill="#C8A489"/><circle cx="50" cy="56" r="31" fill="#6E4630"/>' +
+      '<ellipse cx="50" cy="69" rx="18" ry="13" fill="#E3CDBB"/><ellipse cx="50" cy="62" rx="6.4" ry="4.8" fill="#2B1710"/>' +
+      '<circle cx="38" cy="48" r="4.2" fill="#2B1710"/><circle cx="62" cy="48" r="4.2" fill="#2B1710"/>');
+    if (kind === "tiger") return s('<circle cx="24" cy="26" r="12" fill="#A1600A"/><circle cx="24" cy="26" r="6" fill="#F6D9A0"/>' +
+      '<circle cx="76" cy="26" r="12" fill="#A1600A"/><circle cx="76" cy="26" r="6" fill="#F6D9A0"/><circle cx="50" cy="55" r="31" fill="#D08207"/>' +
+      '<path d="M50 24 L46 36 L54 36 Z" fill="#2B1710"/><path d="M28 40 L40 44 L27 48 Z" fill="#2B1710"/><path d="M72 40 L60 44 L73 48 Z" fill="#2B1710"/>' +
+      '<path d="M24 56 L37 57 L24 62 Z" fill="#2B1710"/><path d="M76 56 L63 57 L76 62 Z" fill="#2B1710"/>' +
+      '<ellipse cx="42" cy="68" rx="12" ry="9" fill="#FBF1E2"/><ellipse cx="58" cy="68" rx="12" ry="9" fill="#FBF1E2"/>' +
+      '<path d="M50 58 L57 64 L43 64 Z" fill="#2B1710"/><circle cx="38" cy="50" r="4.2" fill="#2B1710"/><circle cx="62" cy="50" r="4.2" fill="#2B1710"/>');
+    var mane = "";
+    for (var i = 0; i < 13; i++) {
+      var a = (i / 13) * Math.PI * 2;
+      mane += '<circle cx="' + (50 + Math.cos(a) * 31).toFixed(1) + '" cy="' + (52 + Math.sin(a) * 31).toFixed(1) + '" r="11" fill="#8E5C1F"/>';
+    }
+    return s(mane + '<circle cx="50" cy="52" r="30" fill="#A9722B"/><circle cx="50" cy="53" r="23" fill="#EBC788"/>' +
+      '<ellipse cx="43" cy="64" rx="10" ry="7.5" fill="#FBF1E2"/><ellipse cx="57" cy="64" rx="10" ry="7.5" fill="#FBF1E2"/>' +
+      '<path d="M50 55 L56 61 L44 61 Z" fill="#2B1710"/><circle cx="41" cy="48" r="3.8" fill="#2B1710"/><circle cx="59" cy="48" r="3.8" fill="#2B1710"/>');
+  }
+  function stationSVG(i) {
+    var w = 'fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"';
+    var o = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+    if (i === 0) return o + '<circle cx="12" cy="5.4" r="2.6" ' + w + '/><path d="M7.2 12.4a4.8 4.8 0 0 1 9.6 0" ' + w + '/><path d="M3 15.4h18M5.6 15.4V21M18.4 15.4V21" ' + w + "/></svg>";
+    if (i === 1) return o + '<rect x="3" y="4.5" width="18" height="12" rx="1.8" ' + w + '/><path d="M1.6 19.5h20.8" ' + w + '/><circle cx="12" cy="10.5" r="3.4" ' + w + '/><circle cx="12" cy="10.5" r="1" fill="currentColor"/></svg>';
+    if (i === 2) return o + '<path d="M5 3.5h9.5L19 8v12.5H5z" ' + w + '/><path d="M14.5 3.5V8H19" ' + w + '/><path d="M8 12.5h8M8 16.5h5.5" ' + w + "/></svg>";
+    return o + '<path d="M12 6.4C10 4.6 7.4 4.1 4.5 4.3v13c2.9-.2 5.5.3 7.5 2.1 2-1.8 4.6-2.3 7.5-2.1v-13c-2.9-.2-5.5.3-7.5 2.1z" ' + w + '/><path d="M12 6.4v13.1" ' + w + "/></svg>";
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  /* ---------------- render ---------------- */
+  var grid = document.getElementById("grid");
+  var tray = document.getElementById("tray");
+  var arranging = false, selected = null, adding = null;
+
+  function render() {
+    var m = M();
+    var titleEl = document.getElementById("title");
+    if (document.activeElement !== titleEl) titleEl.textContent = m.title;
+    document.getElementById("board").classList.toggle("arranging", arranging);
+    var loose = unplaced().length;
+    var ab = document.getElementById("arrange");
+    ab.textContent = arranging ? "Done arranging" : (loose ? "Arrange groups (" + loose + " not placed)" : "Arrange groups");
+    ab.classList.toggle("flag", !arranging && loose > 0);
+
+    grid.innerHTML = "";
+    m.groups.forEach(function (g, gi) {
+      var a = ANIMALS[g.animal], si = g.station;
+      var card = document.createElement("section");
+      card.className = "group";
+      card.dataset.group = gi;
+      card.style.setProperty("--gc", a.color);
+      card.style.setProperty("--gt", a.tint);
+      card.style.setProperty("--sc", STATION_COLORS[si]);
+
+      var head = document.createElement("div");
+      head.className = "group-head";
+      head.innerHTML = '<div class="medallion">' + animalSVG(g.animal) + "</div>";
+      var nameEl = document.createElement("div");
+      nameEl.className = "group-name";
+      nameEl.textContent = g.name;
+      nameEl.contentEditable = "true";
+      nameEl.spellcheck = false;
+      nameEl.setAttribute("aria-label", "Group name");
+      nameEl.addEventListener("blur", function () { g.name = nameEl.textContent.trim() || g.name; nameEl.textContent = g.name; save(); });
+      nameEl.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); nameEl.blur(); } });
+      head.appendChild(nameEl);
+      card.appendChild(head);
+
+      var row = document.createElement("div");
+      row.className = "station-row";
+      var st = document.createElement("button");
+      st.className = "station-main";
+      st.innerHTML = stationSVG(si) + '<span class="station-label">' + esc(m.stations[si]) + "</span>";
+      st.setAttribute("aria-label", "Change station for " + g.name);
+      st.addEventListener("click", function (e) { e.stopPropagation(); openPicker(row, gi); });
+      row.appendChild(st);
+      if (m.pageStations[si]) {
+        var val = g.pages[si] ? String(g.pages[si]) : "";
+        var pg = document.createElement("div");
+        pg.className = "page" + (val ? "" : " blank");
+        pg.innerHTML = '<span class="page-label">Page</span>';
+        var num = document.createElement("span");
+        num.className = "page-num";
+        num.textContent = val || "+";
+        num.contentEditable = "true";
+        num.spellcheck = false;
+        num.setAttribute("role", "textbox");
+        num.setAttribute("aria-label", "Page number for " + g.name);
+        num.addEventListener("focus", function () { if (!val) num.textContent = ""; });
+        num.addEventListener("blur", function () { g.pages[si] = num.textContent.replace(/\s+/g, " ").trim(); save(); render(); });
+        num.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); num.blur(); } });
+        pg.appendChild(num);
+        row.appendChild(pg);
+      }
+      card.appendChild(row);
+
+      var names = document.createElement("div");
+      names.className = "names";
+      var list = members(gi);
+      if (!list.length && !arranging) names.innerHTML = '<span class="empty">No one in this group yet \u2014 choose \u201cArrange groups\u201d.</span>';
+      list.forEach(function (p) { names.appendChild(chip(p)); });
+      if (arranging) names.appendChild(adding === gi ? addForm(gi) : addButton(gi));
+      card.appendChild(names);
+      makeTarget(card, gi);
+      grid.appendChild(card);
+    });
+    renderTray();
+    rosterNote();
+  }
+
+  function chip(p) {
+    var c = document.createElement("span");
+    c.className = "chip" + (p.kind === "guest" ? " guest" : "") + (selected && selected.id === p.id ? " sel" : "");
+    var t = document.createElement("span");
+    t.textContent = p.label;
+    c.appendChild(t);
+    if (arranging) {
+      c.draggable = true;
+      c.tabIndex = 0;
+      c.setAttribute("role", "button");
+      c.setAttribute("aria-label", p.label + (p.kind === "guest" ? ", visitor" : "") + ". Select, then choose a group to move to.");
+      c.addEventListener("dragstart", function (e) { selected = p; try { e.dataTransfer.setData("text/plain", p.id); e.dataTransfer.effectAllowed = "move"; } catch (x) { } });
+      c.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selected = (selected && selected.id === p.id) ? null : p;
+        render();
+      });
+      c.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); c.click(); } });
+      var x = document.createElement("button");
+      x.className = "x";
+      x.textContent = "\u00d7";
+      x.title = p.kind === "guest" ? "Remove " + p.label : "Take " + p.label + " out of this group";
+      x.addEventListener("click", function (e) { e.stopPropagation(); moveTo(p, -1); });
+      c.appendChild(x);
+    }
+    return c;
+  }
+  function addButton(gi) {
+    var b = document.createElement("button");
+    b.className = "add";
+    b.textContent = "+ Visitor";
+    b.title = "Someone who joins this group but is not in your gradebook, such as a Walk to Math student";
+    b.addEventListener("click", function (e) { e.stopPropagation(); adding = gi; render(); var i = grid.querySelector(".addform input"); if (i) i.focus(); });
+    return b;
+  }
+  function addForm(gi) {
+    var f = document.createElement("span");
+    f.className = "addform";
+    var i = document.createElement("input");
+    i.placeholder = "Visitor\u2019s name";
+    i.maxLength = 40;
+    i.setAttribute("aria-label", "Visitor's name");
+    var ok = document.createElement("button");
+    ok.className = "add";
+    ok.textContent = "Add";
+    function done() {
+      var v = i.value.trim();
+      if (v) M().guests["g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)] = { name: v, group: gi };
+      adding = null; save(); render();
+    }
+    ok.addEventListener("click", function (e) { e.stopPropagation(); done(); });
+    i.addEventListener("click", function (e) { e.stopPropagation(); });
+    i.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); if (e.key === "Escape") { adding = null; render(); } });
+    f.appendChild(i); f.appendChild(ok);
+    return f;
+  }
+  function makeTarget(el, gi) {
+    el.addEventListener("dragover", function (e) { if (!arranging) return; e.preventDefault(); el.classList.add("drop-hot"); });
+    el.addEventListener("dragleave", function () { el.classList.remove("drop-hot"); });
+    el.addEventListener("drop", function (e) { if (!arranging) return; e.preventDefault(); el.classList.remove("drop-hot"); if (selected) moveTo(selected, gi); });
+    el.addEventListener("click", function () { if (arranging && selected) moveTo(selected, gi); });
+  }
+  function moveTo(p, gi) {
+    var m = M();
+    if (p.kind === "guest") {
+      if (gi < 0) delete m.guests[p.id]; else if (m.guests[p.id]) m.guests[p.id].group = gi;
+    } else {
+      if (gi < 0) delete m.place[p.id]; else m.place[p.id] = gi;
+    }
+    selected = null;
+    save(); render();
+  }
+  function renderTray() {
+    tray.hidden = !arranging;
+    if (!arranging) return;
+    tray.innerHTML = "";
+    var lbl = document.createElement("span");
+    lbl.className = "lbl";
+    var loose = unplaced();
+    lbl.textContent = loose.length ? "Not in a group:" : "Everyone has a group.";
+    tray.appendChild(lbl);
+    loose.forEach(function (s) { tray.appendChild(chip({ kind: "student", id: s.id, label: s.label })); });
+    var h = document.createElement("span");
+    h.className = "hint";
+    h.textContent = "Drag a name onto a group, or tap a name and then tap its new group. \u00d7 takes someone out of a group. Names come from the Gradebook\u2019s Students tab.";
+    tray.appendChild(h);
+    makeTarget(tray, -1);
+  }
+  function rosterNote() {
+    var el = document.getElementById("rosterNote");
+    var n = roster.length, g = Object.keys(M().guests).length;
+    el.innerHTML = (n ? "<b>" + n + "</b> students come from the gradebook\u2019s roster" : "No students in the gradebook yet") +
+      (g ? ", plus " + g + " visitor" + (g === 1 ? "" : "s") : "") +
+      '. To add, rename or remove a student, use the <a href="../gradebook/#students">Gradebook\u2019s Students tab</a>; this board follows it. ' +
+      "A new student waits in \u201cNot in a group\u201d until you place them.";
+  }
+
+  /* ---------------- stations ---------------- */
+  var picker = document.getElementById("picker"), pickerGroup = null;
+  function openPicker(anchor, gi) {
+    pickerGroup = gi;
+    picker.innerHTML = "";
+    M().stations.forEach(function (label, i) {
+      var b = document.createElement("button");
+      b.innerHTML = '<span class="swatch" style="background:' + STATION_COLORS[i] + '"></span><span>' + esc(label) + "</span>";
+      b.addEventListener("click", function () { M().groups[pickerGroup].station = i; save(); render(); closePicker(); });
+      picker.appendChild(b);
+    });
+    picker.classList.add("open");
+    var r = anchor.getBoundingClientRect(), pw = picker.offsetWidth, ph = picker.offsetHeight;
+    var top = r.bottom + 8;
+    if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
+    picker.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 12)) + "px";
+    picker.style.top = top + "px";
+    var first = picker.querySelector("button"); if (first) first.focus();
+  }
+  function closePicker() { picker.classList.remove("open"); pickerGroup = null; }
+  document.addEventListener("click", function (e) { if (!picker.contains(e.target)) closePicker(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closePicker(); if (selected) { selected = null; render(); } } });
+
+  function rotate() { M().groups.forEach(function (g) { g.station = (g.station + 1) % 4; }); save(); render(); }
+  function lineUp() { M().groups.forEach(function (g, i) { g.station = i; }); save(); render(); }
+
+  function buildStationFields() {
+    var wrap = document.getElementById("stationFields"), m = M();
+    wrap.innerHTML = "";
+    m.stations.forEach(function (label, i) {
+      var f = document.createElement("label");
+      f.className = "field";
+      f.innerHTML = '<span class="swatch" style="background:' + STATION_COLORS[i] + '"></span>';
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.value = label;
+      inp.setAttribute("aria-label", "Station " + (i + 1) + " name");
+      inp.addEventListener("input", function () { m.stations[i] = inp.value || "Station " + (i + 1); save(); render(); });
+      f.appendChild(inp);
+      var tog = document.createElement("span");
+      tog.className = "pagetoggle";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!m.pageStations[i];
+      cb.setAttribute("aria-label", "Show a page number for " + label);
+      cb.addEventListener("change", function () { m.pageStations[i] = cb.checked; save(); render(); });
+      tog.appendChild(cb);
+      tog.appendChild(document.createTextNode("Page #"));
+      f.appendChild(tog);
+      wrap.appendChild(f);
+    });
+  }
+
+  /* ---------------- sub slides ---------------- */
+  function slideModel() {
+    var m = M();
+    return {
+      title: m.title, stations: m.stations.slice(), pageStations: m.pageStations.slice(),
+      madeOn: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
+      groups: m.groups.map(function (g, gi) {
+        return { animal: g.animal, name: g.name, pages: g.pages, names: members(gi).map(function (p) { return p.label; }) };
+      })
+    };
+  }
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    return new Promise(function (res, rej) {
+      var s = document.createElement("script");
+      s.src = "jszip.min.js";
+      s.onload = function () { window.JSZip ? res(window.JSZip) : rej(new Error("zip library missing")); };
+      s.onerror = function () { rej(new Error("The zip library did not load. Open this page once while online, then try again.")); };
+      document.head.appendChild(s);
+    });
+  }
+  function downloadSlides() {
+    var out = document.getElementById("slideStatus");
+    out.classList.remove("warn");
+    out.textContent = "Making the deck\u2026";
+    var loose = unplaced().length;
+    loadJSZip().then(function (JSZip) {
+      return window.SubSlides.build(slideModel(), JSZip);
+    }).then(function (r) {
+      var stamp = new Date();
+      var name = "math-groups-sub-" + stamp.getFullYear() + "-" + String(stamp.getMonth() + 1).padStart(2, "0") + "-" + String(stamp.getDate()).padStart(2, "0") + ".pptx";
+      var url = URL.createObjectURL(r.file);
+      var a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      var msg = "Saved " + name + ".";
+      if (loose) msg += " " + loose + " student" + (loose === 1 ? " is" : "s are") + " not in a group and " + (loose === 1 ? "is" : "are") + " not on the slides.";
+      if (r.warnings.length) msg += " " + r.warnings.join(" ");
+      out.textContent = msg;
+      out.classList.toggle("warn", !!(loose || r.warnings.length));
+    }).catch(function (e) { out.textContent = e.message || String(e); out.classList.add("warn"); });
+  }
+
+  /* ---------------- bringing in the old board ----------------
+     The old board stored first names as typed. Each is matched to one
+     gradebook student: by first name, else by "First L." or full name.
+     A name that matches several children, or none, becomes a visitor in
+     the same group, and the report says so, so nothing is dropped. */
+  function decodeOld(text) {
+    var raw = String(text || "").trim();
+    if (!raw) return null;
+    if (raw.charAt(0) === "{") { try { return JSON.parse(raw); } catch (e) { return null; } }
+    try {
+      var bin = atob(raw.replace(/^MGB1-/, "").replace(/\s+/g, ""));
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { return null; }
+  }
+  function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z\u00c0-\u024f]/g, ""); }
+  function matchName(typed) {
+    var t = String(typed || "").trim(), n = norm(t);
+    if (!n) return [];
+    var hits = roster.filter(function (s) { return norm(s.first) === n || norm(s.label) === n || norm(s.first + s.last) === n; });
+    if (hits.length) return hits;
+    var parts = t.split(/\s+/);
+    if (parts.length > 1) {
+      var f = norm(parts[0]), l = norm(parts.slice(1).join(""));
+      hits = roster.filter(function (s) { return norm(s.first) === f && norm(s.last).indexOf(l.replace(/\.$/, "")) === 0; });
+    }
+    return hits;
+  }
+  function importOld(obj) {
+    if (!obj || !Array.isArray(obj.groups)) return null;
+    var m = M(), notes = [], placed = {}, counts = { matched: 0, visitors: 0 };
+    if (typeof obj.title === "string" && obj.title.trim()) m.title = obj.title.trim();
+    if (Array.isArray(obj.stations) && obj.stations.length === 4) m.stations = obj.stations.map(String);
+    if (Array.isArray(obj.pageStations) && obj.pageStations.length === 4) m.pageStations = obj.pageStations.map(Boolean);
+    obj.groups.slice(0, 4).forEach(function (og, gi) {
+      if (!og) return;
+      var g = m.groups[gi];
+      if (typeof og.name === "string" && og.name.trim()) g.name = og.name.trim();
+      if (typeof og.station === "number" && og.station >= 0 && og.station < 4) g.station = og.station;
+      if (og.pages && typeof og.pages === "object") g.pages = og.pages;
+      (Array.isArray(og.students) ? og.students : []).forEach(function (typed) {
+        typed = String(typed || "").trim();
+        if (!typed || typed === "New name") return;
+        var hits = matchName(typed);
+        if (hits.length === 1) {
+          var s = hits[0];
+          if (placed[s.id] != null) {
+            notes.push(typed + " was in both " + m.groups[placed[s.id]].name + " and " + g.name + " on the old board. Kept in " + m.groups[placed[s.id]].name + "; move them if that\u2019s wrong.");
+            return;
+          }
+          placed[s.id] = gi; m.place[s.id] = gi; counts.matched++;
+        } else {
+          var dup = Object.keys(m.guests).some(function (k) { return m.guests[k].name.toLowerCase() === typed.toLowerCase(); });
+          if (dup) { notes.push(typed + " appeared twice on the old board; kept once, as a visitor."); return; }
+          m.guests["g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)] = { name: typed.slice(0, 40), group: gi };
+          counts.visitors++;
+          notes.push(typed + (hits.length ? " matches " + hits.length + " students in your gradebook" : " is not in your gradebook") +
+            ", so they came in as a visitor in " + g.name + "." + (hits.length ? " Take the visitor out and place the right student by hand." : " If they should be, add them in the gradebook, then place them and remove the visitor."));
+        }
+      });
+    });
+    save(); render();
+    return { counts: counts, notes: notes };
+  }
+  function showImport(res, source) {
+    var rep = document.getElementById("report");
+    if (!res) { say("That didn\u2019t look like a math board. Check that the whole code or file came across.", true); rep.hidden = true; return; }
+    say("Brought in from " + source + ": " + res.counts.matched + " matched to your roster" + (res.counts.visitors ? ", " + res.counts.visitors + " as visitors" : "") + ".", !!res.notes.length);
+    rep.innerHTML = res.notes.map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("");
+    rep.hidden = !res.notes.length;
+  }
+  var statusT = null;
+  function say(msg, warn) {
+    var el = document.getElementById("status");
+    el.textContent = msg; el.classList.toggle("warn", !!warn);
+    clearTimeout(statusT);
+    if (!warn) statusT = setTimeout(function () { el.textContent = ""; }, 8000);
+  }
+
+  /* ---------------- controls ---------------- */
+  var titleEl = document.getElementById("title");
+  titleEl.addEventListener("blur", function () { M().title = titleEl.textContent.trim() || "Math Groups"; titleEl.textContent = M().title; save(); });
+  titleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); titleEl.blur(); } });
+  document.getElementById("rotate").addEventListener("click", rotate);
+  document.getElementById("arrange").addEventListener("click", function () { arranging = !arranging; selected = null; adding = null; render(); });
+  var drawer = document.getElementById("drawer");
+  document.getElementById("settings").addEventListener("click", function () {
+    drawer.classList.toggle("open");
+    if (drawer.classList.contains("open")) buildStationFields();
+  });
+  document.getElementById("lineupBtn").addEventListener("click", lineUp);
+  document.getElementById("slides").addEventListener("click", downloadSlides);
+  document.getElementById("applyCode").addEventListener("click", function () {
+    showImport(importOld(decodeOld(document.getElementById("code").value)), "the pasted code");
+  });
+  var fileInput = document.getElementById("file");
+  document.getElementById("upload").addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { showImport(importOld(decodeOld(r.result)), "the backup file"); fileInput.value = ""; };
+    r.onerror = function () { say("Couldn\u2019t read that file.", true); fileInput.value = ""; };
+    r.readAsText(f);
+  });
+  function toggleFull() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  }
+  document.getElementById("full").addEventListener("click", toggleFull);
+  document.addEventListener("keydown", function (e) {
+    var t = e.target;
+    if (t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (tab !== "math") return;
+    if (e.key === "r" || e.key === "R") rotate();
+    else if (e.key === "f" || e.key === "F") toggleFull();
+  });
+
+  /* Another tab, or the sync file, changed the roster or the groups. */
+  function refresh() {
+    if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === "INPUT")) return;
+    load(); rLoad(); readRoster(); render(); rRender();
+  }
+  window.addEventListener("storage", function (e) { if (e.key === KEY || e.key === RKEY || e.key === ROSTER_KEY) refresh(); });
+  if (window.SuiteSync && window.SuiteSync.onChanged) {
+    window.SuiteSync.onChanged(function (changed) {
+      if (changed.indexOf(KEY) >= 0 || changed.indexOf(RKEY) >= 0 || changed.indexOf(ROSTER_KEY) >= 0) refresh();
+    });
+  }
+  window.addEventListener("pagehide", function () { saveNow(); rSaveNow(); });
+
+  /* ================= READING GROUPS (v73) =================
+     suite:readgroups:v1 = { v:1, current:"u1", scope:"unit"|"0"|"1"|"2",
+       blanks, days:{mon..fri:bool},
+       units:{ u1..u10:{ name, start, weeks:[3], subs:{orange..pink},
+                          place:{ gradebookStudentId: "orange"|... },
+                          guests:{ id:{ name, group } } } } }
+     Its own key, not a branch of suite:groups:v1, so a device still on
+     v72 (whose normalize() knows only math) cannot drop it on save.
+     Units are a map for the same reason place is: the merge works per key,
+     and an array without ids would be "this device wins" as a whole. */
+  var RKEY = "suite:readgroups:v1";
+  var RG = [
+    { id: "orange", label: "Orange Group", fill: "#F7C08A", edge: "#C1701A" },
+    { id: "green", label: "Green Group", fill: "#B9DCA6", edge: "#3F7A2E" },
+    { id: "yellow", label: "Yellow Group", fill: "#F7E08A", edge: "#9A7A0A" },
+    { id: "pink", label: "Pink Group", fill: "#F5BDD3", edge: "#A83A6B" }
+  ];
+  var RIDS = RG.map(function (g) { return g.id; });
+  var DAYS = [{ id: "mon", short: "M", long: "Mon" }, { id: "tue", short: "T", long: "Tue" }, { id: "wed", short: "W", long: "Wed" },
+    { id: "thu", short: "Th", long: "Thu" }, { id: "fri", short: "F", long: "Fri" }];
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
+  var UNITS = []; for (var ui = 1; ui <= 10; ui++) UNITS.push("u" + ui);
+
+  function blankUnit() { return { name: "", start: "", weeks: ["", "", ""], subs: { orange: "", green: "", yellow: "", pink: "" }, place: {}, guests: {} }; }
+  function rDefaults() {
+    var u = {}; UNITS.forEach(function (k) { u[k] = blankUnit(); });
+    return { v: 1, current: "u1", scope: "unit", blanks: 1, days: { mon: true, tue: true, wed: true, thu: true, fri: true }, units: u };
+  }
+  function rNormalize(o) {
+    var d = rDefaults();
+    if (!o || typeof o !== "object") return d;
+    if (UNITS.indexOf(o.current) >= 0) d.current = o.current;
+    if (["unit", "0", "1", "2"].indexOf(o.scope) >= 0) d.scope = o.scope;
+    if (typeof o.blanks === "number") d.blanks = Math.max(0, Math.min(6, Math.round(o.blanks)));
+    if (o.days) DAYS.forEach(function (x) { if (typeof o.days[x.id] === "boolean") d.days[x.id] = o.days[x.id]; });
+    if (o.units && typeof o.units === "object") UNITS.forEach(function (k) {
+      var s = o.units[k], t = d.units[k];
+      if (!s || typeof s !== "object") return;
+      if (typeof s.name === "string") t.name = s.name.slice(0, 30);
+      if (typeof s.start === "string") t.start = s.start;
+      if (Array.isArray(s.weeks)) for (var w = 0; w < 3; w++) if (typeof s.weeks[w] === "string") t.weeks[w] = s.weeks[w].slice(0, 24);
+      if (s.subs) RIDS.forEach(function (g) { if (typeof s.subs[g] === "string") t.subs[g] = s.subs[g].slice(0, 40); });
+      if (s.place && typeof s.place === "object") Object.keys(s.place).forEach(function (sid) { if (RIDS.indexOf(s.place[sid]) >= 0) t.place[sid] = s.place[sid]; });
+      if (s.guests && typeof s.guests === "object") Object.keys(s.guests).forEach(function (id) {
+        var g = s.guests[id];
+        if (g && typeof g.name === "string" && RIDS.indexOf(g.group) >= 0) t.guests[id] = { name: g.name.slice(0, 40), group: g.group };
+      });
+    });
+    return d;
+  }
+  var R = rDefaults();
+  function rLoad() { try { var raw = localStorage.getItem(RKEY); R = rNormalize(raw ? JSON.parse(raw) : null); } catch (e) { R = rDefaults(); } }
+  var rSaveT = null;
+  function rSave() { clearTimeout(rSaveT); rSaveT = setTimeout(rSaveNow, 250); }
+  function rSaveNow() {
+    clearTimeout(rSaveT);
+    try { localStorage.setItem(RKEY, JSON.stringify(R)); } catch (e) { rReport(["Could not save \u2014 browser storage may be full."]); }
+  }
+  function cu() { return R.units[R.current]; }
+  function unitNo(k) { return UNITS.indexOf(k) + 1; }
+  function newId() { return "g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function rMembers(u, gid) {
+    var out = [];
+    roster.forEach(function (s) { if (u.place[s.id] === gid) out.push({ kind: "student", id: s.id, label: s.label }); });
+    Object.keys(u.guests).forEach(function (k) { if (u.guests[k].group === gid) out.push({ kind: "guest", id: k, label: u.guests[k].name }); });
+    out.sort(function (a, b) { return a.label.localeCompare(b.label); });
+    return out;
+  }
+  function rUnplaced(u) { return roster.filter(function (s) { return RIDS.indexOf(u.place[s.id]) < 0; }); }
+  function rCount(u) { return Object.keys(u.place).filter(function (k) { return byId(k); }).length + Object.keys(u.guests).length; }
+  function rMove(p, gid) {
+    var u = cu();
+    if (p.kind === "guest") { if (!gid) delete u.guests[p.id]; else if (u.guests[p.id]) u.guests[p.id].group = gid; }
+    else { if (!gid) delete u.place[p.id]; else u.place[p.id] = gid; }
+    rSel = null; rSave(); rRender();
+  }
+  function rCopyFrom(k) {
+    var src = R.units[k], u = cu();
+    if (!src) return;
+    u.place = JSON.parse(JSON.stringify(src.place));
+    u.guests = {};
+    Object.keys(src.guests).forEach(function (id) { u.guests[newId()] = { name: src.guests[id].name, group: src.guests[id].group }; });
+    RIDS.forEach(function (g) { u.subs[g] = src.subs[g]; });
+    rSel = null; rSave(); rRender();
+  }
+  function fillWeeks(iso) {
+    var p = String(iso || "").split("-");
+    if (p.length !== 3) return;
+    var base = new Date(+p[0], +p[1] - 1, +p[2]);
+    if (isNaN(base.getTime())) return;
+    for (var w = 0; w < 3; w++) { var d = new Date(base.getTime()); d.setDate(d.getDate() + w * 7); cu().weeks[w] = MONTHS[d.getMonth()] + " " + d.getDate(); }
+  }
+
+  /* ---- render ---- */
+  var rSel = null;
+  function mk(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function rRender() {
+    if (tab !== "reading") return;
+    rRail(); rCopyList(); rFields(); rBoard(); rLoose(); rMoveBar(); rSheets(); rFit();
+  }
+  function rRail() {
+    var rail = document.getElementById("r-rail");
+    rail.textContent = "";
+    rail.appendChild(mk("span", "lbl", "Unit"));
+    UNITS.forEach(function (k) {
+      var u = R.units[k], n = rCount(u);
+      var b = mk("button", "r-utab" + (k === R.current ? " on" : ""));
+      b.type = "button";
+      b.appendChild(mk("b", null, String(unitNo(k))));
+      b.appendChild(mk("i", null, u.name || (n ? n + " kids" : "\u2014")));
+      b.title = "Unit " + unitNo(k) + (u.name ? " \u00b7 " + u.name : "");
+      b.addEventListener("click", function () { R.current = k; rSel = null; rSave(); rRender(); });
+      rail.appendChild(b);
+    });
+  }
+  function rCopyList() {
+    var sel = document.getElementById("r-copy");
+    sel.textContent = "";
+    var o0 = mk("option", null, "\u2014 keep as is \u2014"); o0.value = ""; sel.appendChild(o0);
+    UNITS.forEach(function (k) {
+      var u = R.units[k], n = rCount(u);
+      if (k === R.current || !n) return;
+      var o = mk("option", null, "Unit " + unitNo(k) + (u.name ? " \u00b7 " + u.name : "") + " (" + n + ")");
+      o.value = k; sel.appendChild(o);
+    });
+    sel.value = "";
+  }
+  function rFields() {
+    var u = cu(), a = document.activeElement;
+    var set = function (id, v) { var e = document.getElementById(id); if (e !== a) e.value = v; };
+    set("r-uname", u.name); set("r-ustart", u.start);
+    for (var w = 0; w < 3; w++) set("r-w" + w, u.weeks[w]);
+    set("r-blanks", R.blanks); set("r-scope", R.scope);
+    DAYS.forEach(function (d) { var cb = document.getElementById("r-day-" + d.id); if (cb) cb.checked = R.days[d.id]; });
+  }
+  function kidRow(p, where) {
+    var li = mk("li", "r-kid" + (rSel && rSel.id === p.id ? " sel" : ""));
+    li.draggable = true; li.tabIndex = 0; li.dataset.id = p.id;
+    li.setAttribute("role", "button");
+    li.appendChild(mk("span", "grip", "\u283F"));
+    li.appendChild(mk("span", "nme", p.label));
+    if (p.kind === "guest") li.appendChild(mk("span", "v", "visitor"));
+    li.addEventListener("click", function (e) { e.stopPropagation(); rSel = (rSel && rSel.id === p.id) ? null : p; rRender(); });
+    li.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); li.click(); } });
+    li.addEventListener("dragstart", function (e) { rSel = p; try { e.dataTransfer.setData("text/plain", p.id); e.dataTransfer.effectAllowed = "move"; } catch (x) { } });
+    return li;
+  }
+  function rTarget(el, gid) {
+    el.addEventListener("dragover", function (e) { e.preventDefault(); el.classList.add("drop"); });
+    el.addEventListener("dragleave", function () { el.classList.remove("drop"); });
+    el.addEventListener("drop", function (e) { e.preventDefault(); el.classList.remove("drop"); if (rSel) rMove(rSel, gid); });
+  }
+  function rBoard() {
+    var board = document.getElementById("r-board"), u = cu();
+    board.textContent = "";
+    RG.forEach(function (g) {
+      var col = mk("div", "r-col"); col.dataset.group = g.id;
+      var head = mk("div", "r-head");
+      head.style.background = g.fill; head.style.borderBottomColor = g.edge;
+      var kids = rMembers(u, g.id);
+      head.appendChild(mk("span", "count", kids.length ? kids.length + (kids.length === 1 ? " reader" : " readers") : ""));
+      head.appendChild(mk("div", "nm", g.label));
+      var sub = document.createElement("input");
+      sub.type = "text"; sub.placeholder = "book or level (optional)"; sub.value = u.subs[g.id] || "";
+      sub.setAttribute("aria-label", g.label + " book or level");
+      sub.addEventListener("input", function () { u.subs[g.id] = sub.value.slice(0, 40); rSheets(); rSave(); });
+      head.appendChild(sub);
+      col.appendChild(head);
+      var list = mk("ul", "r-list");
+      if (!kids.length) list.appendChild(mk("li", "r-empty", "No readers yet \u2014 drag names here from above."));
+      kids.forEach(function (p) { list.appendChild(kidRow(p)); });
+      col.appendChild(list);
+      var add = mk("div", "r-add");
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.placeholder = "Add a visitor"; inp.maxLength = 40;
+      inp.title = "Someone who reads with this group but is not in your gradebook";
+      inp.setAttribute("aria-label", "Add a visitor to " + g.label);
+      var btn = mk("button", null, "Add"); btn.type = "button";
+      var go = function () {
+        var v = inp.value.trim(); if (!v) return;
+        v.split(",").forEach(function (n) { n = n.trim(); if (n) u.guests[newId()] = { name: n.slice(0, 40), group: g.id }; });
+        rSave(); rRender();
+        var again = document.querySelector('.r-col[data-group="' + g.id + '"] .r-add input'); if (again) again.focus();
+      };
+      btn.addEventListener("click", go);
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+      add.appendChild(inp); add.appendChild(btn);
+      col.appendChild(add);
+      rTarget(col, g.id);
+      board.appendChild(col);
+    });
+  }
+  function rLoose() {
+    var box = document.getElementById("r-loose"), loose = rUnplaced(cu());
+    box.textContent = "";
+    box.hidden = !loose.length && !(rSel && rSel.kind === "student");
+    box.appendChild(mk("span", "lbl", loose.length ? "Not in a reading group this unit (" + loose.length + "):" : "Drop here to take someone out of a group"));
+    loose.forEach(function (s) { box.appendChild(kidRow({ kind: "student", id: s.id, label: s.label })); });
+    rTarget(box, null);
+  }
+  function rMoveBar() {
+    var bar = document.getElementById("r-move");
+    bar.textContent = "";
+    bar.hidden = !rSel;
+    if (!rSel) return;
+    var u = cu();
+    var at = rSel.kind === "guest" ? (u.guests[rSel.id] || {}).group : u.place[rSel.id];
+    bar.appendChild(mk("span", "who", rSel.label));
+    bar.appendChild(mk("span", null, "Move to"));
+    RG.forEach(function (g) {
+      if (g.id === at) return;
+      var b = mk("button", null, g.label.replace(" Group", "")); b.type = "button"; b.style.background = g.fill;
+      b.addEventListener("click", function () { rMove(rSel, g.id); });
+      bar.appendChild(b);
+    });
+    if (at) {
+      var out = mk("button", "out", rSel.kind === "guest" ? "Remove visitor" : "Take out of group"); out.type = "button";
+      out.addEventListener("click", function () { rMove(rSel, null); });
+      bar.appendChild(out);
+    }
+  }
+
+  /* ---- the printed cards: unchanged from the volunteer tracker ---- */
+  function weekList() { return R.scope === "unit" ? [0, 1, 2] : [parseInt(R.scope, 10)]; }
+  function unitTag() { var u = cu(); return "Unit " + unitNo(R.current) + (u.name ? " \u00b7 " + u.name : ""); }
+  function rSheets() {
+    var host = document.getElementById("r-sheets");
+    host.textContent = "";
+    var days = DAYS.filter(function (d) { return R.days[d.id]; });
+    weekList().forEach(function (w) {
+      var page = mk("div", "r-page");
+      RG.forEach(function (g) { page.appendChild(cardEl(g, days, w)); });
+      host.appendChild(page);
+    });
+    var n = weekList().length;
+    document.getElementById("r-pvTitle").textContent = "Print preview \u2014 " + unitTag() + ", " + n + (n === 1 ? " sheet" : " sheets");
+    document.getElementById("r-print").textContent = n === 1 ? "Print 1 sheet" : "Print " + n + " sheets";
+  }
+  function cardEl(g, days, w) {
+    var u = cu(), card = mk("div", "r-card");
+    var head = mk("div", "r-chead");
+    head.style.background = g.fill; head.style.borderColor = g.edge;
+    var left = mk("div");
+    left.appendChild(mk("div", "gname", g.label.toUpperCase()));
+    if (u.subs[g.id]) left.appendChild(mk("div", "gsub", u.subs[g.id]));
+    head.appendChild(left);
+    var wk = mk("div", "wk");
+    wk.appendChild(mk("div", "u", unitTag()));
+    wk.appendChild(mk("div", "w", u.weeks[w] ? "Week of " + u.weeks[w] : "Week " + (w + 1) + " of ______"));
+    head.appendChild(wk);
+    card.appendChild(head);
+    card.appendChild(mk("div", "r-legend", "How it went   + = solid   \u2713 = okay   \u2212 = needs help   A = absent"));
+    var t1 = mk("table", "r-t r-roster"), hr = mk("tr");
+    var th = mk("th", null, "Student"); th.style.background = g.fill; hr.appendChild(th);
+    days.forEach(function (d) { var c = mk("th", "d", d.short); c.style.background = g.fill; c.style.width = ".38in"; hr.appendChild(c); });
+    t1.appendChild(hr);
+    var kids = rMembers(u, g.id), rows = Math.max(1, kids.length + R.blanks);
+    for (var i = 0; i < rows; i++) {
+      var r = mk("tr");
+      r.appendChild(mk("td", "nm", i < kids.length ? kids[i].label : ""));
+      days.forEach(function () { r.appendChild(mk("td", "d", "")); });
+      t1.appendChild(r);
+    }
+    card.appendChild(t1);
+    var wrap = mk("div", "r-log"), t2 = mk("table", "r-t"), h2 = mk("tr");
+    var c1 = mk("th", "d", "Day"); c1.style.background = g.fill; c1.style.width = ".34in"; h2.appendChild(c1);
+    var c2 = mk("th", null, "We read to\u2026"); c2.style.background = g.fill; c2.style.width = ".95in"; h2.appendChild(c2);
+    var c3 = mk("th", null, "Notes"); c3.style.background = g.fill; h2.appendChild(c3);
+    t2.appendChild(h2);
+    days.forEach(function (d) { var r = mk("tr"); r.appendChild(mk("td", "day", d.long)); r.appendChild(mk("td", null, "")); r.appendChild(mk("td", null, "")); t2.appendChild(r); });
+    wrap.appendChild(t2); card.appendChild(wrap);
+    card.appendChild(mk("div", "r-notes", "Other notes:"));
+    card.appendChild(mk("div", "r-rule")); card.appendChild(mk("div", "r-rule"));
+    return card;
+  }
+  function rFit() {
+    var pane = document.querySelector(".r-pv"), scaler = document.getElementById("r-scaler"), sheets = document.getElementById("r-sheets");
+    var page = sheets.firstChild;
+    if (!page || !pane.clientWidth) return;
+    var s = Math.min(1, (pane.clientWidth - 44) / (page.offsetWidth || 778));
+    scaler.style.transform = "scale(" + s + ")";
+    scaler.style.height = (sheets.offsetHeight * s) + "px";
+  }
+  window.addEventListener("resize", function () { if (tab === "reading") rFit(); });
+
+  /* ---- bringing in the old reading tool ----
+     Its backup has ten units of { name, start, weeks, subs, kids:[{name, group}] }
+     (or, from the first version, one week's { kids, subs, weekOf }). Names
+     are matched exactly as the math board's are. */
+  function rImport(o) {
+    if (!o || typeof o !== "object") return null;
+    var src = Array.isArray(o.units) ? o.units : Array.isArray(o.kids) ? [{ kids: o.kids, subs: o.subs, weeks: [o.weekOf || "", "", ""] }] : null;
+    if (!src) return null;
+    var notes = [], counts = { units: 0, matched: 0, visitors: 0 };
+    if (typeof o.blanks === "number") R.blanks = Math.max(0, Math.min(6, o.blanks));
+    if (o.days) DAYS.forEach(function (d) { if (typeof o.days[d.id] === "boolean") R.days[d.id] = o.days[d.id]; });
+    if (["unit", "0", "1", "2"].indexOf(o.scope) >= 0) R.scope = o.scope;
+    if (typeof o.current === "number" && o.current >= 0 && o.current < 10) R.current = UNITS[o.current];
+    src.slice(0, 10).forEach(function (s, i) {
+      if (!s) return;
+      var t = R.units[UNITS[i]];
+      var kids = Array.isArray(s.kids) ? s.kids : [];
+      var has = kids.length || s.name || s.start || (Array.isArray(s.weeks) && s.weeks.some(Boolean));
+      if (!has) return;
+      counts.units++;
+      if (typeof s.name === "string") t.name = s.name.slice(0, 30);
+      if (typeof s.start === "string") t.start = s.start;
+      if (Array.isArray(s.weeks)) for (var w = 0; w < 3; w++) if (typeof s.weeks[w] === "string") t.weeks[w] = s.weeks[w].slice(0, 24);
+      if (s.subs) RIDS.forEach(function (g) { if (typeof s.subs[g] === "string") t.subs[g] = s.subs[g].slice(0, 40); });
+      var seen = {}, tag = "Unit " + (i + 1) + ": ";
+      kids.forEach(function (k) {
+        if (!k || typeof k.name !== "string") return;
+        var typed = k.name.trim(), gid = RIDS.indexOf(k.group) >= 0 ? k.group : "orange";
+        var gl = RG[RIDS.indexOf(gid)].label;
+        if (!typed) return;
+        var hits = matchName(typed);
+        if (hits.length === 1) {
+          var sid = hits[0].id;
+          if (seen[sid]) { notes.push(tag + typed + " was listed twice; kept in " + RG[RIDS.indexOf(seen[sid])].label + "."); return; }
+          seen[sid] = gid; t.place[sid] = gid; counts.matched++;
+        } else {
+          var dup = Object.keys(t.guests).some(function (id) { return t.guests[id].name.toLowerCase() === typed.toLowerCase(); });
+          if (dup) return;
+          t.guests[newId()] = { name: typed.slice(0, 40), group: gid };
+          counts.visitors++;
+          notes.push(tag + typed + (hits.length ? " matches " + hits.length + " students in your gradebook" : " is not in your gradebook") +
+            ", so they came in as a visitor in " + gl + ".");
+        }
+      });
+    });
+    rSaveNow(); rRender();
+    return { counts: counts, notes: notes };
+  }
+  function rReport(lines) {
+    var el = document.getElementById("r-report");
+    el.hidden = !lines.length;
+    el.innerHTML = lines.length ? esc(lines[0]) + (lines.length > 1 ? "<ul>" + lines.slice(1).map(function (l) { return "<li>" + esc(l) + "</li>"; }).join("") + "</ul>" : "") : "";
+  }
+  function rShowImport(res) {
+    if (!res) { rReport(["That file didn\u2019t look like a backup from the reading groups tool."]); return; }
+    var c = res.counts;
+    rReport(["Brought in " + c.units + " unit" + (c.units === 1 ? "" : "s") + ": " + c.matched + " readers matched to your roster" +
+      (c.visitors ? ", " + c.visitors + " as visitors" : "") + "."].concat(res.notes));
+  }
+
+  /* ---- wiring ---- */
+  (function () {
+    var host = document.getElementById("r-dayBoxes");
+    DAYS.forEach(function (d) {
+      var l = mk("label", "r-day"), cb = document.createElement("input");
+      cb.type = "checkbox"; cb.id = "r-day-" + d.id;
+      cb.addEventListener("change", function () { R.days[d.id] = cb.checked; rSave(); rSheets(); });
+      l.appendChild(cb); l.appendChild(document.createTextNode(d.long));
+      host.appendChild(l);
+    });
+    var on = function (id, ev, fn) { document.getElementById(id).addEventListener(ev, fn); };
+    on("r-uname", "input", function (e) { cu().name = e.target.value.slice(0, 30); rSave(); rRail(); rSheets(); });
+    on("r-ustart", "change", function (e) { cu().start = e.target.value; fillWeeks(e.target.value); rSave(); rRender(); });
+    [0, 1, 2].forEach(function (w) { on("r-w" + w, "input", function (e) { cu().weeks[w] = e.target.value.slice(0, 24); rSave(); rSheets(); }); });
+    on("r-copy", "change", function (e) {
+      var k = e.target.value; if (!k) return;
+      if (rCount(cu()) && !confirm("Replace this unit\u2019s groups with Unit " + unitNo(k) + "\u2019s?")) { e.target.value = ""; return; }
+      rCopyFrom(k);
+    });
+    on("r-scope", "change", function (e) { R.scope = e.target.value; rSave(); rSheets(); rFit(); });
+    on("r-blanks", "input", function (e) { var n = parseInt(e.target.value, 10); R.blanks = isNaN(n) ? 0 : Math.max(0, Math.min(6, n)); rSave(); rSheets(); });
+    on("r-print", "click", function () { rSaveNow(); window.print(); });
+    on("r-toMath", "click", function () { setTab("math"); });
+    var fi = document.getElementById("r-file");
+    on("r-import", "click", function () { fi.click(); });
+    fi.addEventListener("change", function () {
+      var f = fi.files && fi.files[0]; if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () { var o = null; try { o = JSON.parse(fr.result); } catch (e) { } rShowImport(rImport(o)); fi.value = ""; };
+      fr.readAsText(f);
+    });
+    document.addEventListener("click", function (e) {
+      if (tab === "reading" && rSel && !e.target.closest(".r-move,.r-kid")) { rSel = null; rRender(); }
+    });
+  })();
+
+  /* ---- tabs: #reading or the math board; per device, not synced ---- */
+  var tab = "math";
+  function setTab(t) {
+    tab = t === "reading" ? "reading" : "math";
+    document.body.classList.toggle("tab-reading", tab === "reading");
+    document.body.classList.toggle("tab-math", tab === "math");
+    document.title = tab === "reading" ? "Reading groups" : "Small Groups";
+    var want = tab === "reading" ? "#reading" : "";
+    if ((location.hash || "") !== want) { try { history.replaceState(null, "", location.pathname + location.search + want); } catch (e) { } }
+    if (tab === "reading") rRender(); else render();
+  }
+  window.addEventListener("hashchange", function () { setTab(location.hash === "#reading" ? "reading" : "math"); });
+  document.getElementById("toReading").addEventListener("click", function () { setTab("reading"); });
+
+  /* for tests and the console */
+  window.SmallGroups = { state: function () { return G; }, roster: function () { return roster; }, members: members,
+    unplaced: unplaced, moveTo: moveTo, rotate: rotate, lineUp: lineUp, importOld: importOld, decodeOld: decodeOld,
+    slideModel: slideModel, refresh: refresh, saveNow: saveNow,
+    reading: { state: function () { return R; }, members: function (gid, k) { return rMembers(k ? R.units[k] : cu(), gid); },
+      unplaced: function (k) { return rUnplaced(k ? R.units[k] : cu()); }, move: rMove, copyFrom: rCopyFrom,
+      importOld: rImport, fillWeeks: fillWeeks, saveNow: rSaveNow, select: function (k) { R.current = k; rRender(); } },
+    setTab: setTab };
+
+  load(); rLoad(); readRoster();
+  setTab(location.hash === "#reading" ? "reading" : "math");
+})();
+</script>
+</body>
+</html>

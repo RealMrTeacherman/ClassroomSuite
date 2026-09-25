@@ -220,8 +220,11 @@
     return b;
   }
 
+  /* The Small Groups page redraws itself when its data or the roster
+     arrives, so it needs no reload banner. */
   var mine = location.pathname.indexOf("planner") >= 0
     ? ["lp:settings:v2", "lp:days:v2", "lp:me:v1", "lp:pending:v1"]
+    : location.pathname.indexOf("/groups") >= 0 ? []
     : ["running-records-v1"];
 
   window.SuiteSync.onChanged(function (changed) {

@@ -20,6 +20,8 @@
     "suite:subplan:v1",     /* sub plan standing notes */
     "suite:orfgoals:v1",    /* each student's own ORF year-end goal (fluency-extras.js) */
     "suite:orfcomp:v1",     /* comprehension questions per ORF check (fluency-extras.js) */
+    "suite:groups:v1",      /* math rotation groups: placements by gradebook student id (groups/) */
+    "suite:readgroups:v1",  /* reading volunteer groups, per unit, by gradebook student id (groups/) */
     /* Migration flags have to travel. They are not preferences: they record a
        decision ("Health/SEL was deliberately deleted", "leave Writing on its
        stepper"), and a device that has not run a migration yet has an empty
