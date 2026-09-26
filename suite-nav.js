@@ -118,6 +118,12 @@
     '#suitesheet button.cancel{color:#55636E;border-top:1px solid rgba(16,24,32,.09);' +
     'border-radius:0 0 8px 8px;margin-top:3px;padding-top:10px}' +
     '@media print{#suitesheet{display:none!important}}' +
+    '#suitedrop{position:fixed;inset:0;z-index:2147483003;display:flex;align-items:center;justify-content:center;' +
+    'background:rgba(16,24,32,.42);pointer-events:none}' +
+    '#suitedrop>div{display:flex;flex-direction:column;gap:6px;padding:22px 28px;border-radius:16px;' +
+    'border:2px dashed rgba(255,255,255,.8);background:rgba(20,32,42,.92);color:#fff;text-align:center;' +
+    "font:400 13.5px/1.45 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;max-width:min(420px,86vw)}" +
+    '#suitedrop b{font-size:16px;font-weight:600}#suitedrop span{opacity:.85}' +
     '@media (pointer:coarse){#suitesheet button{padding:12px 8px}}' +
     '@media (pointer:coarse){#suitenav a,#suitenav button{min-height:40px;padding:10px 13px}' +
     '#suitenav .ic{font-size:15px}#suitenav .dot{width:9px;height:9px}}';
@@ -187,12 +193,19 @@
         var cls = st === "connected" ? (veryStale ? "err" : (stale || tokenSoon || baseGone) ? "warn" : "ok")
           : st === "needsPermission" || st === "syncing" ? "warn"
           : st === "error" ? "err" : "";
+        /* v77: a device that moves its data by hand has no round to report,
+           but it does know whether it has changed since the last file it
+           saved. Only a device that has saved one is ever told. */
+        var ex = S.lastExport;
+        var unsent = !S.backend && st !== "error" && st !== "syncing" && ex && ex.dirty;
+        if (unsent) cls = "warn";
         dot.className = "dot " + cls;
 
         lbl.textContent = st === "connected" ? (stale ? "Synced " + agoShort(age) : "Synced")
           : st === "needsPermission" ? "Sign in"
           : st === "syncing" ? "Syncing" : st === "error" ? "Sync error"
           : st === "unsupported" ? "Local only" : "Sync";
+        if (unsent) lbl.textContent = "Unsent";
 
         var t;
         if (st === "connected") {
@@ -208,12 +221,14 @@
             : st === "unsupported" ? "Nothing is syncing on this device"
             : st === "error" ? dt : "Click to set syncing up";
         }
+        if (unsent) t = "Changed since the sync file you saved " + agoLong(ageOf(ex.at)) + ". Click to save another.";
         btn.title = t;
         btn.setAttribute("aria-label", "Syncing: " + lbl.textContent);
       }
       window.SuiteSync.onState(paintSync);
       /* the age moves on its own even when nothing else does */
       setInterval(function () { paintSync(window.SuiteSync.state, window.SuiteSync.detail); }, 60000);
+      window.addEventListener("suite:exported", function () { paintSync(window.SuiteSync.state, window.SuiteSync.detail); });
       btn.onclick = function () { syncMenu(); };
       nav.appendChild(btn);
     }
@@ -287,6 +302,33 @@
     }, 0);
   }
 
+  /* v77: after a download on a computer, the next step is Drive in the
+     browser. One button that opens it, from the same real tap. */
+  var DRIVE_URL = "https://drive.google.com/drive/my-drive";
+  function afterExport(r) {
+    if (r.how === "cancelled") return;
+    if (r.how === "share") { say("Shared " + r.name + "."); return; }
+    sheet("Saved to Downloads",
+      "<b>" + r.name + "</b> is in your Downloads. Drag it into Google Drive (or email it to yourself). " +
+      "On the other computer, download it and drop it on any page of the suite.",
+      [{ label: "Open Google Drive", hint: "in a new tab", run: function () {
+        window.open(DRIVE_URL, "_blank", "noopener");
+      } }]);
+  }
+  function afterImport(changed) {
+    var S = window.SuiteSync;
+    say(S.describeImport ? S.describeImport(changed) : (changed.length ? "Loaded." : "Nothing in that file was new."));
+    if (changed && changed.length) setTimeout(function () { location.reload(); }, 1400);
+  }
+  function importFailed(e) {
+    if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
+  }
+  function whenSent() {
+    var e = window.SuiteSync.lastExport;
+    if (!e || !e.at) return "";
+    return (e.dirty ? "changed since you last saved one, " : "nothing changed since you saved one ") + agoLong(ageOf(e.at));
+  }
+
   function backupMenu() {
     var S = window.SuiteSync;
     var opts = [];
@@ -320,7 +362,27 @@
           if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
         }).catch(function (e) { say("Sync failed: " + (e.message || e)); });
       } });
-    } else if (S.folderSupported) {
+    }
+
+    /* A computer with nothing live: moving a file by hand is the sync, so it
+       comes first and says where the file goes next. */
+    var byHand = S.folderSupported && !S.backend;
+    if (!(!S.folderSupported && !S.backend)) opts.push({
+      label: byHand ? "Save a sync file" : "Save a backup",
+      hint: byHand ? (whenSent() || "to Downloads, then drag it into Google Drive") : "share it to Drive, Files or another device",
+      run: function () {
+        S.exportFile().then(afterExport).catch(function (e) { say("Could not save: " + (e.message || e)); });
+      } });
+    opts.push({ label: "Load a backup", hint: "merges it in; nothing here is lost" + (S.folderSupported ? " (or drop the file on any page)" : ""), run: function () {
+      S.importFile().then(afterImport).catch(importFailed);
+    } });
+    if (S.canUndoImport) opts.push({ label: "Undo the last load", hint: "puts this device back as it was", run: function () {
+      S.undoImport().then(function (changed) {
+        say("Undone. Reloading.");
+        if (changed.length) setTimeout(function () { location.reload(); }, 1000);
+      }).catch(function (e) { say("Could not undo: " + (e.message || e)); });
+    } });
+    if (!S.backend && S.folderSupported) {
       opts.push({ label: "Set up syncing", hint: "watch a handoff folder", run: function () {
         /* the form lives in the gradebook's Setup tab; all three tools share
            one origin, so setting it up there sets it up for all of them */
@@ -328,27 +390,50 @@
       } });
     }
 
-    if (!(!S.folderSupported && !S.backend)) opts.push({ label: "Save a backup", hint: "share it to Drive, Files or another device", run: function () {
-      S.exportFile().then(function (r) {
-        if (r.how === "cancelled") return;
-        say(r.how === "share" ? "Shared " + r.name + "." : "Saved " + r.name + " to your downloads.");
-      }).catch(function (e) { say("Could not save: " + (e.message || e)); });
-    } });
-    opts.push({ label: "Load a backup", hint: "replaces what is on this device", run: function () {
-      S.importFile().then(function (changed) {
-        if (!changed.length) { say("Nothing in that file was newer."); return; }
-        say("Loaded. Reloading to pick it up.");
-        setTimeout(function () { location.reload(); }, 900);
-      }).catch(function (e) {
-        if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
-      });
-    } });
-
     sheet(S.backend ? "Syncing" : "Move data between devices",
       S.backend === "drive" ? "Every device signed in to the same Google account stays in step."
         : S.backend === "github" ? "Every device set up with the repository stays in step."
+        : byHand ? "Nothing live here, so a file carries it: save one, put it in Drive, load it on the other computer."
         : "Nothing is syncing on this device yet.",
       opts);
+  }
+
+  /* ---------- drop a sync file anywhere (v77) ----------
+     Downloaded from Drive on the other computer, the file is one drag from
+     here. Only a drag that carries files is touched, so the gradebook's and
+     Small Groups' own drag-and-drop of names is left alone. */
+  function dropToLoad() {
+    var depth = 0, veil = null;
+    function hasFiles(e) {
+      var t = e.dataTransfer && e.dataTransfer.types;
+      if (!t) return false;
+      for (var i = 0; i < t.length; i++) if (t[i] === "Files") return true;
+      return false;
+    }
+    function show() {
+      if (veil) return;
+      veil = document.createElement("div");
+      veil.id = "suitedrop";
+      veil.innerHTML = "<div><b>Drop to bring in a sync file</b><span>It merges with what is here. Undo is on the sync menu.</span></div>";
+      document.body.appendChild(veil);
+    }
+    function hide() { depth = 0; if (veil) { veil.remove(); veil = null; } }
+    document.addEventListener("dragenter", function (e) { if (!hasFiles(e)) return; depth++; show(); });
+    document.addEventListener("dragleave", function (e) { if (!hasFiles(e)) return; if (--depth <= 0) hide(); });
+    document.addEventListener("dragover", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "copy"; } catch (x) { }
+    });
+    document.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      hide();
+      var S = window.SuiteSync, f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!S || !S.importBlob || !f) return;
+      if (!/\.json$/i.test(f.name || "")) { say("That is not a classroom sync file (they end in .json)."); return; }
+      S.importBlob(f).then(afterImport).catch(importFailed);
+    });
   }
 
   /* ---------- look ---------- */
@@ -493,7 +578,20 @@
         .catch(function (e) { say("Could not sign in: " + (e.message || e)); });
       return;
     }
-    if (!S.supported || S.backend === "github" || S.backend === "drive") { backupMenu(); return; }
+    /* v77: up to v76 only a browser without the file API (Safari, a phone)
+       reached the menu below. Desktop Chrome with nothing connected got the
+       old fixed-file chooser instead, and with a watched folder connected it
+       got the fixed file's sheet: its "Stop syncing" disconnected a file that
+       was not connected, and allowing the folder again did nothing. Only the
+       fixed file itself still uses the sheet further down. */
+    if (S.backend === "folder" && S.state === "needsPermission") {
+      S.allowFolder().then(function (changed) {
+        say(S.state === "connected" ? "Folder allowed \u2014 watching it again." : "The folder was not allowed.");
+        if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
+      }).catch(function (e) { say("Could not allow the folder: " + (e.message || e)); });
+      return;
+    }
+    if (!S.supported || S.backend !== "file") { backupMenu(); return; }
     if (S.state === "needsPermission") {
       S.ensurePermission().then(function (ok) {
         if (ok) S.pull(false).then(function () { say("Reconnected."); });
@@ -559,7 +657,7 @@
       update();
     });
   }
-  function start() { build(); watchForUpdate(); tabRows(); tuckOnScroll(); }
+  function start() { build(); watchForUpdate(); tabRows(); tuckOnScroll(); dropToLoad(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

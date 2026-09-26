@@ -24,6 +24,7 @@
     "suite:orfcomp:v1",     /* comprehension questions per ORF check (fluency-extras.js) */
     "suite:groups:v1",      /* math rotation groups: placements by gradebook student id (groups/) */
     "suite:readgroups:v1",  /* reading volunteer groups, per unit, by gradebook student id (groups/) */
+    "suite:win:v1",         /* Walk to WIN lists for the grade, and where this class goes (groups/win.js) */
     /* Migration flags have to travel. They are not preferences: they record a
        decision ("Health/SEL was deliberately deleted", "leave Writing on its
        stepper"), and a device that has not run a migration yet has an empty
@@ -45,7 +46,8 @@
     "suite:folderFile:v1": "the name of this computer's own file in the watched folder",
     "suite:lastSync": "this device's clock on the last round",
     "suite:lastOk": "when this device last completed a round",
-    "suite:ghExp": "when this device's token expires"
+    "suite:ghExp": "when this device's token expires",
+    "suite:lastExport:v1": "when this device last saved a sync file by hand, and whether it has changed since"
   };
   var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   var HANDLE_DB = "suite_sync", HANDLE_KEY = "handle";
@@ -342,11 +344,62 @@
      connected file is not available at all. A plain download and a plain file
      input work everywhere, carry exactly the same payload, and can be handed
      between devices through Drive, Files or mail. This is the only way data
-     reaches an iPad, so it is not an afterthought. */
+     reaches an iPad, so it is not an afterthought.
+
+     v77: this is also the whole sync for a computer that cannot install
+     Google Drive for Desktop. Save a sync file here, drag it into Drive in the
+     browser, download it on the other computer and drop it on any page. So a
+     file now says which device wrote it (`from`, the same id that device's
+     own file carries in a watched folder), and loading one MERGES instead of
+     replacing: see "Loading a file by hand" below. */
+  var EXPORT_KEY = "suite:lastExport:v1";
+  function exportState() {
+    try { return JSON.parse(localStorage.getItem(EXPORT_KEY) || "null") || null; } catch (e) { return null; }
+  }
+  /* a window event rather than emit(): emit() repaints the gradebook's Setup
+     tab, and the first keystroke after a save would take the focus out of
+     whatever field it was typed in */
+  function tellUnsent() { try { window.dispatchEvent(new Event("suite:exported")); } catch (e) { } }
+  function setExportState(o) { try { localStorage.setItem(EXPORT_KEY, JSON.stringify(o)); } catch (e) { } }
+  /* called from the setItem wrapper: one write on the first change only */
+  function markUnsent() {
+    var st = exportState();
+    if (st && !st.dirty) { st.dirty = true; setExportState(st); tellUnsent(); }
+  }
+  /* A phone or tablet: the share sheet is the way a file gets into Drive.
+     A computer: the share sheet (Windows' and macOS's, which Chrome now
+     offers) cannot reach Drive in a browser tab, while a download lands in
+     Downloads, one drag from drive.google.com. */
+  function touchDevice() {
+    var ua = navigator.userAgent || "";
+    if (/iPhone|iPad|iPod|Android/.test(ua)) return true;
+    if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+    try {
+      return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches &&
+        !window.matchMedia("(any-pointer: fine)").matches);
+    } catch (e) { return false; }
+  }
+  function exportName() {
+    var d = new Date();
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    var slug = String(deviceName()).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "device";
+    /* the time and the device are in the name so a Drive folder with several
+       in it sorts itself, and Drive never has to add "(1)" */
+    return "classroom-" + d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) +
+      "-" + two(d.getHours()) + two(d.getMinutes()) + "-" + slug + ".json";
+  }
   function exportFile() {
     var payload = snapshot();
-    var name = "classroom-" + new Date().toISOString().slice(0, 10) + ".json";
+    payload.from = ownFile();
+    payload.fromName = deviceName();
+    var prev = exportState();
+    payload.n = (prev && typeof prev.n === "number" ? prev.n : 0) + 1;
+    var name = exportName();
     var blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
+    function sent(how) {
+      setExportState({ at: payload.updatedAt, dirty: false, name: name, n: payload.n }); tellUnsent();
+      return { name: name, how: how };
+    }
 
     function download() {
       var url = URL.createObjectURL(blob);
@@ -354,7 +407,7 @@
       a.href = url; a.download = name; a.rel = "noopener";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      return { name: name, how: "download" };
+      return sent("download");
     }
 
     /* On iOS a download lands wherever Safari decides and gives you no chance
@@ -364,9 +417,9 @@
        buttons rather than a confirm(). */
     var file = null;
     try { file = new File([blob], name, { type: "application/json" }); } catch (e) { }
-    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (file && touchDevice() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       return navigator.share({ files: [file], title: "Classroom data" })
-        .then(function () { return { name: name, how: "share" }; })
+        .then(function () { return sent("share"); })
         .catch(function (e) {
           if (e && e.name === "AbortError") return { name: name, how: "cancelled" };
           return download();
@@ -374,15 +427,145 @@
     }
     return Promise.resolve(download());
   }
-  function importText(text) {
-    var payload = normalise(JSON.parse(text));
-    if (!payload || !payload.keys) throw new Error("that file is not a classroom backup");
-    var changed = apply(payload);
-    notifyChanged(changed);
-    return changed;
+
+  /* ------------------------------------------------------------
+     Loading a file by hand (v77)
+
+     Up to v76 loading a file replaced this device's data with it. That is
+     right for restoring a backup and wrong for carrying work between two
+     computers: marks entered here since the file was saved were thrown away.
+
+     So a file is now merged the way a second computer's file is merged in a
+     watched folder. It says which device wrote it, and it is compared with
+     the last file from that same device (kept in IndexedDB): whatever that
+     device changed since comes across, including a mark it deleted, and
+     whatever was changed here is kept. The first file from a device has
+     nothing to compare with, so it is laid over what is here: its values win,
+     and nothing that is only here is removed. A file older than one already
+     loaded from the same device is refused, because it could only take its
+     edits back. A plain value changed on both sides goes to the device whose
+     name sorts first, so two computers trading files end up agreeing.
+
+     Every load keeps what was here first, and Undo puts it back exactly.
+     "Replace" is still there for a real restore.
+     ------------------------------------------------------------ */
+  var HAND_IDB = "handPeers", UNDO_IDB = "handUndo";
+  var lastImport = null, undoReady = false;
+  /* The memory copy is the authority while the page is open, with IndexedDB
+     behind it, as the folder code keeps its peers: a private window can
+     refuse IndexedDB, and a merge that silently lost its comparison would
+     treat every file as the first. */
+  var handPeers = null, undoRec;   /* undefined: not read yet */
+  function loadHandPeers() {
+    if (handPeers) return Promise.resolve(handPeers);
+    return idbGet(HAND_IDB).then(function (v) {
+      if (!handPeers) handPeers = (v && typeof v === "object") ? v : {};
+      return handPeers;
+    });
+  }
+  function saveHandPeers() { idbSet(HAND_IDB, handPeers); }
+  function loadUndo() {
+    if (undoRec !== undefined) return Promise.resolve(undoRec);
+    return idbGet(UNDO_IDB).then(function (v) { if (undoRec === undefined) undoRec = (v && v.keys) ? v : null; return undoRec; });
+  }
+  function saveUndo(u) { undoRec = u; undoReady = !!u; idbSet(UNDO_IDB, u); }
+  loadUndo().then(function (u) { undoReady = !!u; emit(); });
+  /* which of two files from one device is newer: its own count first, since
+     two files can share a millisecond; the clock for files from before v77 */
+  function newer(a, b) {
+    if (typeof a.n === "number" && typeof b.n === "number") return a.n - b.n;
+    return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;
+  }
+
+  function importText(text, opts) {
+    opts = opts || {};
+    var raw;
+    try { raw = JSON.parse(text); } catch (e) { return Promise.reject(new Error("that file is not a classroom backup")); }
+    var payload = normalise(raw);
+    if (!payload || !payload.keys) return Promise.reject(new Error("that file is not a classroom backup"));
+    var from = String((raw && (raw.from || raw.writer)) || "");
+    var fromName = String((raw && raw.fromName) || "") || (from ? from.replace(/^classroom\./, "").replace(/-[0-9a-f]{6}\.json$/, "") : "");
+    var mine = ownFile();
+    var remote = {};
+    Object.keys(payload.keys).forEach(function (k) { if (KEYS.indexOf(k) >= 0 && typeof payload.keys[k] === "string") remote[k] = payload.keys[k]; });
+
+    return loadHandPeers().then(function (peers) {
+      var known = from && from !== mine ? peers[from] : null;
+      var info = { from: from, fromName: fromName, own: !!from && from === mine, at: payload.updatedAt || "",
+                   n: typeof raw.n === "number" ? raw.n : undefined,
+                   replaced: !!opts.replace, stale: false, same: false, conflicts: 0, first: !known, changed: [] };
+
+      var order = known && known.at && info.at ? newer(info, known) : 1;
+      if (!opts.replace && order <= 0) {
+        info.stale = order < 0; info.same = !info.stale;
+        info.seenAt = known.at;
+        lastImport = info;
+        var none = []; none.info = info; return none;
+      }
+
+      var before = snapshot().keys;
+      var next;
+      if (opts.replace) {
+        next = Object.assign({}, before, remote);
+      } else {
+        var m = mergeKeys(known ? known.keys : {}, before, remote, false, known ? from < mine : true);
+        next = m.keys; info.conflicts = m.report.conflicts;
+      }
+      var undo = { at: new Date().toISOString(), keys: before, from: from, peer: from ? (peers[from] || null) : null, fromName: fromName };
+      return Promise.resolve().then(function () {
+        saveUndo(undo);
+        var changed = apply({ keys: next, updatedAt: payload.updatedAt || new Date().toISOString() });
+        if (from && from !== mine) {
+          peers[from] = { at: info.at, n: info.n, keys: remote };
+          saveHandPeers();
+        }
+        info.changed = changed;
+        lastImport = info;
+        if (changed.length && backend()) schedulePush();
+        notifyChanged(changed);
+        emit();
+        changed.info = info;
+        return changed;
+      });
+    });
+  }
+  function undoImport() {
+    return loadUndo().then(function (u) {
+      if (!u || !u.keys) throw new Error("there is no load to undo");
+      applying = true;
+      var changed = [];
+      KEYS.forEach(function (k) {
+        try {
+          var cur = localStorage.getItem(k), was = u.keys[k];
+          if (was === undefined || was === null) { if (cur !== null) { localStorage.removeItem(k); changed.push(k); } }
+          else if (cur !== was) { localStorage.setItem(k, was); changed.push(k); }
+        } catch (e) { }
+      });
+      applying = false;
+      return loadHandPeers().then(function (peers) {
+        if (u.from) { if (u.peer) peers[u.from] = u.peer; else delete peers[u.from]; saveHandPeers(); }
+        saveUndo(null);
+      }).then(function () {
+        lastImport = null;
+        if (changed.length && backend()) schedulePush();
+        notifyChanged(changed);
+        emit();
+        return changed;
+      });
+    });
+  }
+  /* a File from a picker or a drop */
+  function importBlob(f, opts) {
+    return new Promise(function (res, rej) {
+      if (!f) return rej(new Error("AbortError"));
+      var r = new FileReader();
+      r.onload = function () { importText(String(r.result), opts).then(res, rej); };
+      r.onerror = function () { rej(new Error("could not read that file")); };
+      r.readAsText(f);
+    });
   }
   /* opens the picker itself, so a caller does not have to build an <input> */
-  function importFile() {
+  function importFile(opts) {
     return new Promise(function (res, rej) {
       var inp = document.createElement("input");
       inp.type = "file";
@@ -392,17 +575,22 @@
         var f = inp.files && inp.files[0];
         inp.remove();
         if (!f) return rej(new Error("AbortError"));
-        var r = new FileReader();
-        r.onload = function () {
-          try { res(importText(String(r.result))); }
-          catch (e) { rej(e); }
-        };
-        r.onerror = function () { rej(new Error("could not read that file")); };
-        r.readAsText(f);
+        importBlob(f, opts).then(res, rej);
       };
       document.body.appendChild(inp);
       inp.click();
     });
+  }
+  /* one sentence for a toast, shared by the gradebook and the switcher */
+  function describeImport(changed) {
+    var i = (changed && changed.info) || lastImport || {};
+    var who = i.own ? "this device" : i.fromName || "another device";
+    if (i.stale) return "That file from " + who + " is older than one already loaded here, so nothing changed.";
+    if (i.same) return "Already loaded that file from " + who + ".";
+    if (!changed || !changed.length) return "Nothing in that file was new.";
+    var s = (i.replaced ? "Replaced with the file from " : "Brought in the file from ") + who + ".";
+    if (i.conflicts) s += " " + i.conflicts + " edited in both places.";
+    return s + " Undo is on the sync menu.";
   }
 
   /* ============================================================
@@ -906,7 +1094,7 @@
       var origSet = proto.setItem;
       proto.setItem = function (k, v) {
         origSet.apply(this, arguments);
-        if (this === window.localStorage && KEYS.indexOf(k) >= 0 && !applying) schedulePush();
+        if (this === window.localStorage && KEYS.indexOf(k) >= 0 && !applying) { schedulePush(); markUnsent(); }
       };
       proto.__suitePatched = true;
     }
@@ -1350,6 +1538,11 @@
                    two computers wrote it at once) holds nothing that is not in
                    a computer's own file: tidy it away, never merge it */
                 if (named) { echoes.push({ name: f.name, stamp: stamp }); return; }
+                /* a sync file this computer saved by hand (v77). Where Drive
+                   for Desktop is not installed the watched folder is often
+                   Downloads, which is exactly where that file lands, and it
+                   has to stay there long enough to be dragged into Drive. */
+                if (raw && raw.from && raw.from === mine) { markSeen(f.name, stamp); return; }
                 drops.push({ name: f.name, keys: payload.keys, handle: f.handle, stamp: stamp });
               });
             }).catch(function () { });
@@ -1512,6 +1705,16 @@
     pull: function (force) { return folder ? folderSync({ force: !!force }) : gd ? gdSync({ force: !!force }) : gh ? ghSync({ force: !!force }) : pull(force); },
     exportFile: exportFile,
     importFile: importFile,
+    /* v77: loading by hand merges; { replace: true } is the old restore */
+    importText: importText,
+    importBlob: importBlob,
+    undoImport: undoImport,
+    describeImport: describeImport,
+    get canUndoImport() { return undoReady; },
+    get lastImport() { return lastImport; },
+    /* when a sync file was last saved here, and whether anything changed since */
+    get lastExport() { var e = exportState(); return e ? { at: e.at, dirty: !!e.dirty, name: e.name || "" } : null; },
+    touchDevice: touchDevice,
     ensurePermission: function () { return ensure(true); },
     onState: function (f) { listeners.push(f); f(state, detail); },
     onChanged: function (f) { changeHandlers.push(f); }

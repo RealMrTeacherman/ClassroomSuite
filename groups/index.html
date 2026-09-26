@@ -265,6 +265,7 @@
 <script src="sub-deck-template.js" defer></script>
 <script src="sub-slides.js" defer></script>
 <script src="orf-suggest.js" defer></script>
+<script src="win.js" defer></script>
 </head>
 <body class="tab-math">
 
@@ -276,6 +277,7 @@
       <button id="rotate" class="primary" title="Move every group to the next station (R)">Rotate stations</button>
       <button id="arrange">Arrange groups</button>
       <button id="toReading">Reading groups</button>
+      <button id="toWin">Walk to WIN</button>
       <button id="settings">Setup</button>
       <button id="full" title="Full screen (F)">Full screen</button>
     </div>
@@ -321,6 +323,7 @@
     <h1>Reading groups<small>Volunteer cards. Ten units, three weeks each. Names come from the gradebook.</small></h1>
     <div class="spacer"></div>
     <button class="r-btn" id="r-toMath">Math board</button>
+    <button class="r-btn" id="r-toWin">Walk to WIN</button>
     <button class="r-btn" id="r-suggestBtn">Suggest from fluency checks</button>
     <button class="r-btn" id="r-import">Bring in the old reading tool’s backup</button>
     <input type="file" id="r-file" accept="application/json,.json" hidden>
@@ -1433,19 +1436,26 @@
     });
   })();
 
-  /* ---- tabs: #reading or the math board; per device, not synced ---- */
+  /* ---- tabs: #reading, #win (v78) or the math board; per device, not synced ---- */
   var tab = "math";
   function setTab(t) {
-    tab = t === "reading" ? "reading" : "math";
+    tab = t === "reading" || t === "win" ? t : "math";
     document.body.classList.toggle("tab-reading", tab === "reading");
     document.body.classList.toggle("tab-math", tab === "math");
-    document.title = tab === "reading" ? "Reading groups" : "Small Groups";
-    var want = tab === "reading" ? "#reading" : "";
+    document.body.classList.toggle("tab-win", tab === "win");
+    document.title = tab === "reading" ? "Reading groups" : tab === "win" ? "Walk to WIN" : "Small Groups";
+    var want = tab === "reading" ? "#reading" : tab === "win" ? "#win" : "";
     if ((location.hash || "") !== want) { try { history.replaceState(null, "", location.pathname + location.search + want); } catch (e) { } }
-    if (tab === "reading") rRender(); else render();
+    if (tab === "reading") rRender();
+    /* win.js loads deferred, after this; it shows itself when it arrives */
+    else if (tab === "win") { if (window.SuiteWin) window.SuiteWin.show(); }
+    else render();
   }
-  window.addEventListener("hashchange", function () { setTab(location.hash === "#reading" ? "reading" : "math"); });
+  function tabFromHash() { return location.hash === "#reading" ? "reading" : location.hash === "#win" ? "win" : "math"; }
+  window.addEventListener("hashchange", function () { setTab(tabFromHash()); });
   document.getElementById("toReading").addEventListener("click", function () { setTab("reading"); });
+  document.getElementById("toWin").addEventListener("click", function () { setTab("win"); });
+  document.getElementById("r-toWin").addEventListener("click", function () { setTab("win"); });
 
   /* for tests and the console */
   window.SmallGroups = { state: function () { return G; }, roster: function () { return roster; }, members: members,
@@ -1460,7 +1470,7 @@
     setTab: setTab };
 
   load(); rLoad(); readRoster();
-  setTab(location.hash === "#reading" ? "reading" : "math");
+  setTab(tabFromHash());
 })();
 </script>
 </body>

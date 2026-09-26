@@ -2371,19 +2371,59 @@ function suiteBackup() {
   if (!window.SuiteSync) return toast("Sync module did not load");
   window.SuiteSync.exportFile().then(r => {
     if (r.how === "cancelled") return;
-    toast(r.how === "share" ? "Shared " + r.name : "Saved " + r.name);
+    toast(r.how === "share" ? "Shared " + r.name : "Saved " + r.name + " to Downloads");
+    if (UI.tab === "setup") renderSetup();
   }).catch(e => toast("Could not save: " + (e.message || e)));
+}
+/* v77: loading a file merges it (nothing on this device is lost) and can be
+   undone, so it no longer needs a confirm(). Replacing is the old restore,
+   and keeps the confirm. */
+function suiteLoaded(changed) {
+  const SS = window.SuiteSync;
+  if (changed.length) { reloadFromStorage(); render(); }
+  toast(SS.describeImport ? SS.describeImport(changed) : (changed.length ? "Loaded" : "Nothing in that file was new"));
+  if (UI.tab === "setup") renderSetup();
 }
 function suiteRestore() {
   if (!window.SuiteSync) return toast("Sync module did not load");
-  if (!confirm("Loading a backup replaces the gradebook, the lesson plans and the running records on this device with what is in the file.\n\nContinue?")) return;
-  window.SuiteSync.importFile().then(changed => {
-    if (!changed.length) { toast("Nothing in that file was newer"); return; }
-    reloadFromStorage(); render();
-    toast("Loaded " + changed.length + " of the three tools' data");
-  }).catch(e => {
+  window.SuiteSync.importFile().then(suiteLoaded).catch(e => {
     if (e && e.message !== "AbortError") toast("Could not load that file: " + (e.message || e));
   });
+}
+function suiteReplace() {
+  if (!window.SuiteSync) return toast("Sync module did not load");
+  if (!confirm("Replace the gradebook, the lesson plans and the running records on this device with what is in the file?\n\nUse this to restore a backup. To bring work over from another computer, use Load a sync file instead. Either can be undone.")) return;
+  window.SuiteSync.importFile({ replace: true }).then(suiteLoaded).catch(e => {
+    if (e && e.message !== "AbortError") toast("Could not load that file: " + (e.message || e));
+  });
+}
+function suiteUndoLoad() {
+  if (!window.SuiteSync) return;
+  window.SuiteSync.undoImport().then(changed => {
+    reloadFromStorage(); render();
+    toast(changed.length ? "Undone: back to how this device was before the load" : "Nothing to undo");
+  }).catch(e => toast("Could not undo: " + (e.message || e)));
+}
+function openDrive() { window.open("https://drive.google.com/drive/my-drive", "_blank", "noopener"); }
+/* the by-hand card: save a file, carry it through Drive in the browser, drop
+   it on the other computer. Works with nothing installed. */
+function byHandHTML(heading) {
+  const SS = window.SuiteSync;
+  const ex = SS.lastExport, li = SS.lastImport;
+  let status = "";
+  if (ex && ex.at) status += (ex.dirty ? '<strong style="color:var(--warn)">Changed since</strong> the sync file you saved ' : "Nothing has changed since the sync file you saved ") +
+    esc(new Date(ex.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })) + ". ";
+  if (li && !li.stale && !li.same && li.changed && li.changed.length) status += "Last loaded: a file from " + esc(li.own ? "this device" : li.fromName || "another device") +
+    (li.conflicts ? ", " + li.conflicts + " edited in both places" : "") + ".";
+  return (heading ? '<h3 style="margin-top:14px">' + heading + ' <span class="tag on" style="margin-left:6px">nothing to install</span></h3>' : "") +
+    '<p class="hint">Save a sync file here and drag it into Google Drive in your browser. On the other computer, download it and <strong>drop it on any page of the suite</strong> (or use Load a sync file). ' +
+    "It merges: what either computer added is kept, a mark changed or deleted on one comes across, and a file older than one already loaded is refused. Every load can be undone.</p>" +
+    (status ? '<p class="hint">' + status + "</p>" : "") +
+    '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Save a sync file</button>' +
+    '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
+    '<button class="btn" onclick="openDrive()">Open Google Drive</button>' +
+    (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
+    '<span style="flex:1"></span><button class="btn" onclick="suiteReplace()" title="Restore a backup: the file replaces what is here">Replace with a file\u2026</button></div>';
 }
 function wipe() {
   if (!confirm("This erases the roster, every mark, and all imported data. Continue?")) return;
@@ -3709,6 +3749,8 @@ function syncCardHTML() {
       (p ? '<p class="hint">Last pickup: ' + p.count + " file" + (p.count === 1 ? "" : "s") + " at " + esc(new Date(p.at).toLocaleTimeString()) + ".</p>" : "") +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Check now</button>' +
       '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
+      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
+      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
       '<span style="flex:1"></span><button class="btn danger" onclick="disconnectFolder()">Stop watching</button></div>';
     if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">' + esc(SS.detail) + "</p>";
     return h + "</div>";
@@ -3735,6 +3777,8 @@ function syncCardHTML() {
       '<p class="hint">' + counts + '</p>' +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Sync now</button>' +
       '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
+      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
+      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
       '<span style="flex:1"></span><button class="btn danger" onclick="disconnectDrive()">Disconnect</button></div>';
     if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">Last attempt failed \u2014 ' + esc(SS.detail) + "</p>";
     return h + "</div>";
@@ -3749,6 +3793,8 @@ function syncCardHTML() {
       '<p class="hint">' + counts + "</p>" +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Sync now</button>' +
       '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
+      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
+      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
       '<span style="flex:1"></span><button class="btn danger" onclick="disconnectGitHub()">Disconnect</button></div>';
     if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">Last attempt failed \u2014 ' + esc(SS.detail) + "</p>";
     return h + "</div>";
@@ -3789,11 +3835,15 @@ function syncCardHTML() {
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectFolder()">Choose a folder</button>' +
       '<span class="hint">Chrome or Edge on a computer. Your phone does not need this \u2014 it just shares a file in.</span></div>' +
       '<div class="divider"></div>';
+    /* v77: where Drive for Desktop is not allowed, this is the sync */
+    h += byHandHTML("Or move a file by hand") + '<div class="divider"></div>';
   } else {
     h += '<h3 style="margin-top:14px">Send to your desktop <span class="tag on" style="margin-left:6px">recommended</span></h3>' +
       '<p class="hint">If your computer is watching a handoff folder, this is the whole job: tap below, then share it into that folder. It is merged at the other end on its own, usually before you sit down.</p>' +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Send to my desktop</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a backup</button></div>' +
+      '<button class="btn" onclick="suiteRestore()">Load a backup</button>' +
+      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") + '</div>' +
+      '<p class="hint" style="margin-top:6px">Loading merges the file in; nothing on this device is lost, and it can be undone.</p>' +
       '<div class="divider"></div>';
   }
 
