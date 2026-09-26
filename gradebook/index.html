@@ -411,6 +411,7 @@ summary.tiny,summary.small{padding:4px 0}
 <script src="../suite-sync.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../curriculum.js"></script>
+<script src="../suite-names.js"></script>
 <script>
 /* ============================================================
    STANDARDS CATALOG
@@ -633,6 +634,8 @@ function hydrate(p) {
   if (out.sub && typeof out.sub !== "object") out.sub = null;
   if (!out.overrides || typeof out.overrides !== "object") out.overrides = {};
   if (!out.groupPins || typeof out.groupPins !== "object") out.groupPins = {};
+  /* pairs the teacher said are two children, "idA|idB" sorted (v76) */
+  if (!out.notSame || typeof out.notSame !== "object") out.notSame = {};
   if (!out.seeded || typeof out.seeded !== "object") out.seeded = {};
   seedRevealUnits(out);
   seedBenchmarkUnits(out);
@@ -765,6 +768,9 @@ function sortedStudents() {
   return S.students.slice().sort((a, b) => (a.last + a.first).toLowerCase().localeCompare((b.last + b.first).toLowerCase()));
 }
 function fullName(st) { return st ? (st.first + " " + st.last).trim() : ""; }
+/* the other names a child goes by (v76): Setup → Roster → Also called */
+function akaOf(st) { return window.SuiteNames ? window.SuiteNames.akaList(st && st.aka) : []; }
+function nickHint(st) { const f = String(st.first || ""); return f.length > 4 ? f.slice(0, 3) : "a nickname"; }
 function activeCodes(subject) {
   return CATALOG.filter(s => S.active[s.c] && (!subject || subject === "All" || s.s === subject)).map(s => s.c);
 }
@@ -1596,6 +1602,12 @@ function matchStudent(first, last, sid) {
   const f = normName(stripEldTag(first).name), l = normName(stripEldTag(last).name);
   let m = S.students.find(s => normName(s.first) === f && normName(s.last) === l);
   if (m) return m;
+  /* v76: a name the child goes by ("Theo" for Theodore, set under Setup →
+     Roster → Also called), or "Theo R." when only one child fits */
+  if (window.SuiteNames) {
+    m = window.SuiteNames.match(S.students, stripEldTag(first).name, stripEldTag(last).name);
+    if (m) return m;
+  }
   m = S.students.find(s => normName(s.last) === l && normName(s.first).startsWith(f.slice(0, 3)));
   return m || null;
 }
@@ -2134,10 +2146,11 @@ function renderSetup() {
     '<textarea id="roster-paste" rows="3" style="width:100%" placeholder="Paste names, one per line. Either &quot;Smith, Ava&quot; or &quot;Ava Smith&quot; works. Add a student ID after a comma or tab if you have it."></textarea>' +
     '<div class="row" style="margin-top:8px"><button class="btn primary" onclick="addRoster()">Add these students</button></div>';
   if (S.students.length) {
-    html += '<table style="margin-top:14px"><thead><tr><th>Last</th><th>First</th><th>Student ID</th><th class="c">ELD</th><th></th></tr></thead><tbody>' +
+    html += '<table style="margin-top:14px"><thead><tr><th>Last</th><th>First</th><th title="Other names this child goes by, such as Theo for Theodore. Separate with commas.">Also called</th><th>Student ID</th><th class="c">ELD</th><th></th></tr></thead><tbody>' +
       sortedStudents().map(s =>
         '<tr><td><input type="text" data-sf="last" data-id="' + s.id + '" value="' + esc(s.last) + '" style="width:110px"></td>' +
         '<td><input type="text" data-sf="first" data-id="' + s.id + '" value="' + esc(s.first) + '" style="width:110px"></td>' +
+        '<td><input type="text" data-sf="aka" data-id="' + s.id + '" value="' + esc(akaOf(s).join(", ")) + '" placeholder="e.g. ' + esc(nickHint(s)) + '" aria-label="Also called" style="width:110px"></td>' +
         '<td><input type="text" data-sf="sid" data-id="' + s.id + '" value="' + esc(s.sid || "") + '" style="width:110px"></td>' +
         '<td class="c"><input type="checkbox" data-sf="eld" data-id="' + s.id + '"' + (s.eld ? " checked" : "") + "></td>" +
         '<td class="c"><button class="btn sm danger" onclick="removeStudent(\'' + s.id + '\')">Remove</button></td></tr>').join("") +
@@ -2243,6 +2256,11 @@ function renderSetup() {
   el.querySelectorAll("[data-sf]").forEach(inp => {
     inp.onchange = () => {
       const s = S.students.find(x => x.id === inp.dataset.id); if (!s) return;
+      if (inp.dataset.sf === "aka") {
+        const list = akaOf({ aka: inp.value }).filter(a => normName(a) !== normName(s.first));
+        if (list.length) s.aka = list; else delete s.aka;
+        save(); renderSetup(); return;
+      }
       s[inp.dataset.sf] = inp.type === "checkbox" ? inp.checked : inp.value; save();
     };
   });
@@ -2989,7 +3007,7 @@ function findDuplicatePairs() {
   S.students.filter(isPartialName).forEach(p => {
     const tok = normName(partialToken(p));
     if (!tok) return;
-    let matches = full.filter(f => normName(f.first) === tok);
+    let matches = full.filter(f => normName(f.first) === tok || akaOf(f).some(a => normName(a) === tok));
     if (!matches.length) matches = full.filter(f => normName(f.last) === tok);
     if (!matches.length) matches = full.filter(f => normName(f.first).indexOf(tok) === 0 && tok.length >= 3);
     out.push({ from: p, matches: matches, reason: "first name only" });
@@ -3058,6 +3076,12 @@ function mergeStudents(fromId, toId) {
   });
 
   if (!String(to.sid || "").trim() && String(from.sid || "").trim()) to.sid = from.sid;
+  /* v76: the name the other record went by becomes one this child is also
+     called, so the next import or fluency check under it lands here */
+  const other = isPartialName(from) ? partialToken(from) : String(from.first || "").trim();
+  const known = [to.first].concat(akaOf(to)).map(normName);
+  const add = [other].concat(akaOf(from)).filter(a => normName(a) && known.indexOf(normName(a)) < 0);
+  if (add.length) to.aka = akaOf({ aka: akaOf(to).concat(add) });
   if (from.eld || hasEldTag(from)) to.eld = true;
 
   S.students = S.students.filter(s => s.id !== fromId);
@@ -3084,7 +3108,18 @@ function likelyDuplicates() {
   const words = s => normName(s).length ? String(s).toLowerCase().split(/[^a-z]+/).filter(Boolean) : [];
   full.forEach((a, i) => {
     full.slice(i + 1).forEach(b => {
-      if (normName(a.first) !== normName(b.first)) return;
+      /* v76: Theo Robinson and Theodore Robinson, or Theo R. — a nickname,
+         or two children. A human decides, as for the surname case. */
+      if (normName(a.first) !== normName(b.first)) {
+        const keepN = window.SuiteNames && window.SuiteNames.nicknamePair(a, b);
+        if (!keepN) return;
+        const key = [a.id, b.id].sort().join("|");
+        if (paired[key] || (S.notSame || {})[key]) return;
+        paired[key] = true;
+        const dropN = keepN === a ? b : a;
+        out.push({ keep: keepN, drop: dropN, why: "\u201c" + dropN.first + "\u201d looks like a name " + keepN.first + " goes by" });
+        return;
+      }
       const la = normName(a.last), lb = normName(b.last);
       if (la === lb) return;                       /* already handled as an exact repeat */
       const wa = words(a.last), wb = words(b.last);
@@ -3093,7 +3128,7 @@ function likelyDuplicates() {
       /* every word of the shorter surname appears in the longer one */
       if (!shorter.length || !shorter.every(w => longer.includes(w))) return;
       const key = [a.id, b.id].sort().join("|");
-      if (paired[key]) return;
+      if (paired[key] || (S.notSame || {})[key]) return;
       paired[key] = true;
       /* keep whichever carries more data, offer to fold the other into it */
       const keep = dataCount(a.id) >= dataCount(b.id) ? a : b;
@@ -3112,8 +3147,15 @@ function duplicateNoticeHTML() {
     esc(fullName(p.keep)) + " (" + dataCount(p.keep.id) + ") \u2014 " + p.why +
     ". If they are two children, leave this alone.</span>" +
     '<span style="flex:1"></span>' +
-    '<button class="btn sm" onclick="mergeLikely(\'' + p.drop.id + "','" + p.keep.id + '\')">Merge into ' + esc(fullName(p.keep)) + "</button></div>"
+    '<button class="btn sm" onclick="mergeLikely(\'' + p.drop.id + "','" + p.keep.id + '\')">Merge into ' + esc(fullName(p.keep)) + "</button>" +
+    '<button class="btn sm" onclick="notSameChild(\'' + p.drop.id + "','" + p.keep.id + '\')">They\u2019re two children</button></div>'
   ).join("");
+}
+/* v76: stop asking about a pair that really is two children */
+function notSameChild(a, b) {
+  S.notSame = S.notSame || {};
+  S.notSame[[a, b].sort().join("|")] = true;
+  save(); render(); toast("Kept as two students");
 }
 function mergeLikely(dropId, keepId) {
   const drop = S.students.find(s => s.id === dropId), keep = S.students.find(s => s.id === keepId);
@@ -3659,7 +3701,10 @@ function syncCardHTML() {
     }
     const p = SS.lastPickup;
     h += '<p class="small" style="margin-top:4px">Watching <strong>' + esc(SS.folderName) + '</strong> for anything your phone drops in. Checked every few seconds; nothing to press here.</p>' +
-      '<p class="hint">On the phone: tap the sync button, <strong>Send to my desktop</strong>, then share it into this folder. It is merged and the dropped file is tidied away, leaving one current <code class="std">classroom.json</code>.</p>' +
+      '<p class="hint">On the phone: tap the sync button, <strong>Send to my desktop</strong>, then share it into this folder. It is merged and the dropped file is tidied away.</p>' +
+      '<p class="hint">Another computer can watch this same folder too (a school PC through Google Drive for Desktop, say). Each computer writes a file only it writes, so neither can overwrite the other\u2019s work. ' +
+      (SS.otherComputers ? "Other computers seen here: <strong>" + SS.otherComputers + "</strong>. " : "") +
+      'This one writes <code class="std">' + esc(SS.folderFile) + '</code>; <code class="std">classroom.json</code> is the up-to-date copy a phone loads.</p>' +
       '<p class="hint">' + counts + '</p>' +
       (p ? '<p class="hint">Last pickup: ' + p.count + " file" + (p.count === 1 ? "" : "s") + " at " + esc(new Date(p.at).toLocaleTimeString()) + ".</p>" : "") +
       '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Check now</button>' +

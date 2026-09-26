@@ -167,6 +167,25 @@
   .r-day{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
   #r-blanks{width:56px}
   .r-note{margin:10px 22px 0;padding:10px 14px;background:#fff;border:1px solid var(--r-rule);border-radius:4px;font-size:13.5px}
+  .r-suggest{margin:12px 22px 0;padding:12px 14px;background:#fff;border:1px solid var(--r-rule);border-radius:4px}
+  .r-suggest[hidden]{display:none}
+  .r-shead{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .r-shead b{font-size:15px;margin-right:auto}
+  .r-shead select,.r-scard select{padding:5px 7px;border:1px solid var(--r-rule);border-radius:3px;background:#fff}
+  .r-shint{font-size:13px;color:var(--r-soft);margin:8px 0 0}
+  .r-sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:10px}
+  .r-scard{border:2px solid var(--r-rule);border-radius:4px;padding:8px 10px}
+  .r-scard .t{font-weight:700;font-size:14px}
+  .r-scard .d{font-size:12px;color:var(--r-soft);margin:2px 0 6px}
+  .r-scard ul{list-style:none;margin:6px 0 0;padding:0;font-size:13px}
+  .r-scard li{padding:3px 0;border-top:1px solid #EEF1EF;display:flex;flex-wrap:wrap;gap:0 8px}
+  .r-scard li .n{font-weight:600}
+  .r-scard li .m{color:var(--r-soft);font-size:12px}
+  .r-scard li .mv{font-size:11px;font-weight:700;color:var(--r-focus);margin-left:auto}
+  .r-scard li.off{opacity:.6}
+  .r-srow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+  #reading .r-btn:disabled{opacity:.5;cursor:default}
+  @media print{ body.tab-reading .r-suggest{display:none!important} }
   .r-note ul{margin:6px 0 0;padding-left:18px}
   .r-note[hidden],.r-loose[hidden],.r-move[hidden]{display:none}
   .r-loose{margin:12px 22px 0;padding:8px 10px;border:2px dashed var(--r-focus);border-radius:4px;background:#fff;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -240,10 +259,12 @@
 </style>
 <link rel="stylesheet" href="../suite-theme.css">
 <script src="../suite-sync.js"></script>
+<script src="../suite-names.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
 <script src="sub-deck-template.js" defer></script>
 <script src="sub-slides.js" defer></script>
+<script src="orf-suggest.js" defer></script>
 </head>
 <body class="tab-math">
 
@@ -300,6 +321,7 @@
     <h1>Reading groups<small>Volunteer cards. Ten units, three weeks each. Names come from the gradebook.</small></h1>
     <div class="spacer"></div>
     <button class="r-btn" id="r-toMath">Math board</button>
+    <button class="r-btn" id="r-suggestBtn">Suggest from fluency checks</button>
     <button class="r-btn" id="r-import">Bring in the old reading tool’s backup</button>
     <input type="file" id="r-file" accept="application/json,.json" hidden>
     <button class="r-btn r-primary" id="r-print">Print</button>
@@ -321,6 +343,7 @@
     <div class="r-field"><label for="r-blanks">Blank rows</label><input type="number" id="r-blanks" min="0" max="6" value="1"></div>
   </div>
   <div class="r-note" id="r-report" role="status" hidden></div>
+  <div class="r-suggest" id="r-suggest" hidden></div>
   <div class="r-loose" id="r-loose" hidden></div>
   <div class="r-board" id="r-board"></div>
   <div class="r-move" id="r-move" hidden></div>
@@ -402,15 +425,16 @@
   }
 
   /* The roster is the gradebook's. Read-only here. */
-  var roster = [];
+  var roster = [], gbLink = {};
   function readRoster() {
     var list = [];
     try {
       var raw = localStorage.getItem(ROSTER_KEY);
       var st = raw ? JSON.parse(raw) : null;
+      gbLink = (st && st.orfLink && typeof st.orfLink === "object") ? st.orfLink : {};
       (st && Array.isArray(st.students) ? st.students : []).forEach(function (s) {
         if (!s || !s.id) return;
-        list.push({ id: String(s.id), first: String(s.first || "").trim(), last: String(s.last || "").trim() });
+        list.push({ id: String(s.id), first: String(s.first || "").trim(), last: String(s.last || "").trim(), aka: s.aka });
       });
     } catch (e) { }
     /* A first name alone on the board, as before; where two children share
@@ -768,6 +792,10 @@
     if (!n) return [];
     var hits = roster.filter(function (s) { return norm(s.first) === n || norm(s.label) === n || norm(s.first + s.last) === n; });
     if (hits.length) return hits;
+    if (window.SuiteNames) {
+      var sp = t.split(/\s+/), nick = window.SuiteNames.match(roster, sp[0], sp.slice(1).join(" "));
+      if (nick) return [nick];
+    }
     var parts = t.split(/\s+/);
     if (parts.length > 1) {
       var f = norm(parts[0]), l = norm(parts.slice(1).join(""));
@@ -870,10 +898,10 @@
     if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === "INPUT")) return;
     load(); rLoad(); readRoster(); render(); rRender();
   }
-  window.addEventListener("storage", function (e) { if (e.key === KEY || e.key === RKEY || e.key === ROSTER_KEY) refresh(); });
+  window.addEventListener("storage", function (e) { if (e.key === KEY || e.key === RKEY || e.key === ROSTER_KEY || e.key === "running-records-v1") refresh(); });
   if (window.SuiteSync && window.SuiteSync.onChanged) {
     window.SuiteSync.onChanged(function (changed) {
-      if (changed.indexOf(KEY) >= 0 || changed.indexOf(RKEY) >= 0 || changed.indexOf(ROSTER_KEY) >= 0) refresh();
+      if (changed.indexOf(KEY) >= 0 || changed.indexOf(RKEY) >= 0 || changed.indexOf(ROSTER_KEY) >= 0 || changed.indexOf("running-records-v1") >= 0) refresh();
     });
   }
   window.addEventListener("pagehide", function () { saveNow(); rSaveNow(); });
@@ -977,7 +1005,7 @@
   function mk(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   function rRender() {
     if (tab !== "reading") return;
-    rRail(); rCopyList(); rFields(); rBoard(); rLoose(); rMoveBar(); rSheets(); rFit();
+    rRail(); rCopyList(); rFields(); rBoard(); rLoose(); rMoveBar(); rSheets(); rFit(); sugRender();
   }
   function rRail() {
     var rail = document.getElementById("r-rail");
@@ -1224,6 +1252,150 @@
       (c.visitors ? ", " + c.visitors + " as visitors" : "") + "."].concat(res.notes));
   }
 
+  /* ---- suggested groups from the running-records tool (v74) ----
+     Read-only use of running-records-v1: the same "Suggested groups" the
+     tool's Reports tab shows (orf-suggest.js), offered for the current
+     unit. Nothing moves until the teacher presses Use; only students with
+     a check are placed; everyone else, and every visitor, stays put; and
+     the last use can be undone. */
+  var ORF_KEY = "running-records-v1";
+  var sugBasis = "rate", sugMap = {}, sugUndo = null;
+  function readOrf() { try { var raw = localStorage.getItem(ORF_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
+  function splitName(n) {
+    var t = String(n || "").replace(/(^|[\s,])\(?\[?ELD\]?\)?(?=$|[\s,:\-\u2013\u2014|\/])/g, " ").replace(/^[\s:\-\u2013\u2014|\/]+|[\s:\-\u2013\u2014|\/]+$/g, "").trim();
+    if (t.indexOf(",") >= 0) { var b = t.split(","); return { first: b.slice(1).join(",").trim(), last: b[0].trim() }; }
+    var p = t.split(/\s+/).filter(Boolean);
+    while (p.length > 1 && /^(jr|sr|ii|iii|iv)\.?$/i.test(p[p.length - 1])) p.pop();
+    return p.length > 1 ? { first: p.slice(0, -1).join(" "), last: p[p.length - 1] } : { first: p[0] || "", last: "" };
+  }
+  /* The gradebook's own link first (it records which gradebook student
+     each fluency student is), then the name: first and last, else a first
+     name that only one child has. */
+  function orfToRoster(orfId, name) {
+    var linked = gbLink[orfId];
+    if (linked && byId(linked)) return byId(linked);
+    var p = splitName(name), f = norm(p.first), l = norm(p.last);
+    var hit = roster.filter(function (s) { return norm(s.first) === f && norm(s.last) === l; });
+    if (hit.length === 1) return hit[0];
+    /* v76: a name the child goes by (gradebook → Setup → Also called) */
+    var nick = window.SuiteNames ? window.SuiteNames.match(roster, p.first, p.last) : null;
+    if (nick) return nick;
+    hit = roster.filter(function (s) { return norm(s.first) === f; });
+    return hit.length === 1 ? hit[0] : null;
+  }
+  function shortDate(iso) { var d = new Date(iso); return isNaN(d) ? "" : MONTHS[d.getMonth()] + " " + d.getDate(); }
+  function sugGroups() {
+    var db = readOrf();
+    var gs = window.OrfSuggest ? window.OrfSuggest.suggest(db, sugBasis) : [];
+    gs.forEach(function (g, i) {
+      if (!(g.key in sugMap)) sugMap[g.key] = RIDS[i] || "";
+      g.members.forEach(function (m) { m.student = orfToRoster(m.orfId, m.name); });
+    });
+    return { db: db, groups: gs };
+  }
+  function sugRender() {
+    var box = document.getElementById("r-suggest");
+    if (box.hidden) return;
+    var res = sugGroups(), u = cu();
+    box.textContent = "";
+    var head = mk("div", "r-shead");
+    head.appendChild(mk("b", null, "Suggested groups from fluency checks"));
+    var sel = document.createElement("select");
+    sel.id = "r-sbasis";
+    sel.setAttribute("aria-label", "Group by");
+    [["rate", "By reading rate"], ["need", "By instructional need"]].forEach(function (o) {
+      var op = mk("option", null, o[1]); op.value = o[0]; sel.appendChild(op);
+    });
+    sel.value = sugBasis;
+    sel.addEventListener("change", function () { sugBasis = sel.value; sugMap = {}; sugRender(); });
+    head.appendChild(sel);
+    var close = mk("button", "r-btn", "Close"); close.type = "button";
+    close.addEventListener("click", function () { box.hidden = true; });
+    head.appendChild(close);
+    box.appendChild(head);
+    if (!res.groups.length) {
+      box.appendChild(mk("p", "r-shint", res.db && (res.db.records || []).length
+        ? "Groups need saved checks for at least two students. Save a few more in Running Records and they appear here."
+        : "No fluency checks on this device yet. Checks saved in Running Records appear here."));
+      return;
+    }
+    box.appendChild(mk("p", "r-shint", "The same groups as Running Records \u2192 Reports, from each student\u2019s latest check. Choose a colour for each, then use them for Unit " +
+      unitNo(R.current) + ". Only students with a check move; everyone else and every visitor stays where they are."));
+    var grid = mk("div", "r-sgrid"), placed = {}, moves = 0, n = 0;
+    res.groups.forEach(function (g) {
+      var card = mk("div", "r-scard");
+      var to = sugMap[g.key], col = RG[RIDS.indexOf(to)];
+      if (col) { card.style.borderColor = col.edge; card.style.background = col.fill + "33"; }
+      card.appendChild(mk("div", "t", g.title));
+      card.appendChild(mk("div", "d", g.desc));
+      var pick = document.createElement("select");
+      pick.setAttribute("aria-label", "Colour for " + g.title);
+      RG.forEach(function (c) { var op = mk("option", null, "\u2192 " + c.label); op.value = c.id; pick.appendChild(op); });
+      var skip = mk("option", null, "Don\u2019t use this group"); skip.value = ""; pick.appendChild(skip);
+      pick.value = to || "";
+      pick.addEventListener("change", function () { sugMap[g.key] = pick.value; sugRender(); });
+      card.appendChild(pick);
+      var ul = mk("ul");
+      g.members.forEach(function (m) {
+        var li = mk("li");
+        li.appendChild(mk("span", "n", m.student ? m.student.label : m.name));
+        li.appendChild(mk("span", "m", m.wcpm + " WCPM \u00b7 " + m.pctLabel + " \u00b7 " + m.accuracy + "% \u00b7 " + shortDate(m.date)));
+        if (!m.student) { li.className = "off"; li.appendChild(mk("span", "m", "not matched to the gradebook \u2014 skipped")); }
+        else if (to) {
+          n++; placed[m.student.id] = true;
+          if (u.place[m.student.id] !== to) { moves++; li.appendChild(mk("span", "mv", u.place[m.student.id] ? "moves from " + RG[RIDS.indexOf(u.place[m.student.id])].label.replace(" Group", "") : "new")); }
+        }
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+      grid.appendChild(card);
+    });
+    box.appendChild(grid);
+    var none = roster.filter(function (s) { return !res.groups.some(function (g) { return g.members.some(function (m) { return m.student && m.student.id === s.id; }); }); });
+    if (none.length) box.appendChild(mk("p", "r-shint", "No fluency check yet, so left as they are: " + none.map(function (s) { return s.label; }).join(", ") + "."));
+    var row = mk("div", "r-srow");
+    var use = mk("button", "r-btn r-primary", "Use for Unit " + unitNo(R.current) + (moves ? " (" + moves + " change" + (moves === 1 ? "" : "s") + ")" : ""));
+    use.type = "button"; use.id = "r-suse";
+    use.disabled = !moves;
+    use.addEventListener("click", function () { sugApply(res.groups); });
+    row.appendChild(use);
+    if (!moves) row.appendChild(mk("span", "r-shint", n ? "Unit " + unitNo(R.current) + " already matches these groups." : "Choose a colour for at least one group."));
+    box.appendChild(row);
+  }
+  function sugApply(groups) {
+    var u = cu(), before = JSON.parse(JSON.stringify(u.place)), moved = 0, placed = 0;
+    groups.forEach(function (g) {
+      var to = sugMap[g.key];
+      if (RIDS.indexOf(to) < 0) return;
+      g.members.forEach(function (m) {
+        if (!m.student) return;
+        placed++;
+        if (u.place[m.student.id] !== to) moved++;
+        u.place[m.student.id] = to;
+      });
+    });
+    sugUndo = { unit: R.current, place: before };
+    rSaveNow();
+    document.getElementById("r-suggest").hidden = true;
+    rRender();
+    var el = document.getElementById("r-report");
+    el.hidden = false;
+    el.innerHTML = "";
+    el.appendChild(document.createTextNode("Unit " + unitNo(R.current) + ": " + placed + " readers placed from their fluency checks, " + moved + " of them moved. "));
+    var undo = mk("button", "r-btn", "Undo"); undo.type = "button"; undo.id = "r-sundo";
+    undo.addEventListener("click", sugUndoNow);
+    el.appendChild(undo);
+    return { placed: placed, moved: moved };
+  }
+  function sugUndoNow() {
+    if (!sugUndo) return;
+    R.units[sugUndo.unit].place = sugUndo.place;
+    R.current = sugUndo.unit;
+    sugUndo = null;
+    rSaveNow(); rRender();
+    rReport(["Put back the groups from before the suggestion."]);
+  }
+
   /* ---- wiring ---- */
   (function () {
     var host = document.getElementById("r-dayBoxes");
@@ -1247,6 +1419,7 @@
     on("r-blanks", "input", function (e) { var n = parseInt(e.target.value, 10); R.blanks = isNaN(n) ? 0 : Math.max(0, Math.min(6, n)); rSave(); rSheets(); });
     on("r-print", "click", function () { rSaveNow(); window.print(); });
     on("r-toMath", "click", function () { setTab("math"); });
+    on("r-suggestBtn", "click", function () { var b = document.getElementById("r-suggest"); b.hidden = !b.hidden; sugRender(); });
     var fi = document.getElementById("r-file");
     on("r-import", "click", function () { fi.click(); });
     fi.addEventListener("change", function () {
@@ -1280,7 +1453,10 @@
     slideModel: slideModel, refresh: refresh, saveNow: saveNow,
     reading: { state: function () { return R; }, members: function (gid, k) { return rMembers(k ? R.units[k] : cu(), gid); },
       unplaced: function (k) { return rUnplaced(k ? R.units[k] : cu()); }, move: rMove, copyFrom: rCopyFrom,
-      importOld: rImport, fillWeeks: fillWeeks, saveNow: rSaveNow, select: function (k) { R.current = k; rRender(); } },
+      importOld: rImport, fillWeeks: fillWeeks, saveNow: rSaveNow, select: function (k) { R.current = k; rRender(); },
+      suggest: function (basis) { sugBasis = basis || "rate"; sugMap = {}; return sugGroups().groups; },
+      setColour: function (key, c) { sugMap[key] = c; }, applySuggestion: function () { return sugApply(sugGroups().groups); },
+      undoSuggestion: sugUndoNow, orfToRoster: orfToRoster } ,
     setTab: setTab };
 
   load(); rLoad(); readRoster();

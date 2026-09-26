@@ -1,6 +1,8 @@
 /* ============================================================
    suite-sync.js
    One connected JSON file, shared by every tool in this folder.
+   (v76: a watched folder now holds a file per computer as well; see
+   "Two computers watching the same folder" below.)
 
    All three tools live on one origin, so they already share local storage on
    any given machine. The file is only the transport between machines: whichever
@@ -40,6 +42,7 @@
     "suite:device:v1": "this device's own name",
     "suite:syncBase:v1": "the merge base; superseded by IndexedDB, kept for migration",
     "suite:folderSeen:v1": "drops this device has already absorbed",
+    "suite:folderFile:v1": "the name of this computer's own file in the watched folder",
     "suite:lastSync": "this device's clock on the last round",
     "suite:lastOk": "when this device last completed a round",
     "suite:ghExp": "when this device's token expires"
@@ -488,7 +491,10 @@
     /* a plain value both sides changed. Keep what is on this device, since
        that is what the person in front of it can see, and say so. */
     report.conflicts++;
-    return local;
+    /* Between two computers watching one folder, each keeping its own side
+       would leave them disagreeing for good. So a folder peer merge says
+       which side wins, and both computers work it out the same way. */
+    return report.remoteWins ? remote : local;
   }
 
   function parseOr(v) {
@@ -496,8 +502,8 @@
     try { return JSON.parse(v); } catch (e) { return undefined; }
   }
   /* merges two key maps against the base, returning the agreed map */
-  function mergeKeys(baseKeys, localKeys, remoteKeys, additive) {
-    var report = { conflicts: 0, kept: 0, additive: !!additive, changedLocally: [], changedRemotely: [] };
+  function mergeKeys(baseKeys, localKeys, remoteKeys, additive, remoteWins) {
+    var report = { conflicts: 0, kept: 0, additive: !!additive, remoteWins: !!remoteWins, changedLocally: [], changedRemotely: [] };
     var out = {};
     var names = {};
     [baseKeys, localKeys, remoteKeys].forEach(function (m) {
@@ -1239,6 +1245,60 @@
     })(folder.entries()).catch(function () { return out; });
   }
 
+  /* ------------------------------------------------------------
+     Two computers watching the same folder (v76)
+
+     Up to v75 every computer read and rewrote the one classroom.json. With
+     one computer that is fine. With two (a Mac at home, a Windows machine at
+     school, both watching the same Drive folder) it can lose work: Drive
+     for Desktop takes a few seconds to carry a write across, so the second
+     computer can rewrite classroom.json from a copy that does not have the
+     first one's newest marks yet. The first computer then reads that file,
+     sees the marks "gone over there", and deletes them.
+
+     So each computer now writes a file of its own, classroom.<name>.json,
+     and nobody else ever writes it. A file with one writer can be read
+     against what that writer said last time, so a copy that is merely
+     behind reads as "no change", never as a deletion, and a deletion that
+     really happened over there still arrives. A plain value both computers
+     changed goes the same way on both (the file whose name sorts first
+     wins), so they end up agreeing instead of each keeping its own.
+
+     classroom.json is still written, because it is the file a phone loads
+     with Load a backup. It carries the name of the computer that wrote it,
+     and a file carrying a name is never merged: the computer's own file is
+     the truth. A classroom.json with no name was written by an earlier
+     build and is merged the careful way, like a drop.
+     ------------------------------------------------------------ */
+  var OWN_KEY = "suite:folderFile:v1";
+  var PEER_RE = /^classroom\.[a-z0-9-]+\.json$/i;
+  var PEER_IDB = "folderPeers";
+  var peerBases = null;                     /* file name -> { stamp, keys } */
+  var ownWritten = null, canonWritten = null;
+
+  function ownFile() {
+    try {
+      var f = localStorage.getItem(OWN_KEY);
+      if (f && PEER_RE.test(f)) return f;
+      var slug = String(deviceName()).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "computer";
+      var id = "";
+      for (var i = 0; i < 6; i++) id += "0123456789abcdef".charAt(Math.floor(Math.random() * 16));
+      f = "classroom." + slug + "-" + id + ".json";
+      localStorage.setItem(OWN_KEY, f);
+      return f;
+    } catch (e) { return "classroom.computer.json"; }
+  }
+  function loadPeers() {
+    if (peerBases) return Promise.resolve(peerBases);
+    return idbGet(PEER_IDB).then(function (v) {
+      peerBases = (v && typeof v === "object") ? v : {};
+      return peerBases;
+    });
+  }
+  function keysJson(keys) {
+    return JSON.stringify(KEYS.map(function (k) { return [k, keys ? (keys[k] === undefined ? null : keys[k]) : null]; }));
+  }
+
   function folderSync(opts) {
     opts = opts || {};
     if (!folder) return Promise.resolve([]);
@@ -1246,39 +1306,50 @@
     folderBusy = true;
     if (!opts.quiet) set("syncing", "");
 
+    var mine = ownFile();
     return folderPerm(false).then(function (okPerm) {
       if (!okPerm) { set("needsPermission", "tap to allow the folder again"); return []; }
-      return folderFiles().then(function (files) {
+      return loadPeers().then(folderFiles).then(function (files) {
         var localKeys = snapshot().keys;
         var base = readBase();
         var merged = localKeys;
-        var canonical = null, drops = [], seen = seenList();
+        var canonical = null, canonNamed = false, haveMine = false;
+        var peers = [], drops = [], echoes = [], seen = seenList();
         var conflicts = 0, kept = 0;
 
         var chain = Promise.resolve();
         files.forEach(function (f) {
           chain = chain.then(function () {
+            if (f.name === mine) { haveMine = true; return; }     /* only this computer writes it */
             return f.handle.getFile().then(function (file) {
               var stamp = String(file.lastModified) + ":" + file.size;
-              if (f.name !== CANON && seen[f.name] === stamp) return;   /* already absorbed */
+              var isPeer = PEER_RE.test(f.name);
+              if (isPeer && peerBases[f.name] && peerBases[f.name].stamp === stamp) return;   /* nothing new from them */
+              if (!isPeer && f.name !== CANON && seen[f.name] === stamp) return;   /* already absorbed */
               /* The canonical file was being read and JSON-parsed in full
                  every eight seconds for as long as the tab stayed open. It
                  is the largest file in the folder and this is the main
                  thread. Its own stamp answers the only question being asked
                  of it: has anything changed since we last looked. */
               if (f.name === CANON && canonStamp === stamp && canonKeys) {
-                canonical = canonKeys;
+                canonical = canonKeys.keys; canonNamed = canonKeys.named;
                 return;
               }
               return file.text().then(function (text) {
-                var payload;
-                try { payload = normalise(JSON.parse(text)); } catch (e) { payload = null; }
+                var raw, payload;
+                try { raw = JSON.parse(text); payload = normalise(raw); } catch (e) { payload = null; }
                 if (!payload || !payload.keys) return;                  /* not ours; leave it alone */
+                var named = !!(raw && raw.writer);
                 if (f.name === CANON) {
-                  canonical = payload.keys;
-                  canonStamp = stamp; canonKeys = payload.keys;
+                  canonical = payload.keys; canonNamed = named;
+                  canonStamp = stamp; canonKeys = { keys: payload.keys, named: named };
                   return;
                 }
+                if (isPeer) { peers.push({ name: f.name, keys: payload.keys, stamp: stamp }); return; }
+                /* a copy of classroom.json (Drive's "classroom (1).json" when
+                   two computers wrote it at once) holds nothing that is not in
+                   a computer's own file: tidy it away, never merge it */
+                if (named) { echoes.push({ name: f.name, stamp: stamp }); return; }
                 drops.push({ name: f.name, keys: payload.keys, handle: f.handle, stamp: stamp });
               });
             }).catch(function () { });
@@ -1286,9 +1357,15 @@
         });
 
         return chain.then(function () {
-          if (canonical) {
-            var m = mergeKeys(base, merged, canonical);
+          peers.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+          peers.forEach(function (p) {
+            var pb = peerBases[p.name] ? peerBases[p.name].keys : {};
+            var m = mergeKeys(pb, merged, p.keys, false, p.name < mine);
             merged = m.keys; conflicts += m.report.conflicts; kept += m.report.kept;
+          });
+          if (canonical && !canonNamed) {
+            var m1 = mergeKeys(base, merged, canonical, true);
+            merged = m1.keys; conflicts += m1.report.conflicts; kept += m1.report.kept;
           }
           drops.forEach(function (d) {
             var m2 = mergeKeys(base, merged, d.keys, true);
@@ -1299,26 +1376,28 @@
           var differsLocally = KEYS.some(function (k) { return merged[k] !== undefined && merged[k] !== localKeys[k]; });
           if (differsLocally) changed = apply({ keys: merged, updatedAt: new Date().toISOString() });
 
-          var mustWrite = !canonical || KEYS.some(function (k) { return merged[k] !== (canonical || {})[k]; });
-          /* Same shape as every other backend's report. It used to be its
-             own thing, with `changedLocally` holding changed keys rather
-             than the merge's own list, so anything reading `.kept` broke
-             the moment the folder was the backend. */
+          var mj = keysJson(merged);
+          var writeMine = !haveMine || ownWritten !== mj;
+          /* classroom.json is rewritten when this computer's picture has
+             moved since it last wrote it, not merely because it differs:
+             otherwise two computers a few seconds apart would take turns
+             overwriting it until Drive caught up. */
+          var writeCanon = !canonical || (canonWritten === null ? keysJson(canonical) !== mj : canonWritten !== mj);
           lastReport = { conflicts: conflicts, kept: kept, additive: true,
-                         picked: drops.length, changedLocally: changed, changedRemotely: [] };
+                         picked: drops.length, peers: peers.length, changedLocally: changed, changedRemotely: [] };
 
-          if (!mustWrite && !drops.length) {
-            writeBase(merged); markOk();
-            set("connected", folder.name);
-            if (changed.length) notifyChanged(changed);
-            return changed;
-          }
-          return folderWrite(merged).then(function () {
+          var w = Promise.resolve();
+          if (writeMine) w = w.then(function () { return folderWrite(merged, mine); }).then(function () { ownWritten = mj; });
+          if (writeCanon) w = w.then(function () { return folderWrite(merged, CANON); }).then(function () { canonWritten = mj; });
+          return w.then(function () {
             writeBase(merged);
+            peers.forEach(function (p) { peerBases[p.name] = { stamp: p.stamp, keys: p.keys }; });
+            if (peers.length) idbSet(PEER_IDB, peerBases);
+            markOk();
             /* only now is it safe to take the dropped files away: everything
-               they held is in classroom.json and on this device */
+               they held is in this computer's own file and on this device */
             var rm = Promise.resolve();
-            drops.forEach(function (d) {
+            drops.concat(echoes).forEach(function (d) {
               rm = rm.then(function () {
                 return folder.removeEntry(d.name).catch(function () { markSeen(d.name, d.stamp); });
               });
@@ -1338,11 +1417,12 @@
     }).then(function (r) { folderBusy = false; drainPending(); return r; });
   }
 
-  function folderWrite(keys) {
-    canonStamp = ""; canonKeys = null;   /* re-read it next round */
-    return folder.getFileHandle(CANON, { create: true }).then(function (h) {
+  function folderWrite(keys, name) {
+    name = name || CANON;
+    if (name === CANON) { canonStamp = ""; canonKeys = null; }   /* re-read it next round */
+    return folder.getFileHandle(name, { create: true }).then(function (h) {
       return h.createWritable().then(function (w) {
-        return w.write(JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), keys: keys }, null, 1))
+        return w.write(JSON.stringify({ suite: 1, updatedAt: new Date().toISOString(), writer: ownFile(), keys: keys }, null, 1))
           .then(function () { return w.close(); });
       });
     });
@@ -1371,6 +1451,7 @@
     idbSet(FOLDER_HANDLE_KEY, null);
     try { localStorage.removeItem(SEEN_KEY); localStorage.removeItem(BASE_KEY); } catch (e) { }
     idbSet(BASE_IDB, null); baseCache = {}; canonStamp = ""; canonKeys = null;
+    idbSet(PEER_IDB, null); peerBases = null; ownWritten = null; canonWritten = null;
     set("off");
     return Promise.resolve();
   }
@@ -1395,6 +1476,9 @@
     folderSupported: FOLDER_SUPPORTED,
     get folderName() { return folder ? folder.name : ""; },
     get lastPickup() { return lastPickup; },
+    /* this computer's own file, and the other computers seen in the folder */
+    get folderFile() { return folder ? ownFile() : ""; },
+    get otherComputers() { return peerBases ? Object.keys(peerBases).length : 0; },
     connectFolder: folderConnect,
     disconnectFolder: folderDisconnect,
     allowFolder: function () {
