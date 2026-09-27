@@ -608,8 +608,6 @@
     root.innerHTML =
       '<div class="w-bar"><h1>Walk to WIN<small>Where your class goes for Walk to Read and Walk to Math, from the grade\u2019s lists.</small></h1>' +
       '<div class="sp"></div>' +
-      '<button class="w-btn" id="w-toMath" type="button">Math board</button>' +
-      '<button class="w-btn" id="w-toRead" type="button">Reading groups</button>' +
       '<button class="w-btn" id="w-add" type="button">Add a new list</button>' +
       '<button class="w-btn" id="w-printBtn" type="button">Print who\u2019s coming to me</button>' +
       '<button class="w-btn pri" id="w-present" type="button">Present</button></div>' +
@@ -645,16 +643,11 @@
       }
       if (t.id === "w-start" && viewId && W.lists[viewId]) { W.lists[viewId].start = t.value || W.lists[viewId].start; save(); render(); }
     });
-    document.getElementById("w-toMath").onclick = function () { go("math"); };
-    document.getElementById("w-toRead").onclick = function () { go("reading"); };
     document.getElementById("w-add").onclick = function () { draft = { text: "", start: defaultStart(), parsed: null }; renderAdd(); };
     document.getElementById("w-present").onclick = present;
     document.getElementById("w-printBtn").onclick = printList;
     window.addEventListener("resize", function () { if (document.body.classList.contains("tab-win")) fitSlide(document.getElementById("w-stage")); });
     document.addEventListener("fullscreenchange", function () { setTimeout(function () { fitSlide(document.getElementById("w-stage")); }, 60); });
-  }
-  function go(tab) {
-    if (window.SmallGroups && window.SmallGroups.setTab) window.SmallGroups.setTab(tab);
   }
   function current() {
     if (viewId && W.lists[viewId]) return W.lists[viewId];

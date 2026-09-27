@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Small Groups</title>
+<title>Small groups</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EDF0F2">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -30,6 +30,30 @@
     gap:clamp(8px,1vw,16px)}
   html:fullscreen .board{padding-bottom:clamp(10px,1.2vw,20px)}
   html:fullscreen #suitenav,html:fullscreen #suitebanner{display:none!important}
+
+  /* ---- v79: header and tabs (teacher chrome, suite tokens, every look) ---- */
+  .g-head{background:var(--suite-panel,#fff);border-bottom:1px solid var(--suite-line,rgba(16,24,32,.09));padding-top:env(safe-area-inset-top,0px);flex:none}
+  .g-brand,.g-tabs{max-width:1240px;margin:0 auto;padding-left:20px;padding-right:20px}
+  .g-brand{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;padding-top:12px;padding-bottom:2px}
+  .g-name{margin:0;font:600 18px var(--suite-serif,Georgia,serif);color:var(--suite-ink,#14202A);letter-spacing:-.005em}
+  .g-desc{font:400 12.5px var(--suite-sans,system-ui,sans-serif);color:var(--suite-ink-3,#626D78)}
+  .g-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .g-tabs button{font:500 14px var(--suite-sans,system-ui,sans-serif);color:var(--suite-ink-2,#48555F);background:none;border:0;border-bottom:2px solid transparent;padding:10px 13px;cursor:pointer;white-space:nowrap}
+  .g-tabs button:hover{color:var(--suite-ink,#14202A)}
+  .g-tabs button[aria-selected="true"]{color:var(--suite-ink,#14202A);font-weight:600;border-bottom-color:var(--suite-accent,#10655C)}
+  .g-tabs button:focus-visible{outline:2px solid var(--suite-accent,#10655C);outline-offset:-2px}
+  /* The math board is sized to the screen, and a header above it cost the
+     student lists their room at 1366x768. On the board the band is hidden
+     and the same tabs move into the board's own bar, beside its title. */
+  body.tab-math .g-head{display:none}
+  .bar .g-tabs{max-width:none;margin:0;padding:0;align-self:flex-end}
+  .bar .g-tabs button{font-family:var(--suite-sans,system-ui,sans-serif);font-size:14px;font-weight:500;color:var(--suite-ink-2,#48555F);
+    background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 12px}
+  .bar .g-tabs button:hover{border-color:transparent;color:var(--suite-ink,#14202A)}
+  .bar .g-tabs button[aria-selected="true"]{font-weight:600;color:var(--suite-ink,#14202A);border-bottom-color:var(--suite-accent,#10655C)}
+  html:fullscreen .g-head{display:none}
+  @media (max-width:760px){ .g-brand,.g-tabs{padding-left:12px;padding-right:12px} .g-desc{display:none} }
+  @media print{ .g-head{display:none!important} }
 
   .bar{display:flex;align-items:center;gap:clamp(10px,1.5vw,24px);flex-wrap:wrap}
   .title{font-size:clamp(1.3rem,2.4vw,2.4rem);font-weight:700;letter-spacing:.01em;margin:0;padding:2px 6px;border-radius:8px;outline:none}
@@ -269,6 +293,19 @@
 </head>
 <body class="tab-math">
 
+<!-- v79: one header and real tabs for the three views. It is teacher chrome,
+     so it follows the suite look (the same header.app / nav.tabs classes as
+     the gradebook, so 2006 and 2046 style it with no new rules); the board and the WIN cards below keep
+     their own bright colours. Full screen hides it. -->
+<header class="app g-head" id="g-head">
+  <div class="brandrow g-brand"><h1 class="g-name">Small groups</h1><span class="meta g-desc">Math rotations, reading volunteer cards, Walk to WIN</span></div>
+  <nav class="tabs g-tabs" role="tablist" aria-label="Small groups views">
+    <button type="button" role="tab" data-g="math" aria-selected="true">Math board</button>
+    <button type="button" role="tab" data-g="reading" aria-selected="false">Reading groups</button>
+    <button type="button" role="tab" data-g="win" aria-selected="false">Walk to WIN</button>
+  </nav>
+</header>
+
 <div class="board" id="board">
   <div class="bar">
     <h1 class="title" id="title" contenteditable="true" spellcheck="false">Math Groups</h1>
@@ -276,8 +313,6 @@
     <div class="tools">
       <button id="rotate" class="primary" title="Move every group to the next station (R)">Rotate stations</button>
       <button id="arrange">Arrange groups</button>
-      <button id="toReading">Reading groups</button>
-      <button id="toWin">Walk to WIN</button>
       <button id="settings">Setup</button>
       <button id="full" title="Full screen (F)">Full screen</button>
     </div>
@@ -322,8 +357,6 @@
   <div class="r-bar">
     <h1>Reading groups<small>Volunteer cards. Ten units, three weeks each. Names come from the gradebook.</small></h1>
     <div class="spacer"></div>
-    <button class="r-btn" id="r-toMath">Math board</button>
-    <button class="r-btn" id="r-toWin">Walk to WIN</button>
     <button class="r-btn" id="r-suggestBtn">Suggest from fluency checks</button>
     <button class="r-btn" id="r-import">Bring in the old reading tool’s backup</button>
     <input type="file" id="r-file" accept="application/json,.json" hidden>
@@ -1318,11 +1351,11 @@
     box.appendChild(head);
     if (!res.groups.length) {
       box.appendChild(mk("p", "r-shint", res.db && (res.db.records || []).length
-        ? "Groups need saved checks for at least two students. Save a few more in Running Records and they appear here."
-        : "No fluency checks on this device yet. Checks saved in Running Records appear here."));
+        ? "Groups need saved checks for at least two students. Save a few more in ORF and they appear here."
+        : "No fluency checks on this device yet. Checks saved in ORF appear here."));
       return;
     }
-    box.appendChild(mk("p", "r-shint", "The same groups as Running Records \u2192 Reports, from each student\u2019s latest check. Choose a colour for each, then use them for Unit " +
+    box.appendChild(mk("p", "r-shint", "The same groups as ORF \u2192 Reports, from each student\u2019s latest check. Choose a colour for each, then use them for Unit " +
       unitNo(R.current) + ". Only students with a check move; everyone else and every visitor stays where they are."));
     var grid = mk("div", "r-sgrid"), placed = {}, moves = 0, n = 0;
     res.groups.forEach(function (g) {
@@ -1421,7 +1454,6 @@
     on("r-scope", "change", function (e) { R.scope = e.target.value; rSave(); rSheets(); rFit(); });
     on("r-blanks", "input", function (e) { var n = parseInt(e.target.value, 10); R.blanks = isNaN(n) ? 0 : Math.max(0, Math.min(6, n)); rSave(); rSheets(); });
     on("r-print", "click", function () { rSaveNow(); window.print(); });
-    on("r-toMath", "click", function () { setTab("math"); });
     on("r-suggestBtn", "click", function () { var b = document.getElementById("r-suggest"); b.hidden = !b.hidden; sugRender(); });
     var fi = document.getElementById("r-file");
     on("r-import", "click", function () { fi.click(); });
@@ -1443,7 +1475,10 @@
     document.body.classList.toggle("tab-reading", tab === "reading");
     document.body.classList.toggle("tab-math", tab === "math");
     document.body.classList.toggle("tab-win", tab === "win");
-    document.title = tab === "reading" ? "Reading groups" : tab === "win" ? "Walk to WIN" : "Small Groups";
+    document.title = tab === "reading" ? "Reading groups" : tab === "win" ? "Walk to WIN" : "Small groups";
+    Array.prototype.forEach.call(document.querySelectorAll(".g-tabs [data-g]"), function (b) { b.setAttribute("aria-selected", b.getAttribute("data-g") === tab ? "true" : "false"); });
+    var nav = document.querySelector(".g-tabs");
+    if (nav) { var at = tab === "math" ? document.getElementById("title") : document.querySelector(".g-head .g-brand"); if (at && at.nextElementSibling !== nav) at.after(nav); }
     var want = tab === "reading" ? "#reading" : tab === "win" ? "#win" : "";
     if ((location.hash || "") !== want) { try { history.replaceState(null, "", location.pathname + location.search + want); } catch (e) { } }
     if (tab === "reading") rRender();
@@ -1453,9 +1488,10 @@
   }
   function tabFromHash() { return location.hash === "#reading" ? "reading" : location.hash === "#win" ? "win" : "math"; }
   window.addEventListener("hashchange", function () { setTab(tabFromHash()); });
-  document.getElementById("toReading").addEventListener("click", function () { setTab("reading"); });
-  document.getElementById("toWin").addEventListener("click", function () { setTab("win"); });
-  document.getElementById("r-toWin").addEventListener("click", function () { setTab("win"); });
+  Array.prototype.forEach.call(document.querySelectorAll(".g-tabs [data-g]"), function (b) {
+    b.addEventListener("click", function () { setTab(b.getAttribute("data-g")); });
+  });
+  window.SmallGroupsTab = setTab;
 
   /* for tests and the console */
   window.SmallGroups = { state: function () { return G; }, roster: function () { return roster; }, members: members,

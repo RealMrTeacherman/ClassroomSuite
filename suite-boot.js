@@ -238,3 +238,44 @@
     navigator.serviceWorker.register("../sw.js").catch(function () { });
   }
 })();
+
+/* ---- v79: one name per tool, the same in every place it shows ----
+   The planner was "Pocket Chart — 2nd grade daily planner" and the ORF tool
+   "Running Records"; the switcher, the launcher and the gradebook called them
+   Planner and Fluency. Both files are protected, so their headings and tab
+   titles are renamed here, after the page has parsed. The words are the only
+   change: the planner's own header markup is untouched. */
+(function () {
+  var ph = document.querySelector(".brand h1");
+  if (ph && /pocket chart/i.test(ph.textContent)) {
+    ph.textContent = "Planner";
+    var tag = document.querySelector(".brand h1 + span");
+    if (tag) tag.textContent = "Grade 2 daily and weekly plans";
+    document.title = "Planner";
+  }
+  var fh = document.querySelector("header.top h1");
+  if (fh && /running records/i.test(fh.textContent)) {
+    fh.textContent = "ORF";
+    document.title = "ORF";
+  }
+
+  /* The planner's Team tab predates the suite. Its sharing needs a Claude
+     artifact's storage, which a GitHub Pages site never has, and its note
+     told the teacher to publish from "the artifact menu". Say what is true
+     here instead. The planner redraws #main on every view change, so this
+     watches for the note rather than looking once. */
+  var main = document.getElementById("main");
+  if (!main || !ph) return;
+  var fix = function () {
+    var hints = main.querySelectorAll(".panel .hint");
+    for (var i = 0; i < hints.length; i++) {
+      if (/published<\/b> artifact/.test(hints[i].innerHTML)) {
+        hints[i].innerHTML = "Sharing plans with your team is not available on this site. " +
+          "Your own plans already follow you between computers through <b>Sync</b> in the corner switcher.";
+        hints[i].setAttribute("data-suite-team-note", "");
+      }
+    }
+  };
+  fix();
+  new MutationObserver(fix).observe(main, { childList: true });
+})();

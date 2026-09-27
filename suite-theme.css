@@ -1226,6 +1226,13 @@ body {
   html[data-suite-theme="textured"] header.app .segmented button { padding: 7px 18px; }
 }
 
+/* v79: Small groups' tabs sit in the math board's own bar, on the board's
+   light ground rather than the slate header, so 2006 gives them dark ink. */
+@media screen {
+  [data-suite-theme="textured"] .bar .g-tabs button { color: #5F5847; text-shadow: none; }
+  [data-suite-theme="textured"] .bar .g-tabs button:hover { color: #313C3B; background: rgba(58, 46, 30, .06); }
+}
+
 /* ==========================================================================
    2046 THEME  —  [data-suite-theme="2046"]
 
@@ -1581,4 +1588,154 @@ body {
 
   /* focus: one lavender ring, everywhere */
   [data-suite-theme="2046"] :focus-visible { outline: 2px solid var(--suite-accent) !important; outline-offset: 2px; }
+}
+
+/* ==========================================================================
+   v79 — the 2026 look, aligned across all four tools
+
+   Every rule here starts `html:not([data-suite-theme])`, so it applies to
+   2026 only: 2006 and 2046 set the attribute and are untouched. All of it is
+   inside `@media screen`, so no print sheet changes. The planner and the ORF
+   tool are restyled from here, never in their own files.
+
+   One system: tool name in the serif at 18px with a one-line description
+   beside it; underlined tabs; buttons and fields 36px tall with 8px corners;
+   sentence-case labels; one 1240px content column (the report card stays
+   full width); the four marks are the only saturated colour in the chrome.
+   Projected screens (math board stations, Walk to WIN cards) keep their big,
+   bold colours. `test-2026-aligned.js` holds it.
+   ========================================================================== */
+@media screen {
+  html:not([data-suite-theme]) { --x-h: 36px; --x-r: 8px; --x-w: 1240px; }
+
+  /* ---- shared controls ---- */
+  html:not([data-suite-theme]) input[type="checkbox"],
+  html:not([data-suite-theme]) input[type="radio"] { accent-color: var(--suite-accent); }
+  html:not([data-suite-theme]) input[type="file"]::file-selector-button {
+    font: 600 13.5px var(--suite-sans); color: var(--suite-ink); background: #fff;
+    border: 1px solid var(--suite-line-2); border-radius: var(--x-r); padding: 7px 14px; margin-right: 10px; cursor: pointer;
+  }
+  html:not([data-suite-theme]) textarea::placeholder { font-family: var(--suite-sans); }
+  html:not([data-suite-theme]) :is(th, .tablehead) { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; }
+
+  /* ---- gradebook ---- */
+  html:not([data-suite-theme]) header.app { padding-left: 0; padding-right: 0; }
+  html:not([data-suite-theme]) header.app .brandrow,
+  html:not([data-suite-theme]) header.app nav.tabs { max-width: var(--x-w); margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+  html:not([data-suite-theme]) header.app h1 { font-size: 18px; }
+  html:not([data-suite-theme]) .fld { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--suite-ink-2); }
+  html:not([data-suite-theme]) .fld :is(select, input:not([type="checkbox"]):not([type="radio"])) { font: 400 14px/1.3 var(--suite-sans); color: var(--suite-ink); min-height: var(--x-h); border-radius: var(--x-r); }
+  html:not([data-suite-theme]) .btn { min-height: var(--x-h); border-radius: var(--x-r); }
+  html:not([data-suite-theme]) .btn.sm { min-height: 32px; }
+  /* "Log the rest as not turned in" was gold, a mark colour; it is a normal secondary now */
+  html:not([data-suite-theme]) .btn.brass { background: #fff; border-color: var(--suite-line-2); color: var(--suite-ink); box-shadow: 0 1px 2px rgba(16, 24, 32, .07); }
+  html:not([data-suite-theme]) .btn.brass:hover { background: #F7F9FA; filter: none; }
+
+  /* ---- planner ---- */
+  html:not([data-suite-theme]) body:has(.hbar) { --mono: var(--suite-sans); --display: var(--suite-serif); }
+  html:not([data-suite-theme]) body:has(.hbar) .wrap { max-width: var(--x-w); padding: 0 20px; }
+  html:not([data-suite-theme]) body:has(.hbar) header::after { display: none; }
+  html:not([data-suite-theme]) .hbar { padding: 12px 0 10px; }
+  html:not([data-suite-theme]) .brand .mark { display: none; }
+  html:not([data-suite-theme]) .brand > div { display: flex; align-items: baseline; gap: 13px; min-width: 0; }
+  html:not([data-suite-theme]) .brand h1 { font: 600 18px var(--suite-serif); text-transform: none; letter-spacing: -.005em; }
+  html:not([data-suite-theme]) .brand span { font: 400 12.5px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--suite-ink-3) !important; }
+  html:not([data-suite-theme]) .jar { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+  html:not([data-suite-theme]) .jar svg { display: none; }
+  html:not([data-suite-theme]) .jar small { font-size: 12.5px; letter-spacing: 0; }
+  html:not([data-suite-theme]) body:has(.hbar) .tabs { border-top: 0; padding: 0; gap: 2px; }
+  html:not([data-suite-theme]) .tabs .tab {
+    font: 500 14px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important;
+    color: var(--suite-ink-2) !important; background: transparent !important; border: 0 !important;
+    border-bottom: 2px solid transparent !important; border-radius: 0 !important; padding: 10px 13px !important;
+  }
+  html:not([data-suite-theme]) .tabs .tab:hover { color: var(--suite-ink) !important; }
+  html:not([data-suite-theme]) .tabs .tab[aria-selected="true"] { color: var(--suite-ink) !important; font-weight: 600 !important; border-bottom-color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) .dsub { font: 400 13px var(--suite-sans); letter-spacing: 0; }
+  html:not([data-suite-theme]) :is(.todaybtn, .chip) { font: 600 13px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important; }
+  html:not([data-suite-theme]) .todaybtn { border-radius: var(--x-r) !important; padding: 8px 14px !important; border: 1px solid var(--suite-line-2) !important; color: var(--suite-ink) !important; }
+  html:not([data-suite-theme]) .todaybtn:hover { border-color: var(--suite-accent) !important; color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) .chip { padding: 2px 8px !important; border-width: 1px !important; }
+  html:not([data-suite-theme]) .railhead h2 { font: 600 15px var(--suite-sans); letter-spacing: 0; text-transform: none; }
+  /* subject cards keep the planner's own colour bars across the top */
+  html:not([data-suite-theme]) .rail .sub { border-width: 1px; box-shadow: var(--suite-shadow-sm); }
+  html:not([data-suite-theme]) .subcur,
+  html:not([data-suite-theme]) .subtime { font: 400 12.5px var(--suite-sans); letter-spacing: 0; text-transform: none; color: var(--suite-ink-3); }
+  html:not([data-suite-theme]) .rail :is(.rv-k, summary, span, .prov, .skipbtn, .rv-yr) { text-transform: none !important; letter-spacing: 0 !important; }
+  html:not([data-suite-theme]) .skipbtn { font: 500 12.5px var(--suite-sans) !important; border-radius: var(--x-r) !important; border-width: 1px !important; padding: 5px 10px !important; }
+  html:not([data-suite-theme]) .sub.skip .skipbtn { background: var(--suite-ink) !important; color: #fff !important; border-color: var(--suite-ink) !important; }
+  /* the lesson code is a plain field now, not a dark instrument readout */
+  html:not([data-suite-theme]) .readout {
+    background: var(--suite-paper-hi) !important; color: var(--suite-ink) !important; border: 1px solid var(--suite-line-2) !important;
+    box-shadow: none !important; border-radius: var(--x-r) !important; font: 600 15px var(--suite-sans) !important; letter-spacing: 0 !important; padding: 9px 12px !important;
+  }
+  html:not([data-suite-theme]) .readout::after { display: none; }
+  html:not([data-suite-theme]) .readout:hover { background: #fff !important; border-color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) .step { border-radius: var(--x-r) !important; width: 40px !important; flex: 0 0 40px !important; background: #fff !important; border: 1px solid var(--suite-line-2) !important; color: var(--suite-ink) !important; font-size: 18px !important; }
+  html:not([data-suite-theme]) .step:hover { border-color: var(--suite-accent) !important; color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) :is(.prov, .rv-pace, .rv-pace span) { font-family: var(--suite-sans) !important; font-size: 12.5px !important; }
+  html:not([data-suite-theme]) .rv-yr { border-radius: var(--x-r) !important; font: 500 12.5px var(--suite-sans) !important; }
+  html:not([data-suite-theme]) .rv-t { font-size: 15px; }
+  html:not([data-suite-theme]) .rv-k { font: 500 12.5px var(--suite-sans) !important; color: var(--suite-ink-3) !important; }
+  html:not([data-suite-theme]) .freein { background: var(--suite-paper-hi) !important; color: var(--suite-ink) !important; border: 1px solid var(--suite-line-2) !important; border-radius: var(--x-r) !important; box-shadow: none !important; font: 400 15px var(--suite-sans) !important; }
+  html:not([data-suite-theme]) .freein::placeholder { color: var(--suite-ink-3) !important; }
+
+  /* ---- sub plan panel labels ---- */
+  html:not([data-suite-theme]) #subpanel h3,
+  html:not([data-suite-theme]) #subpanel label.f { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; color: var(--suite-ink-2) !important; }
+  html:not([data-suite-theme]) #subpanel h3 { font-weight: 600 !important; font-size: 15px !important; color: var(--suite-ink) !important; }
+
+  /* ---- ORF: the same header band and underlined tabs ---- */
+  html:not([data-suite-theme]) body:has(header.top) { background-image: none; }
+  html:not([data-suite-theme]) body:has(header.top) .wrap { max-width: var(--x-w); padding-left: 20px; padding-right: 20px; }
+  html:not([data-suite-theme]) header.top {
+    background: #fff; margin: 0; padding: 12px 0 2px; box-shadow: 0 0 0 100vmax #fff !important; clip-path: inset(0 -100vmax);
+    display: flex; align-items: baseline; gap: 13px; flex-wrap: wrap; border: 0 !important; border-radius: 0 !important;
+  }
+  html:not([data-suite-theme]) header.top h1 { font: 600 18px var(--suite-serif) !important; letter-spacing: -.005em; margin: 0; }
+  html:not([data-suite-theme]) header.top .sub { font-size: 12.5px; margin: 0; color: var(--suite-ink-3); }
+  html:not([data-suite-theme]) .wrap > nav.tabs {
+    margin: 0 0 16px; padding: 0; background: #fff; border: 0; border-radius: 0; gap: 2px;
+    box-shadow: 0 0 0 100vmax #fff, 0 1px 0 100vmax var(--suite-line) !important; clip-path: inset(0 -100vmax -1px);
+  }
+  html:not([data-suite-theme]) .wrap > nav.tabs button { flex: 0 0 auto !important; background: transparent !important; color: var(--suite-ink-2) !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; padding: 10px 13px !important; font: 500 14px var(--suite-sans) !important; }
+  html:not([data-suite-theme]) .wrap > nav.tabs button:hover { color: var(--suite-ink) !important; }
+  html:not([data-suite-theme]) .wrap > nav.tabs button[aria-selected="true"] { color: var(--suite-ink) !important; font-weight: 600 !important; border-bottom-color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) body:has(header.top) .passage { max-width: 72ch; }
+
+  /* ---- small groups: teacher chrome only; stations stay big and bold ---- */
+  html:not([data-suite-theme]) body:has(#board) { --font: var(--suite-sans); background-color: var(--suite-paper); }
+  html:not([data-suite-theme]) :is(.bar .tools, .r-bar, .w-bar) button {
+    font: 600 13.5px var(--suite-sans) !important; min-height: var(--x-h) !important; padding: 7px 14px !important;
+    border-radius: var(--x-r) !important; border: 1px solid var(--suite-line-2) !important; background: #fff !important; color: var(--suite-ink) !important; box-shadow: 0 1px 2px rgba(16, 24, 32, .07) !important;
+  }
+  html:not([data-suite-theme]) :is(.bar .tools button.primary, .r-bar .r-btn.r-primary, .w-bar .w-btn.pri) { background: var(--suite-accent) !important; border-color: var(--suite-accent) !important; color: #fff !important; }
+  html:not([data-suite-theme]) .bar .tools #arrange.flag { color: var(--suite-m1) !important; border-color: var(--suite-m1) !important; }
+  html:not([data-suite-theme]) :is(.r-bar h1, .w-bar h1) { font: 600 18px var(--suite-serif) !important; letter-spacing: -.005em; }
+  html:not([data-suite-theme]) #reading { --r-ink: var(--suite-ink); --r-soft: var(--suite-ink-3); --r-rule: var(--suite-line-2); --r-focus: var(--suite-accent); font-family: var(--suite-sans); max-width: var(--x-w); margin: 0 auto; padding: 0 20px 90px !important; }
+  html:not([data-suite-theme]) body.tab-reading { background: var(--suite-paper); }
+  html:not([data-suite-theme]) #reading .r-bar { background: transparent; border: 0; padding: 20px 0 10px; }
+  html:not([data-suite-theme]) #reading .r-bar h1 small { font: 400 12.5px var(--suite-sans); margin-top: 3px; }
+  html:not([data-suite-theme]) #reading :is(.r-rail, .r-strip) { background: #fff; border: 1px solid var(--suite-line); border-radius: var(--suite-radius); box-shadow: var(--suite-shadow-sm); padding: 12px 16px; margin: 0 0 10px; }
+  html:not([data-suite-theme]) #reading :is(.r-note, .r-suggest, .r-loose, .r-board, .r-move, .r-pv) { margin-left: 0 !important; margin-right: 0 !important; padding-left: 0; padding-right: 0; }
+  html:not([data-suite-theme]) #reading :is(.r-note, .r-suggest) { padding: 12px 16px; border-radius: var(--suite-radius); }
+  html:not([data-suite-theme]) #reading .r-utab { border-radius: var(--x-r) !important; border-color: var(--suite-line-2) !important; min-width: 40px; }
+  html:not([data-suite-theme]) #reading .r-utab.on { background: var(--suite-accent) !important; border-color: var(--suite-accent) !important; }
+  html:not([data-suite-theme]) #reading :is(.r-field label, .r-field .lab, .r-days) { font: 600 13px var(--suite-sans); color: var(--suite-ink-2); }
+  html:not([data-suite-theme]) #reading :is(input[type="text"], input[type="date"], input[type="number"], input:not([type]), select) { font: 400 14px var(--suite-sans) !important; min-height: var(--x-h); border: 1px solid var(--suite-line-2) !important; border-radius: var(--x-r) !important; background: #fff !important; padding: 6px 10px !important; }
+  html:not([data-suite-theme]) #reading :is(.r-card, .r-loose) { border-radius: var(--suite-radius) !important; overflow: hidden; }
+  html:not([data-suite-theme]) #reading .r-card { border-color: var(--suite-line-2) !important; }
+  html:not([data-suite-theme]) #reading :is(.r-kid, .r-card button, .r-add button) { border-radius: var(--x-r) !important; }
+  html:not([data-suite-theme]) .w-btn { font: 600 13.5px var(--suite-sans) !important; border-radius: var(--x-r) !important; min-height: var(--x-h) !important; }
+
+}
+
+/* v79, phones: the tighter gutters they had */
+@media screen and (max-width: 760px) {
+  html:not([data-suite-theme]) header.app .brandrow,
+  html:not([data-suite-theme]) header.app nav.tabs { padding-left: 12px; padding-right: 12px; }
+  html:not([data-suite-theme]) body:has(.hbar) .wrap,
+  html:not([data-suite-theme]) body:has(header.top) .wrap { padding-left: 16px; padding-right: 16px; }
+  html:not([data-suite-theme]) .brand span { display: none; }
+  html:not([data-suite-theme]) #reading { padding: 0 12px 90px !important; }
 }

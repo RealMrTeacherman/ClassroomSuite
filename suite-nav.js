@@ -51,7 +51,7 @@
   var PAGES = [
     { app: "gradebook", label: "Gradebook", icon: "\u25A4" },
     { app: "planner", label: "Planner", icon: "\u25F1" },
-    { app: "fluency", label: "Fluency", icon: "\u25F7" },
+    { app: "fluency", label: "ORF", icon: "\u25F7" },
     { app: "groups", label: "Small groups", icon: "\u25A6" }
   ];
 
