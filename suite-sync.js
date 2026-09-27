@@ -47,7 +47,13 @@
     "suite:lastSync": "this device's clock on the last round",
     "suite:lastOk": "when this device last completed a round",
     "suite:ghExp": "when this device's token expires",
-    "suite:lastExport:v1": "when this device last saved a sync file by hand, and whether it has changed since"
+    "suite:lastExport:v1": "when this device last saved a sync file by hand, and whether it has changed since",
+    /* v81: both are this device's own undo copies, taken just before a merge
+       or a restore here. Sent to another computer they would undo the wrong
+       machine's state. auditKeys() reported the first as stray after any
+       gradebook merge, and Setup warned about it. */
+    "gb2_standards_v1_premerge": "this device's undo copy from before its last gradebook merge",
+    "gb2:preRestore:v1": "this device's undo copy from before its last gradebook restore"
   };
   var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   var HANDLE_DB = "suite_sync", HANDLE_KEY = "handle";
@@ -1088,12 +1094,48 @@
   window.addEventListener("online", function () {
     if (backend()) flushPush();
   });
+  /* ---------- v81: a tool's write never undoes what arrived underneath it ----------
+     The planner's lost days (v80) were one case of a pattern the sweep
+     found in four more places: a tool holds its data in memory, writes the
+     whole copy back, and does not re-read when a sync round (in this tab or
+     another tab of the suite) changes storage underneath it. Its next
+     write, or its pagehide flush, then puts the old copy back, and the next
+     round sends that everywhere as an edit.
+
+     A tool calls `adopted(key)` whenever its memory matches storage: when
+     it loads or reloads. From then on every write it makes to that key is
+     checked: if storage has moved since, the write is merged with what is
+     there, against what the tool last saw, before it lands. Only fields the
+     tool changed are its; everything else keeps what arrived. The base then
+     becomes what the tool wrote, since that is what its memory now holds.
+     Sync's own writes (applying) pass straight through. */
+  var held = {};                 /* key -> what this page's memory was built from */
+  var guardReport = { merged: 0, conflicts: 0 };
+  function rawGet(k) { try { return window.Storage.prototype.getItem.call(window.localStorage, k); } catch (e) { return null; } }
+  function adopted(k) { if (KEYS.indexOf(k) >= 0) held[k] = rawGet(k); }
+  function guardValue(k, v) {
+    if (!(k in held) || applying) return v;
+    var base = held[k], cur = rawGet(k);
+    held[k] = String(v);
+    if (cur === null || cur === base || cur === String(v)) return v;
+    var b = parseOr(base), l = parseOr(String(v)), r = parseOr(cur);
+    if (l === undefined || r === undefined) return v;
+    var rep = { conflicts: 0, kept: 0, additive: false, remoteWins: false, changedLocally: [], changedRemotely: [] };
+    var m = merge3(b, l, r, rep);
+    if (m === undefined) return v;
+    guardReport.merged++; guardReport.conflicts += rep.conflicts;
+    return JSON.stringify(m);
+  }
   try {
     var proto = window.Storage && window.Storage.prototype;
     if (proto && !proto.__suitePatched) {
       var origSet = proto.setItem;
       proto.setItem = function (k, v) {
-        origSet.apply(this, arguments);
+        if (this === window.localStorage) {
+          var g = guardValue(k, v);
+          if (g !== v) { origSet.call(this, k, g); }
+          else origSet.apply(this, arguments);
+        } else origSet.apply(this, arguments);
         if (this === window.localStorage && KEYS.indexOf(k) >= 0 && !applying) { schedulePush(); markUnsent(); }
       };
       proto.__suitePatched = true;
@@ -1722,6 +1764,9 @@
        data in memory and must fold a pull into it (see suite-boot.js,
        "the open planner never writes over a pull"). Plain values both
        sides changed keep `local`, as they do in a round. */
+    /* v81: this page's memory now matches storage for `key`; see above */
+    adopted: adopted,
+    get guardReport() { return { merged: guardReport.merged, conflicts: guardReport.conflicts }; },
     merge: function (base, local, remote) {
       return merge3(base, local, remote, { conflicts: 0, kept: 0, additive: false, remoteWins: false, changedLocally: [], changedRemotely: [] });
     }

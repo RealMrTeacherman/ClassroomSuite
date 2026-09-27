@@ -925,6 +925,9 @@
     setTimeout(function () {
       var raw = null;
       try { raw = window.localStorage.getItem(KEY); } catch (e) { }
+      /* v81: this edit is made to what is stored now, so a record removed
+         here that arrived by sync must not be merged back in */
+      if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
       var d = null;
       try { d = JSON.parse(raw || "null"); } catch (e) { }
       if (!d || !Array.isArray(d.students)) { toast("Couldn't read the roster on this device."); return; }

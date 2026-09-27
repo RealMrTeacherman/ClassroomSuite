@@ -449,6 +449,7 @@
   var M = function () { return G.math; };
   function load() {
     try { var raw = localStorage.getItem(KEY); G = normalize(raw ? JSON.parse(raw) : null); } catch (e) { G = defaults(); }
+    if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);   /* v81 */
   }
   var saveT = null;
   function save() {
@@ -456,7 +457,7 @@
     saveT = setTimeout(saveNow, 200);
   }
   function saveNow() {
-    clearTimeout(saveT);
+    clearTimeout(saveT); saveT = null;
     try { localStorage.setItem(KEY, JSON.stringify(G)); } catch (e) { say("Could not save \u2014 browser storage may be full.", true); }
   }
 
@@ -932,6 +933,11 @@
   /* Another tab, or the sync file, changed the roster or the groups. */
   function refresh() {
     if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === "INPUT")) return;
+    /* v81: a move made in the last 200ms was still waiting to be written,
+       and load() dropped it. Write it first; the write merges with what
+       arrived, so load() then reads both. */
+    if (saveT) saveNow();
+    if (rSaveT) rSaveNow();
     load(); rLoad(); readRoster(); render(); rRender();
   }
   window.addEventListener("storage", function (e) { if (e.key === KEY || e.key === RKEY || e.key === ROSTER_KEY || e.key === "running-records-v1") refresh(); });
@@ -993,11 +999,14 @@
     return d;
   }
   var R = rDefaults();
-  function rLoad() { try { var raw = localStorage.getItem(RKEY); R = rNormalize(raw ? JSON.parse(raw) : null); } catch (e) { R = rDefaults(); } }
+  function rLoad() {
+    try { var raw = localStorage.getItem(RKEY); R = rNormalize(raw ? JSON.parse(raw) : null); } catch (e) { R = rDefaults(); }
+    if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(RKEY);   /* v81 */
+  }
   var rSaveT = null;
   function rSave() { clearTimeout(rSaveT); rSaveT = setTimeout(rSaveNow, 250); }
   function rSaveNow() {
-    clearTimeout(rSaveT);
+    clearTimeout(rSaveT); rSaveT = null;
     try { localStorage.setItem(RKEY, JSON.stringify(R)); } catch (e) { rReport(["Could not save \u2014 browser storage may be full."]); }
   }
   function cu() { return R.units[R.current]; }

@@ -755,6 +755,8 @@ function todayISO() { const d = new Date(); return d.getFullYear() + "-" + Strin
 function load() {
   try { const raw = window.localStorage.getItem(KEY); if (raw) S = hydrate(JSON.parse(raw)); }
   catch (e) { console.warn(e); }
+  /* v81: memory now matches storage; later saves merge rather than overwrite */
+  if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Could not save \u2014 browser storage may be full"); } }
 function esc(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -3698,6 +3700,7 @@ function reloadFromStorage() {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return;
     S = hydrate(JSON.parse(raw));
+    if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
     if (S.settings.subject) UI.subject = S.settings.subject;
     paintSubjSwitch();
     syncIreadyScores();
@@ -3895,6 +3898,17 @@ function initSync() {
     window.SuiteSync.driveAccount().then(e => { if (e && UI.tab === "setup") renderSetup(); });
   }
   window.SuiteSync.onState((st, dt) => { paintSyncFlag(st, dt); if (UI.tab === "setup") renderSetup(); });
+  /* v81: another tab of the suite (the planner, say) can run the sync round
+     that brings in marks from the other computer. This tab hears it only as
+     a storage event; before, it kept its old copy and wrote it back on the
+     next mark or on close. Now it reads the new copy in, unless a field
+     here is mid-edit, in which case the next save merges instead. */
+  window.addEventListener("storage", e => {
+    if (e.key !== KEY || e.storageArea !== window.localStorage) return;
+    const a = document.activeElement;
+    if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+    reloadFromStorage(); render();
+  });
   window.SuiteSync.onChanged(changed => {
     if (changed.indexOf("gb2_standards_v1") >= 0) { reloadFromStorage(); render(); }
     const others = changed.filter(k => k !== "gb2_standards_v1");

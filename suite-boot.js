@@ -264,6 +264,11 @@
     if (NAMES[k] && isObj(val)) { try { fold(k, val); } catch (e) { } }
     var p = orig.apply(this, arguments);
     if (NAMES[k]) base[k] = read(k);    /* the device path writes before its first await */
+    /* v81: persist() warns when days fail to save; settings, drafts and
+       the planner's own record failed in silence */
+    if (k !== "lp:days:v2" && p && typeof p.then === "function") p.then(function (okd) {
+      if (okd === false && typeof window.toast === "function") window.toast("Couldn\u2019t save \u2014 browser storage may be full. Export a backup from the sync menu.");
+    });
     return p;
   };
   store.set.__merges = true;
@@ -287,6 +292,18 @@
     return true;
   }
   window.SuitePlannerLive = { absorb: absorb, fold: fold, get base() { return base; } };
+})();
+
+/* ---- v81: the ORF tool's writes merge with what arrived underneath ----
+   fluency/index.html keeps running-records-v1 in memory, reads it once and
+   writes the whole copy on every change, like the planner did (v80). It is
+   protected and its storage is inside a closure, so memory cannot be
+   refreshed from here; the write guard in suite-sync.js is what keeps a
+   pulled check or student from being written over. Its base starts as what
+   the tool read at boot, which is what is stored now. */
+(function () {
+  if (location.pathname.indexOf("fluency") < 0 || !window.SuiteSync || !window.SuiteSync.adopted) return;
+  window.SuiteSync.adopted("running-records-v1");
 })();
 
 /* Starts sync and the service worker on the tools that have no boot code of

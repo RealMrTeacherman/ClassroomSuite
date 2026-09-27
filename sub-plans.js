@@ -88,6 +88,8 @@
   function read() {
     try {
       var raw = localStorage.getItem(KEY);
+      /* v81: memory matches storage from here; writes merge after this */
+      if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
       if (raw) return normalise(JSON.parse(raw));
     } catch (e) { }
     /* first run: take the notes over from where they used to live */
@@ -102,7 +104,11 @@
     return blank();
   }
   function write(v) {
-    try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { }
+    try { localStorage.setItem(KEY, JSON.stringify(v)); }
+    catch (e) {
+      /* v81: this failed in silence; say so, as every other tool does */
+      if (typeof window.toast === "function") window.toast("Couldn\u2019t save the sub plan notes \u2014 browser storage may be full");
+    }
   }
   function normalise(src) {
     var b = blank();
@@ -733,6 +739,11 @@
        draft that had not been saved, produced a confident-looking plan for
        the wrong day. */
     flushPlanner();
+    /* v81: the standing notes were read once, when the planner opened, so
+       notes changed on the other computer since then were shown stale and
+       the next edit here wrote the stale copy back over them. Read them
+       fresh each time the panel opens. */
+    S = read();
     if (dateISO) curDate = dateISO;
     else {
       var d = plannerDay();

@@ -286,6 +286,7 @@
   function defaults() { return { v: 1, me: "", teachers: {}, lists: {} }; }
   function load() {
     try { W = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { W = null; }
+    if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);   /* v81 */
     if (!W || typeof W !== "object") W = defaults();
     if (!W.lists || typeof W.lists !== "object") W.lists = {};
     if (!W.teachers || typeof W.teachers !== "object") W.teachers = {};
