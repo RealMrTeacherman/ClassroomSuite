@@ -180,6 +180,115 @@
   })();
 })();
 
+/* ---- v80: the open planner never writes over a pull ----
+   Reported: saved changes in the planner kept disappearing.
+
+   The planner reads its four keys once, at boot, and after that every save
+   writes its whole in-memory copy back: persist() stores all of DAYS,
+   persistSettings() all of S. A sync round that brings in another
+   computer's edits writes them to local storage underneath it, and the
+   planner never looks. So the next keystroke on this computer put the old
+   copy back, and the round after that read the old copy as an edit made
+   here — "local changed it, remote left it alone" — and sent it everywhere.
+   A day saved at home was gone from home too, and nothing said so. The
+   "Newer data arrived" banner was the only guard, and it has a close button.
+
+   Both halves are fixed here, because the planner itself is protected:
+
+   1. Every write the planner makes is merged first. `base` is what this
+      page's memory and storage last agreed on; if storage has moved since,
+      the three-way merge folds the newer storage into memory before the
+      write, so the write carries both. Its own edits still win a field
+      edited in both places, as a sync round's local side does.
+   2. A pull that touches the planner's keys is folded into memory at once,
+      and the page redraws — unless something on it is being typed in or a
+      sheet is open, in which case the banner offers the reload as before
+      (now safe either way).
+
+   Memory is updated in place, never replaced, so the Settings handlers and
+   the day on screen keep pointing at the live objects. */
+(function () {
+  if (location.pathname.indexOf("planner") < 0 || !window.SuiteSync || typeof window.SuiteSync.merge !== "function") return;
+  function g(n) { try { return (0, eval)(n); } catch (e) { return undefined; } }
+  var store = g("store");
+  if (!store || typeof store.set !== "function" || store.set.__merges) return;
+
+  var NAMES = { "lp:days:v2": "DAYS", "lp:pending:v1": "PENDING", "lp:settings:v2": "S", "lp:me:v1": "ME" };
+  function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+  function parse(v) { if (typeof v !== "string") return undefined; try { return JSON.parse(v); } catch (e) { return undefined; } }
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function kin(a, b) { return (Array.isArray(a) && Array.isArray(b)) || (isObj(a) && isObj(b)); }
+  function ided(a) { return Array.isArray(a) && a.every(function (x) { return isObj(x) && x.id != null; }); }
+
+  /* make `t` equal `s`, keeping every object that still exists */
+  function adopt(t, s) {
+    if (Array.isArray(t)) {
+      if (ided(t) && ided(s)) {
+        var by = {}; t.forEach(function (x) { by[String(x.id)] = x; });
+        var out = s.map(function (x) { var o = by[String(x.id)]; if (o && kin(o, x)) { adopt(o, x); return o; } return x; });
+        t.length = 0; out.forEach(function (x) { t.push(x); });
+      } else {
+        s.forEach(function (x, i) { if (kin(t[i], x)) adopt(t[i], x); else t[i] = x; });
+        t.length = s.length;
+      }
+      return;
+    }
+    Object.keys(t).forEach(function (k) { if (!(k in s)) delete t[k]; });
+    Object.keys(s).forEach(function (k) { if (kin(t[k], s[k])) adopt(t[k], s[k]); else t[k] = s[k]; });
+  }
+
+  var base = {};
+  Object.keys(NAMES).forEach(function (k) { base[k] = read(k); });
+
+  /* fold what storage holds now into memory; true if memory changed */
+  function fold(k, mem) {
+    var now = read(k);
+    if (now == null || now === base[k] || !kin(mem, parse(now))) return false;
+    var before = JSON.stringify(mem);
+    var merged = window.SuiteSync.merge(parse(base[k]), JSON.parse(before), parse(now));
+    base[k] = now;
+    if (!kin(mem, merged) || JSON.stringify(merged) === before) return false;
+    adopt(mem, merged);
+    if (k === "lp:days:v2") {
+      if (typeof window.invalidateDayCache === "function") window.invalidateDayCache();
+      /* the saved day on screen is edited through `draft`; give it the
+         other computer's fields too, or the next keystroke reverts them */
+      var d = g("draft"), dk = d && d.__key;
+      if (d && d.saved && dk && isObj(mem[dk])) { adopt(d, JSON.parse(JSON.stringify(mem[dk]))); d.__key = dk; }
+    }
+    return true;
+  }
+
+  var orig = store.set;
+  store.set = function (k, val) {
+    if (NAMES[k] && isObj(val)) { try { fold(k, val); } catch (e) { } }
+    var p = orig.apply(this, arguments);
+    if (NAMES[k]) base[k] = read(k);    /* the device path writes before its first await */
+    return p;
+  };
+  store.set.__merges = true;
+
+  function typing() {
+    var a = document.activeElement;
+    if (a && a !== document.body && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
+    if (a && a.isContentEditable) return true;
+    return !!g("sheetEl");
+  }
+  /* true when the pull is already on screen, so no reload is needed */
+  function absorb(changed) {
+    var mine = changed.filter(function (k) { return NAMES[k]; });
+    if (!mine.length) return false;
+    var moved = false;
+    mine.forEach(function (k) { var m = g(NAMES[k]); if (m && typeof m === "object") { try { if (fold(k, m)) moved = true; } catch (e) { } } });
+    if (!moved) return true;
+    if (typing()) return false;
+    if (typeof window.render === "function") { try { window.render(); } catch (e) { return false; } }
+    if (typeof window.toast === "function") window.toast("Updated with changes from your other computer");
+    return true;
+  }
+  window.SuitePlannerLive = { absorb: absorb, fold: fold, get base() { return base; } };
+})();
+
 /* Starts sync and the service worker on the tools that have no boot code of
    their own. The gradebook does both itself and does not load this file.
 
@@ -229,6 +338,9 @@
 
   window.SuiteSync.onChanged(function (changed) {
     if (!changed.some(function (k) { return mine.indexOf(k) >= 0; })) return;
+    /* v80: the planner folds a pull into what it is showing; the banner
+       is only for when it cannot redraw yet (see above) */
+    if (window.SuitePlannerLive && window.SuitePlannerLive.absorb(changed)) return;
     banner("Newer data arrived from another machine.", "Reload", function () { location.reload(); });
   });
 

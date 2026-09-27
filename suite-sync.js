@@ -1717,6 +1717,13 @@
     touchDevice: touchDevice,
     ensurePermission: function () { return ensure(true); },
     onState: function (f) { listeners.push(f); f(state, detail); },
-    onChanged: function (f) { changeHandlers.push(f); }
+    onChanged: function (f) { changeHandlers.push(f); },
+    /* v80: the same three-way merge, for a tool that holds a copy of its
+       data in memory and must fold a pull into it (see suite-boot.js,
+       "the open planner never writes over a pull"). Plain values both
+       sides changed keep `local`, as they do in a round. */
+    merge: function (base, local, remote) {
+      return merge3(base, local, remote, { conflicts: 0, kept: 0, additive: false, remoteWins: false, changedLocally: [], changedRemotely: [] });
+    }
   };
 })();
