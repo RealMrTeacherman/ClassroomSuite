@@ -91,9 +91,13 @@
   .page.blank{background:rgba(255,255,255,.18);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.65)}
 
   .names{margin-top:clamp(8px,1vw,14px);padding-top:clamp(6px,.8vw,12px);border-top:2px dashed var(--rule);display:flex;flex-wrap:wrap;
-    gap:clamp(5px,.6vw,10px);align-content:flex-start;overflow:auto;min-height:0;flex:1 1 auto}
+    gap:calc(var(--name-k,1) * clamp(5px,.6vw,10px));align-content:flex-start;overflow:auto;min-height:0;flex:1 1 auto}
+  /* Names are read from across the room. They are as big as the board allows:
+     fitNames() lowers --name-k (on #grid, so all four groups stay one size)
+     only when a group's names would not all show. Padding is in em so a chip
+     keeps its shape as it shrinks. */
   .chip{display:inline-flex;align-items:center;gap:6px;background:var(--gt);color:var(--ink);border-radius:999px;
-    padding:clamp(4px,.5vw,9px) clamp(10px,1.1vw,18px);font-size:clamp(.95rem,1.7vw,1.9rem);font-weight:700;line-height:1.1}
+    padding:.3em .62em;font-size:calc(var(--name-k,1) * clamp(.95rem,1.7vw,1.9rem));font-weight:700;line-height:1.1}
   .arranging .chip.guest{box-shadow:inset 0 0 0 2px var(--gc)}
   .arranging .chip.guest::after{content:"visitor";font-size:.5em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gc);opacity:.85}
   .empty{color:var(--ink-soft);font-size:clamp(.9rem,1.4vw,1.3rem)}
@@ -612,7 +616,24 @@
     });
     renderTray();
     rosterNote();
+    fitNames();
   }
+
+  /* Every name on the board shows, as big as it can. Starts at full size and
+     steps down together until no group's list overflows; a floor keeps a very
+     full board readable (it scrolls past that, as before). */
+  function fitNames() {
+    if (tab !== "math" || !grid.clientHeight) return;
+    var k = 1, guard = 0;
+    grid.style.setProperty("--name-k", "1");
+    function over() {
+      return Array.prototype.some.call(grid.querySelectorAll(".names"), function (n) { return n.scrollHeight > n.clientHeight + 1; });
+    }
+    while (guard++ < 20 && k > 0.5 && over()) { k = Math.round((k - 0.05) * 100) / 100; grid.style.setProperty("--name-k", String(k)); }
+  }
+  window.addEventListener("resize", fitNames);
+  document.addEventListener("fullscreenchange", function () { setTimeout(fitNames, 60); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNames);
 
   function chip(p) {
     var c = document.createElement("span");

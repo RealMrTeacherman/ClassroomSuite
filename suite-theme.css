@@ -1652,10 +1652,12 @@ body {
   html:not([data-suite-theme]) .tabs .tab:hover { color: var(--suite-ink) !important; }
   html:not([data-suite-theme]) .tabs .tab[aria-selected="true"] { color: var(--suite-ink) !important; font-weight: 600 !important; border-bottom-color: var(--suite-accent) !important; }
   html:not([data-suite-theme]) .dsub { font: 400 13px var(--suite-sans); letter-spacing: 0; }
-  html:not([data-suite-theme]) :is(.todaybtn, .chip) { font: 600 13px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important; }
+  /* the planner's chips; `.board .chip` is a name on the projected math board,
+     sized by the board to be read across the room (v84) */
+  html:not([data-suite-theme]) :is(.todaybtn, .chip):not(.board .chip) { font: 600 13px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important; }
   html:not([data-suite-theme]) .todaybtn { border-radius: var(--x-r) !important; padding: 8px 14px !important; border: 1px solid var(--suite-line-2) !important; color: var(--suite-ink) !important; }
   html:not([data-suite-theme]) .todaybtn:hover { border-color: var(--suite-accent) !important; color: var(--suite-accent) !important; }
-  html:not([data-suite-theme]) .chip { padding: 2px 8px !important; border-width: 1px !important; }
+  html:not([data-suite-theme]) .chip:not(.board .chip) { padding: 2px 8px !important; border-width: 1px !important; }
   html:not([data-suite-theme]) .railhead h2 { font: 600 15px var(--suite-sans); letter-spacing: 0; text-transform: none; }
   /* subject cards keep the planner's own colour bars across the top */
   html:not([data-suite-theme]) .rail .sub { border-width: 1px; box-shadow: var(--suite-shadow-sm); }

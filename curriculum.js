@@ -6,7 +6,7 @@
    Source: the district's "Editable Pacing Guide — Grade 2" (Reveal Math,
    12 units, 153 days). Every lesson carries the standard, the learning
    targets and the materials exactly as the guide prints them, apart from
-   the handful of typos listed in HANDOFF.md under v60. Each unit's days add
+   the handful of typos listed in CHANGELOG.md under v60. Each unit's days add
    up to the guide's own "Time for Unit"; tests/test-reveal-pacing.js
    checks that, so a mistyped day count cannot slip in.
 
@@ -253,7 +253,7 @@
      Benchmark Education), pages 50–69: ten units of three weeks. It is a
      week-by-week document, so everything here is by week; it has no
      day-level objectives to offer. Text is as printed apart from the typos
-     listed in HANDOFF.md under v60.
+     listed in CHANGELOG.md under v60.
 
      The scope and sequence prints skill names, not standard codes. SKILL
      below matches each skill name to the 2019 Oregon ELA standard it is
