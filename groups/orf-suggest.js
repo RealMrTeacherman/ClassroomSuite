@@ -6,11 +6,12 @@
 
    fluency/index.html is the teacher's own file and is not edited, so its
    grouping is reproduced here rather than called. The pieces are copied
-   exactly: NORMS, windowFor, percentileOf, kmeans1d, and the two ways
+   exactly: percentileOf, kmeans1d, and the two ways
    renderGroups() groups a class (by rate, and by instructional need), each
    from every student's latest saved check. test-orf-suggest.js loads the
    real fluency page with the same data and fails if the two ever disagree,
-   so a change on that side cannot quietly drift.
+   so a change on that side cannot quietly drift. The norms and windows
+   come from suite-orf.js (v82).
 
    One deliberate difference: the fluency page's Reports tab puts its
    sample class ("Add a sample class") into its groups when one is loaded.
@@ -25,17 +26,18 @@
 (function () {
   "use strict";
 
-  var NORMS = {
-    fall: { p90: 111, p75: 84, p50: 50, p25: 36, p10: 23 },
-    winter: { p90: 131, p75: 109, p50: 84, p25: 59, p10: 35 },
-    spring: { p90: 148, p75: 124, p50: 100, p25: 72, p10: 43 }
-  };
-  function windowFor(date) {
-    var m = new Date(date).getMonth();
-    if (m >= 7 && m <= 10) return "fall";
-    if (m === 11 || m <= 1) return "winter";
-    return "spring";
-  }
+  /* v82: the table and the windows are suite-orf.js's, the suite's one
+     copy, read into the shape the tool's own grouping uses. The tool keeps
+     its own copy inside its file; test-orf-shared.js holds the two equal. */
+  var ORF = window.SuiteOrf;
+  if (!ORF) { if (window.console) console.warn("orf-suggest: suite-orf.js did not load"); return; }
+  var NORMS = {};
+  ORF.SEASONS.forEach(function (win, i) {
+    var row = {};
+    ORF.PCTS.forEach(function (p) { row["p" + p] = ORF.norms(2)[p][i]; });
+    NORMS[win] = row;
+  });
+  var windowFor = ORF.windowFor;
   function percentileOf(w, win) {
     var n = NORMS[win];
     var pts = [[10, n.p10], [25, n.p25], [50, n.p50], [75, n.p75], [90, n.p90]];

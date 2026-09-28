@@ -53,7 +53,9 @@
        machine's state. auditKeys() reported the first as stray after any
        gradebook merge, and Setup warned about it. */
     "gb2_standards_v1_premerge": "this device's undo copy from before its last gradebook merge",
-    "gb2:preRestore:v1": "this device's undo copy from before its last gradebook restore"
+    "gb2:preRestore:v1": "this device's undo copy from before its last gradebook restore",
+    /* v83: the same, for the running-records tool's Restore from backup */
+    "suite:orfPreRestore:v1": "this device's undo copy from before its last ORF tool restore"
   };
   var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   var HANDLE_DB = "suite_sync", HANDLE_KEY = "handle";

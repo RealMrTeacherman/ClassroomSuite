@@ -87,28 +87,25 @@
 (function () {
   "use strict";
   if (window.FluencyExtras) return;
+  /* v82: the norms and the name rules come from suite-orf.js, loaded by the
+     tag just before this one. Without it nothing here can be right, so none
+     of it is drawn; the running-records tool itself carries on untouched. */
+  if (!window.SuiteOrf) { if (window.console) console.warn("fluency-extras: suite-orf.js did not load"); return; }
+  var ORF = window.SuiteOrf;
 
   var KEY = "running-records-v1";
   var GOALS_KEY = "suite:orfgoals:v1";
   var DAY = 86400000;
 
-  var PCTS = [10, 25, 50, 75, 90];
+  var PCTS = ORF.PCTS;
   /* the running-records tool's own grade 2 rows, used only to reproduce its
      chart's scale for the aim line */
-  var ROWS = { 10: [23, 35, 43], 25: [36, 59, 72], 50: [50, 84, 100], 75: [84, 109, 124], 90: [111, 131, 148] };
+  var ROWS = ORF.norms(2);
   var PACE = { realistic: 1.5, ambitious: 2.0 };
   var METHODS = { table: 1, realistic: 1, ambitious: 1 };
 
-  /* Hasbrouck & Tindal 2017, grades 1-6: percentile -> [fall, winter,
-     spring]. Grade 1 has no fall norms. */
-  var HT = {
-    1: { 90: [null, 97, 116], 75: [null, 59, 91], 50: [null, 29, 60], 25: [null, 16, 34], 10: [null, 9, 18] },
-    2: { 90: [111, 131, 148], 75: [84, 109, 124], 50: [50, 84, 100], 25: [36, 59, 72], 10: [23, 35, 43] },
-    3: { 90: [134, 161, 166], 75: [104, 137, 139], 50: [83, 97, 112], 25: [59, 79, 91], 10: [40, 62, 63] },
-    4: { 90: [153, 168, 184], 75: [125, 143, 160], 50: [94, 120, 133], 25: [75, 95, 105], 10: [60, 71, 83] },
-    5: { 90: [179, 183, 195], 75: [153, 160, 169], 50: [121, 133, 146], 25: [87, 109, 119], 10: [64, 84, 102] },
-    6: { 90: [185, 195, 204], 75: [159, 166, 173], 50: [132, 145, 146], 25: [112, 116, 122], 10: [89, 91, 91] }
-  };
+  /* Hasbrouck & Tindal 2017, grades 1-6 (suite-orf.js) */
+  var HT = ORF.HT;
   var WIN = ["fall", "winter", "spring"];
 
   /* One percentile row read as a timeline across grades, with each summer a
@@ -551,17 +548,7 @@
     t.textContent = msg; t.classList.add("on");
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("on"); }, 2400);
   }
-  function nameParts(n) {
-    n = String(n || "").trim();
-    if (n.indexOf(",") > -1) { var b = n.split(","); return { last: b[0].trim(), first: b.slice(1).join(",").trim() }; }
-    var p = n.split(/\s+/).filter(Boolean);
-    if (p.length <= 1) return { last: p[0] || "", first: "" };
-    var SUF = /^(jr|sr|ii|iii|iv)\.?$/i, i = p.length - 1;
-    while (i > 0 && SUF.test(p[i])) i--;
-    return { first: p.slice(0, i).join(" "), last: p.slice(i).join(" ") };
-  }
-  function lastFirst(n) { var p = nameParts(n); return p.first ? p.last + ", " + p.first : p.last; }
-  function firstName(n) { var p = nameParts(n); return p.first || p.last; }
+  var nameParts = ORF.nameParts, lastFirst = ORF.lastFirst, firstName = ORF.firstName;
 
   var STATUS = {
     start: ["First check of the year", "var(--muted)"],
@@ -894,27 +881,8 @@
   }
 
   /* ---------- the roster ---------- */
-  /* Same rule as stripEldTag() in the gradebook: bare "ELD" in capitals, or
-     "(ELD)" / "[ELD]" in any case, as a whole word at the start or end of a
-     name or of either half of "Last, First". */
-  function stripEld(s) {
-    var raw = String(s == null ? "" : s), eld = false;
-    var SEP = "[\\s\\-\\u2013\\u2014:|/]";
-    var pats = [
-      new RegExp("^ELD(?:" + SEP + "+|$)"),
-      new RegExp("^[(\\[]\\s*eld\\s*[)\\]]" + SEP + "*", "i"),
-      new RegExp("(?:^|" + SEP + "+)ELD$"),
-      new RegExp(SEP + "*[(\\[]\\s*eld\\s*[)\\]]$", "i")
-    ];
-    var parts = raw.split(",").map(function (part) {
-      var t = part.trim(), prev;
-      do { prev = t; pats.forEach(function (re) { var n = t.replace(re, "").trim(); if (n !== t) { eld = true; t = n; } }); } while (t !== prev);
-      return t;
-    });
-    var name = parts.filter(Boolean).join(", ");
-    if (!name) return { name: raw.trim(), eld: false };
-    return { name: eld ? name : raw.trim(), eld: eld };
-  }
+  /* the tag rule is suite-orf.js's, the same one the gradebook uses */
+  var stripEld = ORF.stripEld;
 
   /* The tool keeps its roster in memory and writes the whole thing back on
      every change, so a name changed only in storage would be overwritten by

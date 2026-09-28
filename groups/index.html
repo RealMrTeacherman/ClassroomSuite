@@ -284,6 +284,7 @@
 <link rel="stylesheet" href="../suite-theme.css">
 <script src="../suite-sync.js"></script>
 <script src="../suite-names.js"></script>
+<script src="../suite-orf.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
 <script src="sub-deck-template.js" defer></script>
@@ -1306,12 +1307,14 @@
   var ORF_KEY = "running-records-v1";
   var sugBasis = "rate", sugMap = {}, sugUndo = null;
   function readOrf() { try { var raw = localStorage.getItem(ORF_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
+  /* v82: suite-orf.js's rule, the one the gradebook links by. A lone name
+     is read as the tool reads it (a surname), which SuiteNames.match below
+     still finds as a first name; and a suffix is dropped for matching, as
+     this page always did. */
   function splitName(n) {
-    var t = String(n || "").replace(/(^|[\s,])\(?\[?ELD\]?\)?(?=$|[\s,:\-\u2013\u2014|\/])/g, " ").replace(/^[\s:\-\u2013\u2014|\/]+|[\s:\-\u2013\u2014|\/]+$/g, "").trim();
-    if (t.indexOf(",") >= 0) { var b = t.split(","); return { first: b.slice(1).join(",").trim(), last: b[0].trim() }; }
-    var p = t.split(/\s+/).filter(Boolean);
-    while (p.length > 1 && /^(jr|sr|ii|iii|iv)\.?$/i.test(p[p.length - 1])) p.pop();
-    return p.length > 1 ? { first: p.slice(0, -1).join(" "), last: p[p.length - 1] } : { first: p[0] || "", last: "" };
+    if (!window.SuiteOrf) return { first: "", last: String(n || "").trim() };
+    var p = window.SuiteOrf.splitName(n);
+    return { first: p.first, last: p.lastBare };
   }
   /* The gradebook's own link first (it records which gradebook student
      each fluency student is), then the name: first and last, else a first

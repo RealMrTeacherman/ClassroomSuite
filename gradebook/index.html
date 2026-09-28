@@ -412,6 +412,7 @@ summary.tiny,summary.small{padding:4px 0}
 <script src="../suite-nav.js" defer></script>
 <script src="../curriculum.js"></script>
 <script src="../suite-names.js"></script>
+<script src="../suite-orf.js"></script>
 <script>
 /* ============================================================
    STANDARDS CATALOG
@@ -1501,7 +1502,7 @@ function renderStudents() {
       "</div>";
   }
 
-  const orf = S.orf.filter(r => r.sid === st.id).sort((a, b) => a.date.localeCompare(b.date));
+  const orf = S.orf.filter(r => r.sid === st.id && !r.gone).sort((a, b) => a.date.localeCompare(b.date));
   if (orf.length) {
     const l = orf[orf.length - 1], se = seasonOf(l.date), t = normAt(50, se);
     html += '<div class="card pad"><h3>Oral reading fluency</h3>' +
@@ -1580,24 +1581,11 @@ function normName(s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, "
    either half of "Last, First"): bare "ELD" in capitals, or "(ELD)" /
    "[ELD]" in any case — so Eldon, Elder and a surname Eld are left alone.
    fluency-extras.js carries the same rule for the tool's own roster. */
+/* The rule itself is in suite-orf.js (v82), shared with the running-records
+   additions and Small Groups. Without that file a name is taken as typed. */
 function stripEldTag(s) {
-  const raw = String(s == null ? "" : s);
-  let eld = false;
-  const SEP = "[\\s\\-\\u2013\\u2014:|/]";
-  const pats = [
-    new RegExp("^ELD(?:" + SEP + "+|$)"),
-    new RegExp("^[(\\[]\\s*eld\\s*[)\\]]" + SEP + "*", "i"),
-    new RegExp("(?:^|" + SEP + "+)ELD$"),
-    new RegExp(SEP + "*[(\\[]\\s*eld\\s*[)\\]]$", "i")
-  ];
-  const parts = raw.split(",").map(part => {
-    let t = part.trim(), prev;
-    do { prev = t; pats.forEach(re => { const n = t.replace(re, "").trim(); if (n !== t) { eld = true; t = n; } }); } while (t !== prev);
-    return t;
-  });
-  const name = parts.filter(Boolean).join(", ");
-  if (!name) return { name: raw.trim(), eld: false };
-  return { name: eld ? name : raw.trim(), eld: eld };
+  if (window.SuiteOrf) return window.SuiteOrf.stripEld(s);
+  return { name: String(s == null ? "" : s).trim(), eld: false };
 }
 function matchStudent(first, last, sid) {
   if (sid) { const m = S.students.find(s => s.sid && s.sid.trim() === String(sid).trim()); if (m) return m; }
@@ -1610,8 +1598,13 @@ function matchStudent(first, last, sid) {
     m = window.SuiteNames.match(S.students, stripEldTag(first).name, stripEldTag(last).name);
     if (m) return m;
   }
-  m = S.students.find(s => normName(s.last) === l && normName(s.first).startsWith(f.slice(0, 3)));
-  return m || null;
+  /* same surname, first name starting the same way ("Theodore" for "Theo"):
+     only when exactly one child fits, and never on an empty first name.
+     Before v82 this took the first of several, so "Sam Lee" became
+     whichever of Samuel and Samantha Lee came first on the roster. */
+  if (!f) return null;
+  const near = S.students.filter(s => normName(s.last) === l && normName(s.first).startsWith(f.slice(0, 3)));
+  return near.length === 1 ? near[0] : null;
 }
 /* ---------- column and value helpers ---------- */
 function normHdr(x) { return String(x == null ? "" : x).toLowerCase().replace(/\s+/g, " ").trim(); }
@@ -2439,13 +2432,11 @@ function wipe() {
    Norms: Hasbrouck & Tindal (2017), An update to compiled ORF norms
    (Technical Report No. 1702), University of Oregon. Grade 2 row.
    ============================================================ */
-const ORF_NORMS = {          /* percentile: [fall, winter, spring] WCPM */
-  90: [111, 131, 148],
-  75: [84, 109, 124],
-  50: [50, 84, 100],
-  25: [36, 59, 72],
-  10: [23, 35, 43]
-};
+/* percentile: [fall, winter, spring] WCPM. The table lives in
+   suite-orf.js (v82), the one copy the whole suite reads. Without it there
+   are no norms, so no ORF marks: syncOrfScores() then leaves the marks it
+   has alone rather than deleting them, and the Fluency tab says why. */
+const ORF_NORMS = window.SuiteOrf ? window.SuiteOrf.norms(2) : null;
 function seasonOf(dateStr) {
   const d = new Date(dateStr + "T12:00:00");
   if (isNaN(d)) return 0;
@@ -2462,11 +2453,12 @@ const SEASON_NAME = ["Fall", "Winter", "Spring"];
 function pctBand(wcpm, season) {
   const w = Number(wcpm);
   if (!isFinite(w)) return null;
+  if (!ORF_NORMS) return null;
   const order = [90, 75, 50, 25, 10];
   for (const p of order) if (w >= ORF_NORMS[p][season]) return p;
   return 0;
 }
-function normAt(p, season) { return ORF_NORMS[p] ? ORF_NORMS[p][season] : null; }
+function normAt(p, season) { return ORF_NORMS && ORF_NORMS[p] ? ORF_NORMS[p][season] : null; }
 /* Report card marks are graded against END-OF-YEAR expectations: a 3 is the
    end-of-year 50th percentile (100 in grade 2) whenever the check was taken,
    so a fall 50 — on the fall 50th — is a 1, as it would be on the report
@@ -2496,15 +2488,9 @@ function readOrfDB() {
   } catch (e) { return null; }
 }
 function splitOrfName(n) {
-  const tag = stripEldTag(n);
-  n = tag.name;
-  if (n.indexOf(",") > -1) { const b = n.split(","); return { last: b[0].trim(), first: b.slice(1).join(",").trim(), eld: tag.eld }; }
-  const parts = n.split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return { last: parts[0] || "", first: "", eld: tag.eld };
-  const SUF = /^(jr|sr|ii|iii|iv)\.?$/i;
-  let i = parts.length - 1;
-  while (i > 0 && SUF.test(parts[i])) i--;
-  return { first: parts.slice(0, i).join(" "), last: parts.slice(i).join(" "), eld: tag.eld };
+  if (window.SuiteOrf) { const p = window.SuiteOrf.splitName(n); return { first: p.first, last: p.last, eld: p.eld }; }
+  const t = String(n == null ? "" : n).trim();
+  return { first: "", last: t, eld: false };
 }
 function orfStudentToLocal(orfSid, db) {
   if (S.orfLink[orfSid]) {
@@ -2535,39 +2521,148 @@ function importOrfRoster() {
   save(); renderORF();
   toast("Added " + added + " students" + (linked ? " \u00b7 " + linked + " already here" : ""));
 }
+/* ---------- one copy per reading, whichever computer made it (v83) ----------
+   Each computer that opened the gradebook used to make its own copy of a
+   new reading, under an id of its own, and the sync merge (which matches
+   records by id) kept both: every reading counted twice, and a correction
+   reached only one of them. A copy's id is now derived from the reading
+   ("orf:" + its id in the ORF tool), so two computers make the same record
+   and the merge folds them into one. Copies made before v83 are folded
+   here: one per reading is kept, chosen the same way on every computer
+   (the derived id if there is one, else the lowest id), so two computers
+   never each keep a different one and between them delete both. The same
+   goes for iReady rows, where one file imported on two computers made two
+   of every row; a row is one child, one subject, one date, which is what
+   the import itself treats as a duplicate. */
+function foldCopies(arr, keyOf, preferId, fold) {
+  const groups = new Map();
+  arr.forEach(r => {
+    const k = keyOf(r); if (k == null) return;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  const drop = new Set();
+  groups.forEach((g, k) => {
+    if (g.length < 2) return;
+    const want = preferId ? preferId(k) : null;
+    const keep = g.find(r => r.id === want) || g.slice().sort((a, b) => String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0)[0];
+    if (fold) fold(keep, g);
+    g.forEach(r => { if (r !== keep) drop.add(r); });
+  });
+  return drop.size ? { list: arr.filter(r => !drop.has(r)), dropped: drop.size } : { list: arr, dropped: 0 };
+}
+function orfCopyId(srcId) { return "orf:" + srcId; }
+function foldOrfCopies() {
+  const res = foldCopies(S.orf, r => r.srcId ? String(r.srcId) : null, orfCopyId, (keep, g) => {
+    /* what the teacher decided about the reading, on any computer */
+    if (g.some(r => r.exclude)) keep.exclude = true;
+    if (g.some(r => r.link)) keep.link = true;
+    if (keep.srcDay == null) { const d = g.map(r => r.srcDay).filter(Boolean).sort()[0]; if (d) keep.srcDay = d; }
+    /* a date moved by hand on one computer, if the kept copy was not moved */
+    const moved = g.filter(r => r.srcDay && r.date !== r.srcDay).map(r => r.date).sort();
+    if (moved.length && !(keep.srcDay && keep.date !== keep.srcDay)) keep.date = moved[0];
+  });
+  S.orf = res.list;
+  return res.dropped;
+}
+function foldIreadyRows() {
+  const res = foldCopies(S.iready, r => r.date ? r.sid + "|" + r.subject + "|" + r.date : null, null, null);
+  S.iready = res.list;
+  return res.dropped;
+}
+/* Folds duplicates and rebuilds the marks they made. Writes only when it
+   changed something, so running it on every reload cannot loop between tabs. */
+function settleCopies() {
+  const o = foldOrfCopies(), i = foldIreadyRows();
+  if (i) syncIreadyScores();
+  if (o) syncOrfScores();
+  else if (i) save();
+  return o + i;
+}
+
+/* A copy of one of the tool's readings (v82). The tool is where a reading
+   is recorded and corrected, so a copy follows it: the numbers always, the
+   day only while the copy still has the day last seen there (srcDay), so a
+   date moved here by hand stays moved. */
+function orfCopyValues(rec) {
+  return {
+    wcpm: Math.round(Number(rec.wcpm) || 0),
+    accuracy: rec.accuracy == null ? null : Math.round(Number(rec.accuracy)),
+    errors: rec.errors == null ? null : Number(rec.errors),
+    sc: rec.sc == null ? null : Number(rec.sc),
+    passage: rec.passageTitle || ""
+  };
+}
 function syncFromOrf(silent) {
   const db = readOrfDB();
   if (!db) { if (!silent) toast("No ORF tool data found in this browser"); return 0; }
-  let added = 0, unmatched = 0, redated = 0;
+  const folded = foldOrfCopies();
+  let added = 0, unmatched = 0, redated = 0, updated = 0, gone = 0;
+  const live = new Set();
+  /* v83: the tool's sample class does not count as readings */
+  const demo = new Set((db.students || []).filter(o => o && o.demo).map(o => o.id));
+  let real = 0;
   db.records.forEach(rec => {
+    if (rec && rec.id) live.add(rec.id);
+    if (rec && !demo.has(rec.studentId)) real++;
     const had = S.orf.find(r => r.srcId === rec.id);
     if (had) {
+      let changed = false;
       /* A reading brought in by an older build carries the UTC day. Move it
          only if it still holds exactly that value, so a date corrected by
          hand is never touched. Converges: it is wrong every time it is seen. */
       const utc = String(rec.date || "").slice(0, 10), local = localDayOf(rec.date);
       if (had.date === utc && local !== utc && /^\d{4}-\d{2}-\d{2}$/.test(local)) { had.date = local; redated++; }
+      /* v82: this copy is known to come from the tool on this computer, so
+         the tool's version of it is the true one from now on */
+      had.link = true;
+      if (had.gone) { had.gone = false; changed = true; }
+      const v = orfCopyValues(rec);
+      Object.keys(v).forEach(k => {
+        const was = had[k] == null ? null : had[k];
+        if (was !== v[k]) { had[k] = v[k]; changed = true; }
+      });
+      if (/^\d{4}-\d{2}-\d{2}$/.test(local)) {
+        if (had.srcDay == null) {
+          /* first time seen by v82: adopt the tool's day as the one to
+             follow only if the copy already has it. A copy on another day
+             may have been moved by hand, and there is no telling. */
+          if (had.date === local) had.srcDay = local;
+        } else if (had.srcDay !== local) {
+          if (had.date === had.srcDay) { had.date = local; changed = true; }
+          had.srcDay = local;
+        }
+      }
+      if (changed) updated++;
       return;
     }
     const st = orfStudentToLocal(rec.studentId, db);
     if (!st) { unmatched++; return; }
     const d = localDayOf(rec.date);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    S.orf.push({
-      id: uid(), srcId: rec.id, sid: st.id, date: d,
-      wcpm: Math.round(Number(rec.wcpm) || 0),
-      accuracy: rec.accuracy == null ? null : Math.round(Number(rec.accuracy)),
-      errors: rec.errors == null ? null : Number(rec.errors),
-      sc: rec.sc == null ? null : Number(rec.sc),
-      passage: rec.passageTitle || "",
-      exclude: false
-    });
+    S.orf.push(Object.assign({ id: orfCopyId(rec.id), srcId: rec.id, sid: st.id, date: d, srcDay: d, link: true },
+      orfCopyValues(rec), { exclude: false }));
     added++;
   });
-  if (added || redated) syncOrfScores(); else save();
+  /* A reading deleted in the tool is set aside here, not deleted: it stops
+     counting towards marks and drops out of every list, and it comes back
+     by itself if the reading reappears (a sync that had not arrived yet, a
+     restored backup). Only copies seen in this tool since v82 are judged,
+     so a reading brought in from a file on another computer is never taken
+     for a deleted one; and a tool with no readings at all (a fresh browser,
+     say, or one holding only its sample class) is not taken as "every
+     reading was deleted". */
+  if (real) S.orf.forEach(r => {
+    if (r.link && r.srcId && !r.gone && !live.has(r.srcId)) { r.gone = true; gone++; }
+  });
+  if (added || redated || updated || gone || folded) syncOrfScores(); else save();
   if (!silent) {
-    toast(added ? "Brought in " + added + " new reading" + (added === 1 ? "" : "s") + (unmatched ? " \u00b7 " + unmatched + " unmatched" : "")
-                : "Already up to date" + (unmatched ? " \u00b7 " + unmatched + " unmatched" : ""));
+    const bits = [];
+    if (added) bits.push("brought in " + added + " new reading" + (added === 1 ? "" : "s"));
+    if (updated) bits.push(updated + " changed in the ORF tool");
+    if (gone) bits.push(gone + " removed there, set aside here");
+    if (unmatched) bits.push(unmatched + " unmatched");
+    toast(bits.length ? bits.join(" \u00b7 ").replace(/^./, c => c.toUpperCase()) : "Already up to date");
     renderORF();
   }
   return added;
@@ -2635,10 +2730,11 @@ function resolveStudent(raw, people) {
 /* ---------- writing ORF results into the gradebook ---------- */
 function syncOrfScores() {
   const code = S.settings.orfStandard;
+  if (!ORF_NORMS) { save(); return; }     /* suite-orf.js missing: keep the marks there are */
   S.settings.orfMarksBasis = orfBasis();
   S.scores = S.scores.filter(x => x.source !== "orf");
   if (!S.settings.orfAutoScore) { save(); return; }
-  S.orf.filter(r => !r.exclude).forEach(r => {
+  S.orf.filter(r => !r.exclude && !r.gone).forEach(r => {
     const m = wcpmToMark(r.wcpm, seasonOf(r.date));
     if (!m) return;
     S.scores.push({
@@ -2657,6 +2753,10 @@ function renderORF() {
   const el = document.getElementById("panel-orf");
   const cuts = Object.assign({ 4: 75, 3: 50, 2: 25 }, S.settings.orfCuts || {});
   let html = '<div class="stack">';
+
+  if (!ORF_NORMS) html += '<div class="card pad"><p class="hint" style="color:var(--warn)">The ORF norms did not load ' +
+    '(suite-orf.js), so no readings are being turned into marks. The marks already here are kept. Reload the page; ' +
+    'if this stays, the site is missing that file.</p></div>';
 
   /* live link card */
   const db = readOrfDB();
@@ -2742,7 +2842,7 @@ function renderORF() {
   /* current fluency picture */
   if (S.orf.length && S.students.length) {
     const latestByStudent = {};
-    S.orf.filter(r => !r.exclude).forEach(r => {
+    S.orf.filter(r => !r.exclude && !r.gone).forEach(r => {
       const cur = latestByStudent[r.sid];
       if (!cur || r.date > cur.date) latestByStudent[r.sid] = r;
     });
@@ -2780,11 +2880,11 @@ function renderORF() {
     html += "</div>";
 
     /* growth */
-    const withTwo = S.students.filter(st => S.orf.filter(r => r.sid === st.id && !r.exclude).length >= 2);
+    const withTwo = S.students.filter(st => S.orf.filter(r => r.sid === st.id && !r.exclude && !r.gone).length >= 2);
     if (withTwo.length) {
       html += '<div class="card pad"><h3>Growth since the first check</h3><table style="margin-top:8px"><thead><tr><th>Student</th><th class="c">First</th><th class="c">Latest</th><th class="c">Change</th><th class="c">Per week</th><th class="c">Readings</th></tr></thead><tbody>';
       withTwo.forEach(st => {
-        const a = S.orf.filter(r => r.sid === st.id && !r.exclude).sort((x, y) => x.date.localeCompare(y.date));
+        const a = S.orf.filter(r => r.sid === st.id && !r.exclude && !r.gone).sort((x, y) => x.date.localeCompare(y.date));
         const f = a[0], l = a[a.length - 1];
         const weeks = Math.max(1, (new Date(l.date) - new Date(f.date)) / (7 * 864e5));
         const per = ((l.wcpm - f.wcpm) / weeks);
@@ -2799,7 +2899,7 @@ function renderORF() {
     html += '<div class="card pad"><div class="sectionhead"><h3>All readings</h3><span class="spacer"></span>' +
       '<button class="btn sm danger" onclick="if(confirm(\'Remove every imported reading?\')){S.orf=[];syncOrfScores();renderORF()}">Clear all</button></div>' +
       '<div class="scroll" style="max-height:44vh"><table><thead><tr><th>Student</th><th>Date</th><th>Passage</th><th class="c">WCPM</th><th class="c">Accuracy</th><th>Season</th><th class="c">Mark</th><th class="c">Use it</th></tr></thead><tbody>' +
-      S.orf.slice().sort((a, b) => b.date.localeCompare(a.date)).map(r => {
+      S.orf.filter(r => !r.gone).sort((a, b) => b.date.localeCompare(a.date)).map(r => {
         const st = S.students.find(s => s.id === r.sid), se = seasonOf(r.date);
         return "<tr><td>" + esc(st ? fullName(st) : "?") + "</td><td>" + esc(r.date) + '</td><td class="tiny muted">' + esc(r.passage || "") + '</td><td class="c num">' + r.wcpm +
           '</td><td class="c num">' + (r.accuracy ? r.accuracy + "%" : "\u2013") + "</td><td>" + SEASON_NAME[se] +
@@ -3907,10 +4007,11 @@ function initSync() {
     if (e.key !== KEY || e.storageArea !== window.localStorage) return;
     const a = document.activeElement;
     if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
-    reloadFromStorage(); render();
+    reloadFromStorage(); settleCopies(); render();
   });
   window.SuiteSync.onChanged(changed => {
-    if (changed.indexOf("gb2_standards_v1") >= 0) { reloadFromStorage(); render(); }
+    if (changed.indexOf("gb2_standards_v1") >= 0) { reloadFromStorage(); settleCopies(); render(); }
+    if (changed.indexOf(ORF_KEY) >= 0 && S.settings.orfAutoLink) { syncFromOrf(true); render(); }
     const others = changed.filter(k => k !== "gb2_standards_v1");
     if (others.length) toast("Lesson plans and readings updated too \u2014 reopen those tools to see them");
     else if (changed.length) toast("Picked up changes from the synced file");
@@ -4846,7 +4947,10 @@ load();
 if (S.settings.subject) UI.subject = S.settings.subject;
 paintSubjSwitch();
 const mergeRes = autoMergeDuplicates(true);
+foldIreadyRows();                                           /* v83 */
+const foldedOrf = foldOrfCopies();
 syncIreadyScores();
+if (foldedOrf) syncOrfScores();
 /* ORF marks made under the other basis (every build before v59 graded each
    check against its own season) are rebuilt once. Converges: hand-entered
    marks are never touched, and a matching basis does nothing. */
@@ -4862,6 +4966,15 @@ if (mergeRes) setTimeout(() => toast((mergeRes.count
   : "Took the ELD tag off " + mergeRes.renamed + " name" + (mergeRes.renamed === 1 ? "" : "s")) + " \u2014 see Setup"), 300);
 initAssignmentKeys();
 initSync();
+/* v83: a reading saved or corrected in the ORF tool in another tab reaches
+   the marks now rather than the next time the gradebook is opened (one
+   arriving from the other computer comes through initSync's onChanged) */
+window.addEventListener("storage", e => {
+  if (e.key !== ORF_KEY || e.storageArea !== window.localStorage || !S.settings.orfAutoLink) return;
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+  syncFromOrf(true); render();
+});
 initPWA();
 window.addEventListener("beforeunload", save);
 

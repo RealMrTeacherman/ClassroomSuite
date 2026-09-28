@@ -306,6 +306,105 @@
   window.SuiteSync.adopted("running-records-v1");
 })();
 
+/* ---- v83: the ORF tool's "Restore from backup" can be undone ----
+   The tool replaces everything it holds with the backup, and sync then
+   carries that to every computer: the checks recorded since the backup was
+   saved are gone everywhere. The gradebook and the sync file both have an
+   undo; this was the one replace in the suite without one.
+
+   Just before the tool's own handler runs (a capture listener on the
+   document fires before the input's), what is stored now is kept. If the
+   stored copy then changes (the teacher said yes to the tool's confirm),
+   a banner offers Undo for the rest of the visit, and the copy is also
+   kept in suite:orfPreRestore:v1 (never synced: it is this computer's
+   undo) when it is under a megabyte, for two weeks. Undo waits out the
+   tool's 120ms save, puts the copy back and reloads, since the tool reads
+   storage only when it starts. */
+(function () {
+  if (location.pathname.indexOf("fluency") < 0) return;
+  var KEY = "running-records-v1", UNDO = "suite:orfPreRestore:v1";
+  function get(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+  function offer(before) {
+    var b = document.createElement("div");
+    b.id = "suite-orf-undo";
+    b.setAttribute("role", "status");
+    b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);" +
+      "bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:2147483001;" +
+      "background:#14202A;color:#fff;padding:10px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;" +
+      "font:13.5px/1.4 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.3);max-width:min(560px,92vw)";
+    var t = document.createElement("span");
+    t.textContent = "Backup restored. Everything here before it has been kept.";
+    var u = document.createElement("button");
+    u.textContent = "Undo";
+    u.style.cssText = "border:0;background:#10655C;color:#fff;font:600 13px inherit;padding:6px 12px;border-radius:7px;cursor:pointer";
+    u.onclick = function () {
+      if (!window.confirm("Put back what was here before the restore?")) return;
+      u.disabled = true;
+      setTimeout(function () {
+        try { window.localStorage.setItem(KEY, before); }
+        catch (e) { t.textContent = "Could not put it back: this browser's storage is full."; u.disabled = false; return; }
+        try { window.localStorage.removeItem(UNDO); } catch (e) { }
+        try { sessionStorage.setItem("suite:orfUndone", "1"); } catch (e) { }
+        location.reload();
+      }, 400);
+    };
+    var x = document.createElement("button");
+    x.textContent = "\u00d7";
+    x.style.cssText = "border:0;background:transparent;color:#9FB2B5;font-size:17px;cursor:pointer;padding:0 2px";
+    x.onclick = function () { b.remove(); };
+    b.appendChild(t); b.appendChild(u); b.appendChild(x);
+    var old = document.getElementById("suite-orf-undo"); if (old) old.remove();
+    document.body.appendChild(b);
+  }
+  /* the backup's readings, by id: a restore is recognised by the stored
+     copy now holding exactly these, not by any change at all (a check
+     recorded after cancelling the tool's confirm is not a restore) */
+  function idsOf(d) {
+    return d && Array.isArray(d.records) ? d.records.map(function (r) { return String(r && r.id); }).sort().join("|") : null;
+  }
+  document.addEventListener("change", function (e) {
+    var inp = e.target;
+    if (!inp || inp.id !== "fileRestore" || !inp.files || !inp.files[0]) return;
+    var before = get(KEY);
+    if (before == null) return;
+    var file = inp.files[0];
+    Promise.resolve(file.text ? file.text() : "").then(function (txt) {
+      var want;
+      try { want = idsOf(JSON.parse(txt)); } catch (err) { return; }
+      if (want == null) return;
+      var tries = 0;
+      (function watch() {
+        /* the tool asks first, and a confirm blocks; this waits as long as
+           a person might take to answer */
+        var now = get(KEY), d = null;
+        try { d = JSON.parse(now); } catch (err) { }
+        if (now !== before && idsOf(d) === want) {
+          /* a second full copy costs the tool room of its own (five
+             megabytes on an iPad), so it is kept only when small */
+          if (before.length < 1000000) {
+            try { window.localStorage.setItem(UNDO, JSON.stringify({ at: new Date().toISOString(), value: before })); } catch (err) { }
+          }
+          offer(before);
+          return;
+        }
+        if (++tries < 600) setTimeout(watch, 200);
+      })();
+    });
+  }, true);
+  /* an undo copy is for the restore just made; after two weeks it is only
+     taking room */
+  try {
+    var kept = JSON.parse(get(UNDO) || "null");
+    if (kept && (!kept.at || Date.now() - new Date(kept.at).getTime() > 14 * 864e5)) window.localStorage.removeItem(UNDO);
+  } catch (e) { try { window.localStorage.removeItem(UNDO); } catch (e2) { } }
+  try {
+    if (sessionStorage.getItem("suite:orfUndone")) {
+      sessionStorage.removeItem("suite:orfUndone");
+      if (typeof window.toast === "function") setTimeout(function () { window.toast("Put back what was here before the restore."); }, 300);
+    }
+  } catch (e) { }
+})();
+
 /* Starts sync and the service worker on the tools that have no boot code of
    their own. The gradebook does both itself and does not load this file.
 
