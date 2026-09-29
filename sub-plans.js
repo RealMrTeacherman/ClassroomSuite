@@ -383,6 +383,71 @@
     "#subprint .notes{border:1px solid #C9D1D8;border-radius:5pt;height:150pt;margin-top:6pt}" +
     "#subprint .muted{color:#55636E}";
 
+  /* ---------- v89: groups and Walk to WIN, from Small Groups ----------
+     A sub plan says which math group each child is in and which station
+     each group starts at (the Small Groups board, suite:groups:v1), and on
+     a Walk to WIN day where each of our children goes and who comes to our
+     room (the grade's lists, suite:win:v1, matched the way the WIN slide
+     matches them). Nothing is typed twice: the standing notes no longer
+     need to carry either. Small Groups' own code does the matching, loaded
+     here once (with suite-names.js, which it matches nicknames with). */
+  function loadScript(src) {
+    return new Promise(function (res) {
+      var t = document.createElement("script"); t.src = src; t.onload = res; t.onerror = res; document.head.appendChild(t);
+    });
+  }
+  var winReady = null;
+  function ensureWin() {
+    if (window.SuiteWin) return Promise.resolve();
+    if (!winReady) winReady = (window.SuiteNames ? Promise.resolve() : loadScript("../suite-names.js")).then(function () { return loadScript("../groups/win.js"); });
+    return winReady;
+  }
+  /* runs fn now if Small Groups' code is here (so a print stays in the
+     click that asked for it), else when it arrives, and never later than
+     a second and a half: a plan without the groups beats no plan */
+  function withWin(fn) {
+    if (window.SuiteWin) { fn(); return; }
+    var done = false, go = function () { if (!done) { done = true; fn(); } };
+    ensureWin().then(go);
+    setTimeout(go, 1500);
+  }
+  /* ready before the first print or preview */
+  setTimeout(function () { ensureWin(); }, 0);
+  function mathBoard() {
+    var g = null;
+    try { g = JSON.parse(localStorage.getItem("suite:groups:v1") || "null"); } catch (e) { }
+    if (!g || !g.math || !Array.isArray(g.math.groups) || !window.SuiteWin) return null;
+    var roster = window.SuiteWin.readRoster(), m = g.math, place = m.place || {}, guests = m.guests || {};
+    var out = m.groups.map(function (gr, i) {
+      var names = roster.filter(function (s) { return place[s.id] === i; }).map(function (s) { return s.label; });
+      Object.keys(guests).forEach(function (k) { if (guests[k] && guests[k].group === i) names.push(guests[k].name); });
+      return { name: gr.name, station: (m.stations || [])[gr.station] || "", names: names.sort() };
+    });
+    return out.some(function (x) { return x.names.length; }) ? { title: m.title || "Math Groups", groups: out } : null;
+  }
+  function groupsHTML(iso, brief) {
+    var h = "", mb = mathBoard(), w = window.SuiteWin ? window.SuiteWin.forDay(iso) : null;
+    if (mb) {
+      h += "<h2>" + esc(mb.title) + "</h2>" + (brief ? "" : "<p>Each group starts at the station shown and rotates on the signal.</p>") +
+        '<table><thead><tr><th style="width:22%">Group</th><th style="width:22%">Starts at</th><th>Students</th></tr></thead><tbody>' +
+        mb.groups.map(function (g) { return "<tr><td><b>" + esc(g.name) + "</b></td><td>" + esc(g.station) + "</td><td>" + esc(g.names.join(", ") || "\u2014") + "</td></tr>"; }).join("") +
+        "</tbody></table>";
+    }
+    if (w) {
+      h += "<h2>" + esc(w.subject) + "</h2>";
+      var away = w.ours.filter(function (x) { return x.goes !== "stays in our room"; });
+      h += "<p>For Walk to WIN, each of our students goes to their " + esc(w.word.toLowerCase()) + " group." +
+        (w.me ? " " + esc(w.me) + "\u2019s group meets in our room." : "") + "</p>";
+      h += '<table><thead><tr><th style="width:30%">Student</th><th>Goes to</th></tr></thead><tbody>' +
+        w.ours.map(function (x) { return "<tr><td>" + esc(x.name) + "</td><td>" + esc(x.goes) + "</td></tr>"; }).join("") + "</tbody></table>";
+      /* only the children from other classes: ours who stay are in the table */
+      w.coming = w.coming.filter(function (r) { return !r.ours; });
+      if (w.coming.length && !brief) {
+        h += "<p><b>Coming to our room (" + w.coming.length + "):</b> " + w.coming.map(function (r) { return esc(r.name) + (r.note ? " (" + esc(r.note) + ")" : ""); }).join(", ") + "</p>";
+      } else if (w.coming.length) h += "<p><b>Coming to our room:</b> " + w.coming.length + " students \u2014 the list is in the full plan.</p>";
+    }
+    return h;
+  }
   function buildFull(iso, who) {
     var h = "<h1>Sub plans &middot; " + esc(pretty(iso)) + "</h1>";
     h += '<p class="lede">' + esc(who || "Grade 2") + (S.contact ? " &middot; reach me at " + esc(S.contact) : "") + "</p>";
@@ -425,6 +490,8 @@
       h += "</div>";
     });
 
+    h += groupsHTML(iso, false);                                  /* v89 */
+
     if (S.incentives || S.consequences || S.watch.length) {
       h += "<h2>Behaviour</h2>";
       if (S.incentives) h += "<p>" + nl(S.incentives) + "</p>";
@@ -456,6 +523,7 @@
     h += "</tbody></table>";
     var today = justToday(iso);
     if (today) h += "<h2>Today only</h2>" + today;
+    h += groupsHTML(iso, true);                                   /* v89 */
     h += '<div class="two" style="margin-top:14pt">';
     if (S.watch.length) {
       h += '<div><h2 style="margin-top:0">Keep an eye on</h2>' +
@@ -516,11 +584,15 @@
   function doPrint(kind, iso) {
     if (!hasContent()) { alert("Add your standing notes first — the editor is on this panel."); return; }
     var box = document.getElementById("subprint");
-    box.innerHTML = (kind === "glance" ? buildGlance(iso, teacherName()) : buildFull(iso, teacherName()));
-    markSub(iso);
-    document.body.setAttribute("data-subprint", "1");
-    window.print();
-    setTimeout(function () { document.body.removeAttribute("data-subprint"); }, 500);
+    /* v89: Small Groups' code is loaded when the planner opens; on the rare
+       print before it has arrived, wait for it rather than print without it */
+    withWin(function () {
+      box.innerHTML = (kind === "glance" ? buildGlance(iso, teacherName()) : buildFull(iso, teacherName()));
+      markSub(iso);
+      document.body.setAttribute("data-subprint", "1");
+      window.print();
+      setTimeout(function () { document.body.removeAttribute("data-subprint"); }, 500);
+    });
   }
 
   /* ---------- the panel ---------- */
@@ -779,7 +851,9 @@
     btn.onclick = function () { openPanel(); };
     document.body.appendChild(btn);
 
-    window.SubPlans = { open: openPanel, close: close };
+    window.SubPlans = { open: openPanel, close: close,
+      /* for tests: the plan's HTML, once Small Groups' code is here */
+      html: function (kind, iso) { return ensureWin().then(function () { return kind === "glance" ? buildGlance(iso, teacherName()) : buildFull(iso, teacherName()); }); } };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
   else build();

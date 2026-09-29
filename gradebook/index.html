@@ -389,7 +389,6 @@ summary.tiny,summary.small{padding:4px 0}
     <button role="tab" data-tab="students" aria-selected="false">Students</button>
     <button role="tab" data-tab="orf" aria-selected="false">ORF</button>
     <button role="tab" data-tab="iready" aria-selected="false">iReady</button>
-    <button role="tab" data-tab="planning" aria-selected="false">Planning</button>
     <button role="tab" data-tab="report" aria-selected="false">Report card</button>
     <button role="tab" data-tab="setup" aria-selected="false">Setup</button>
   </nav>
@@ -401,7 +400,6 @@ summary.tiny,summary.small{padding:4px 0}
   <section class="panel" id="panel-students" hidden></section>
   <section class="panel" id="panel-orf" hidden></section>
   <section class="panel" id="panel-iready" hidden></section>
-  <section class="panel" id="panel-planning" hidden></section>
   <section class="panel" id="panel-report" hidden></section>
   <section class="panel" id="panel-setup" hidden></section>
   <div id="printsheet"></div>
@@ -759,7 +757,7 @@ function load() {
   /* v81: memory now matches storage; later saves merge rather than overwrite */
   if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Could not save \u2014 browser storage may be full"); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); if (typeof pushRosterToOrf === "function") pushRosterToOrf(); if (typeof schedulePublish === "function") schedulePublish(); } catch (e) { toast("Could not save \u2014 browser storage may be full"); } }
 function esc(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 let toastT;
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
@@ -887,7 +885,6 @@ function render() {
   if (UI.tab === "students") renderStudents();
   if (UI.tab === "orf") renderORF();
   if (UI.tab === "iready") renderIReady();
-  if (UI.tab === "planning") renderPlanning();
   if (UI.tab === "report") renderReport();
   if (UI.tab === "setup") renderSetup();
   document.getElementById("metaline").textContent =
@@ -1279,6 +1276,33 @@ function skillChip(r, idx, kk) {
     '<button class="mv" onclick="gMove(\'' + r.sid + '\',' + (idx + 1) + ')"' + (idx >= kk - 1 ? " disabled" : "") +
     ' aria-label="Move ' + esc(r.name) + ' right">\u25b6</button></span>';
 }
+/* ---------- v89: skill groups, published for Small Groups ----------
+   Small Groups offers the skill groups this tab makes, for Math (its board)
+   and ELA, in suite:suggest:v1: the standard grouped on and each group as
+   gradebook ids, lowest first. For the subject on screen it is what the
+   teacher picked here; for the other, the standard with the newest mark,
+   as this tab would choose. Written only when the groups change. */
+let publishT = null;
+function selFor(subject) {
+  if (UI.subject === subject && UI.groupStd) return skillSel();
+  const codes = activeCodes(subject).filter(c => S.scores.some(x => x.std === c && scoreAllowed(x)));
+  let best = null, bd = "";
+  S.scores.forEach(x => { if (codes.indexOf(x.std) >= 0 && scoreAllowed(x) && x.date > bd) { bd = x.date; best = x.std; } });
+  return best || "__all";
+}
+function publishSuggestions() {
+  if (!S.students.length) return;
+  const out = {};
+  [["math", "Math"], ["ela", "ELA"]].forEach(([k, subj]) => {
+    const sel = selFor(subj), res = buildSkillGroups(subj, sel, UI.groupWindow, UI.groupCount);
+    out[k] = { std: sel, label: sel === "__all" ? "all " + (subj === "Math" ? "math" : "ELA") + " standards together" : dispCode(sel) + " \u00b7 " + byCode[sel].lbl,
+      groups: res.groups.map(g => g.map(r => r.sid)), out: res.out.map(r => r.sid) };
+  });
+  const prev = orfJSON("suite:suggest:v1");
+  if (prev && JSON.stringify([prev.math, prev.ela]) === JSON.stringify([out.math, out.ela])) return;
+  try { localStorage.setItem("suite:suggest:v1", JSON.stringify(Object.assign({ at: new Date().toISOString() }, out))); } catch (e) { }
+}
+function schedulePublish() { clearTimeout(publishT); publishT = setTimeout(publishSuggestions, 600); }
 function renderSkillGroups() {
   const host = document.getElementById("skillgroups");
   if (!host) return;
@@ -1332,6 +1356,7 @@ function renderSkillGroups() {
 
   host.innerHTML = h;
   wireSkillControls();
+  publishSuggestions();                                     /* v89 */
 }
 function wireSkillControls() {
   const a = document.getElementById("sg-std"), b = document.getElementById("sg-k");
@@ -1468,6 +1493,7 @@ function renderGroups() {
     });
     html += "</tbody></table></div>";
   }
+  html += planningAnalysisHTML();                           /* v89: from the old Planning tab */
   html += "</div>";
   el.innerHTML = html;
   renderSkillGroups();
@@ -2132,9 +2158,7 @@ function renderSetup() {
 
   html += syncCardHTML();
 
-  html += '<div class="card pad"><h2>Class</h2><div class="row" style="margin-top:8px">' +
-    '<label class="fld">Teacher / class label<input type="text" id="set-teacher" value="' + esc(S.settings.teacher) + '" placeholder="Room 12"></label>' +
-    '<label class="fld">School year<input type="text" id="set-year" value="' + esc(S.settings.year) + '" style="width:120px"></label></div></div>';
+  html += calendarCardHTML();                              /* v88 */
 
   /* roster */
   html += '<div class="card pad"><div class="sectionhead"><h2>Roster</h2><span class="spacer"></span><span class="hint">' + S.students.length + " students</span></div>" +
@@ -2155,20 +2179,7 @@ function renderSetup() {
 
   html += duplicatesCardHTML();
 
-  /* terms */
-  html += '<div class="card pad"><h2>Your school year</h2>' +
-    '<div class="row" style="margin-top:8px;align-items:flex-end">' +
-    '<label class="fld">First day<input type="date" id="yr-start" value="' + esc(S.settings.yearStart || "") + '"></label>' +
-    '<label class="fld">Last day<input type="date" id="yr-end" value="' + esc(S.settings.yearEnd || "") + '"></label>' +
-    '<label class="fld">Marking periods<select id="yr-n"><option value="4">4 quarters</option><option value="3">3 trimesters</option><option value="2">2 semesters</option></select></label>' +
-    '<button class="btn" onclick="rebuildTerms()">Split the year evenly</button></div>' +
-    '<p class="hint" style="margin-top:8px">An even split is only a starting point \u2014 real quarters break on grading days and skip over breaks. Set the exact end dates below from the district calendar and everything downstream follows.</p>' +
-    '<table style="margin-top:8px"><thead><tr><th>Name</th><th>Starts</th><th>Ends</th></tr></thead><tbody>' +
-    S.terms.map(t => "<tr>" +
-      '<td><input type="text" data-tf="name" data-id="' + t.id + '" value="' + esc(t.name) + '"></td>' +
-      '<td><input type="date" data-tf="start" data-id="' + t.id + '" value="' + t.start + '"></td>' +
-      '<td><input type="date" data-tf="end" data-id="' + t.id + '" value="' + t.end + '"></td></tr>').join("") +
-    "</tbody></table></div>";
+  /* the school year and its terms: the calendar card, above (v88) */
 
   /* standards */
   const onCount = Object.keys(S.active).filter(k => S.active[k]).length;
@@ -2234,11 +2245,15 @@ function renderSetup() {
      which build this device is running, whether anything on this origin is
      quietly not syncing, and whether the merge base is being kept. Each has
      cost a debugging session at least once. */
+  /* v89: the unit-to-standards map, from the old Planning tab */
+  html += unitMapHTML();
+
   html += '<div class="card pad"><h2>This device</h2>' +
     '<div id="health" class="small muted">Checking\u2026</div></div>';
 
   html += "</div>";
   el.innerHTML = html;
+  wireUnitMap();
   paintHealth();
 
   const mp = document.getElementById("set-mapprompts");
@@ -2266,6 +2281,7 @@ function renderSetup() {
     sel.onchange = () => { if (sel.value) mergeManually(sel.dataset.mergefrom, sel.value); };
   });
   document.getElementById("yr-start").onchange = e => { S.settings.yearStart = e.target.value; save(); };
+  document.querySelectorAll("#calendar-card [data-cal]").forEach(inp => { inp.onchange = () => setCalendar(inp.dataset.cal, inp.value); });
   document.getElementById("yr-end").onchange = e => { S.settings.yearEnd = e.target.value; save(); };
   document.getElementById("yr-n").value = String(S.terms.length >= 2 && S.terms.length <= 4 ? S.terms.length : 4);
   el.querySelectorAll("[data-std]").forEach(cb => {
@@ -2437,17 +2453,9 @@ function wipe() {
    are no norms, so no ORF marks: syncOrfScores() then leaves the marks it
    has alone rather than deleting them, and the Fluency tab says why. */
 const ORF_NORMS = window.SuiteOrf ? window.SuiteOrf.norms(2) : null;
+/* v88: the rule is suite-orf.js's, read against the calendar's lines */
 function seasonOf(dateStr) {
-  const d = new Date(dateStr + "T12:00:00");
-  if (isNaN(d)) return 0;
-  const md = String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  const w = (S.settings.orfSeason && S.settings.orfSeason.winter) || "12-01";
-  const sp = (S.settings.orfSeason && S.settings.orfSeason.spring) || "03-01";
-  const f = (S.settings.orfSeason && S.settings.orfSeason.fall) || "08-01";
-  if (md >= w) return 1;          /* Dec 1 onward = winter */
-  if (md < sp) return 1;          /* Jan 1 to just before the spring line = winter */
-  if (md < f) return 2;           /* spring line up to the fall line = spring */
-  return 0;                        /* fall line to the winter line = fall */
+  return window.SuiteOrf ? window.SuiteOrf.seasonIndex(String(dateStr), S.settings.orfSeason) : 0;
 }
 const SEASON_NAME = ["Fall", "Winter", "Spring"];
 function pctBand(wcpm, season) {
@@ -2493,6 +2501,12 @@ function splitOrfName(n) {
   return { first: "", last: t, eld: false };
 }
 function orfStudentToLocal(orfSid, db) {
+  /* v87: a child the gradebook put on the ORF tool's roster carries its
+     gradebook id in its own */
+  if (/^gb:/.test(String(orfSid))) {
+    const own = S.students.find(x => "gb:" + x.id === orfSid);
+    if (own) { S.orfLink[orfSid] = own.id; return own; }
+  }
   if (S.orfLink[orfSid]) {
     const hit = S.students.find(x => x.id === S.orfLink[orfSid]);
     if (hit) return hit;
@@ -2503,6 +2517,78 @@ function orfStudentToLocal(orfSid, db) {
   const m = matchStudent(p.first, p.last, "");
   if (m) { S.orfLink[orfSid] = m.id; if (p.eld) m.eld = true; }
   return m;
+}
+/* ---------- v87: the roster goes one way, gradebook to ORF tool ----------
+   The gradebook's roster is the class. Its children are put on the ORF
+   tool's roster (so they are there to pick on Assess) under their roster
+   names. ELD is the roster's flag now: a tag typed on an ORF name is moved
+   onto the flag first, then the name is written without it (the ORF tool
+   reads a trailing tag as a surname, so "Ben Cole (ELD)" sorted as
+   "(ELD), Ben Cole"). A child with no ORF entry gets
+   one whose id is "gb:" + the gradebook id, so two computers add the same
+   entry and the sync merge folds it. Nothing is ever taken off the ORF
+   roster: a child who left keeps their checks there, and an ORF entry the
+   gradebook cannot place is left as it is. An entry is renamed only when it
+   is the one ORF entry for its child, so two entries for one child are not
+   given the same name; the one exception to "never taken off" is a "gb:"
+   entry made here before the child's own entry arrived from the other
+   computer, with nothing read on it. The ORF tool's own write guard (v81) merges this in
+   if the ORF page is open, and it reads storage fresh each time here, so
+   nothing is held that could go stale. Writes only when something changed. */
+let rosterPushedSig = null;
+function orfRosterName(st) { return fullName(st); }
+function pushRosterToOrf(force) {
+  if (!S.students.length) return 0;
+  const sig = JSON.stringify(S.students.map(x => [x.id, x.first, x.last, !!x.eld]));
+  if (!force && sig === rosterPushedSig) return 0;
+  let raw = null;
+  try { raw = localStorage.getItem(ORF_KEY); } catch (e) { return 0; }
+  let db = null;
+  try { db = raw ? JSON.parse(raw) : null; } catch (e) { return 0; }         /* unreadable: never overwrite it */
+  if (raw && !(db && Array.isArray(db.students))) return 0;
+  if (!db) db = { students: [], records: [], passages: [], settings: {} };
+  if (!Array.isArray(db.records)) db.records = [];
+  const byChild = {};
+  db.students.forEach(o => {
+    if (!o || !o.id || o.demo) return;
+    const st = orfStudentToLocal(o.id, db);
+    if (st) (byChild[st.id] = byChild[st.id] || []).push(o);
+  });
+  let added = 0, renamed = 0;
+  S.students.forEach(st => {
+    const mine = byChild[st.id] || [];
+    const want = orfRosterName(st);
+    if (!mine.length) {
+      db.students.push({ id: "gb:" + st.id, name: want });
+      S.orfLink["gb:" + st.id] = st.id;
+      added++;
+    } else if (mine.length > 1) {
+      /* an entry added here before the child's own ORF entry arrived from
+         the other computer: the added one goes if nothing was ever read on
+         it, the same way on every computer */
+      const used = new Set(db.records.map(r => r.studentId));
+      const spare = mine.filter(o => /^gb:/.test(o.id) && !used.has(o.id));
+      if (spare.length && spare.length < mine.length) {
+        db.students = db.students.filter(o => spare.indexOf(o) < 0);
+        spare.forEach(o => { delete S.orfLink[o.id]; });
+        renamed++;
+      }
+    } else if (mine.length === 1 && mine[0].name !== want) {
+      /* a tag typed there becomes the roster's flag before it is dropped */
+      if (!st.eld && window.SuiteOrf && window.SuiteOrf.stripEld(mine[0].name).eld) st.eld = true;
+      mine[0].name = orfRosterName(st);
+      renamed++;
+    }
+  });
+  rosterPushedSig = JSON.stringify(S.students.map(x => [x.id, x.first, x.last, !!x.eld]));
+  if (added || renamed) {
+    try { localStorage.setItem(ORF_KEY, JSON.stringify(db)); }
+    catch (e) { return 0; }
+    /* the links and any ELD flag found above are the gradebook's: kept
+       without going back through save(), which called this */
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+  }
+  return added + renamed;
 }
 function importOrfRoster() {
   const db = readOrfDB();
@@ -2749,6 +2835,322 @@ function syncOrfScores() {
 /* ============================================================
    TAB — FLUENCY (ORF)
    ============================================================ */
+/* ============================================================
+   v86: THE ORF TOOL'S ANALYSIS, IN THE GRADEBOOK
+   Reading goals, the aim line, one verdict, flags, comprehension, missed-
+   word patterns and suggested reading groups. All of it is read live from
+   the ORF tool's own storage (running-records-v1, suite:orfgoals:v1,
+   suite:orfcomp:v1) and worked out by suite-orf.js, the same code the ORF
+   page runs, so the two can never disagree. The copies in S.orf are only
+   for marks. Goals and comprehension are written back to their own keys,
+   read fresh and written whole each time (nothing held in memory to go
+   stale), so the ORF page and the other computer see them.
+   ============================================================ */
+const ORF_GOALS_KEY = "suite:orfgoals:v1", ORF_COMP_KEY = "suite:orfcomp:v1";
+function orfJSON(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+function orfGoalsReady() { return !!(window.SuiteOrf && window.SuiteOrf.goals); }
+function orfGoalsState() { return window.SuiteOrf.goals.normGoals(orfJSON(ORF_GOALS_KEY)); }
+function orfCompState() { return window.SuiteOrf.goals.normComp(orfJSON(ORF_COMP_KEY)); }
+function orfWrite(k, mutate) {
+  const cur = k === ORF_GOALS_KEY ? orfGoalsState() : orfCompState();
+  mutate(cur);
+  try { localStorage.setItem(k, JSON.stringify(cur)); return true; }
+  catch (e) { toast("Could not save \u2014 browser storage may be full"); return false; }
+}
+/* the ORF tool's students with a gradebook name beside them where linked */
+function orfPeople(db) {
+  return (db.students || []).filter(o => o && o.id && !o.demo).map(o => {
+    const st = orfStudentToLocal(o.id, db);
+    const nm = st ? fullName(st) : (window.SuiteOrf ? window.SuiteOrf.stripEld(o.name).name : String(o.name || ""));
+    return { o: o, st: st, name: nm, eld: st ? !!st.eld : (window.SuiteOrf ? window.SuiteOrf.stripEld(o.name).eld : false) };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+const ORF_STATUS_COLOR = { start: "var(--muted)", met: "var(--s3)", metBoy: "var(--s4)", on: "var(--s3)", close: "var(--s2)",
+  below: "var(--s1)", "r-green": "var(--s3)", "r-blue": "var(--s4)", "r-yellow": "var(--s2)", "r-red": "var(--s1)" };
+function orfDay(t) { const d = new Date(t); return window.SuiteOrf.goals.fmtShort(d); }
+/* the one verdict: the student's own goal and aim line, nothing else */
+function orfVerdict(pl) {
+  const G = window.SuiteOrf.goals;
+  const goal = pl.goal + (pl.comp ? " with all 3 comprehension questions" : "");
+  if (pl.result) {
+    let s = "Spring check " + pl.springActual + (pl.springComp != null ? " (" + pl.springComp + "/3)" : "") + ": " + G.statusLabel(pl).toLowerCase() + " (" + goal + ").";
+    if (pl.flagged) s += " Flagged: below " + pl.expectation + ", within the margin of error.";
+    return s;
+  }
+  if (pl.status === "start") return "First check " + pl.base + " on " + orfDay(pl.baseDate) + ". Goal " + goal + " by " + G.fmtLong(pl.goalDate) + ".";
+  let s = "Latest " + pl.latestY + " on " + orfDay(pl.latest.t) + ", " +
+    (pl.diff === 0 ? "on" : Math.abs(pl.diff) + (pl.diff > 0 ? " above" : " below")) + " the aim line.";
+  if (pl.status === "met") s += " Already at the goal of " + goal + ".";
+  else if (pl.perWeekNow != null) s += " Reaching " + goal + " by " + G.fmtLong(pl.goalDate) + " takes about " + Math.max(0, pl.perWeekNow).toFixed(1) + " words a week.";
+  if (pl.belowRun >= 3) s += " " + pl.belowRun + " checks in a row below the aim line: time to change the plan.";
+  return s;
+}
+function orfAimSVG(pl) {
+  const t0 = pl.baseDate.getTime(), t1 = pl.goalDate.getTime() + 14 * 864e5;
+  const ys = pl.checks.map(c => c.y).concat([pl.goal, pl.base, pl.winterGoal || 0]);
+  const yMax = Math.ceil(Math.max.apply(null, ys) * 1.12 / 10) * 10, yMin = Math.max(0, Math.floor(Math.min.apply(null, ys) * 0.8 / 10) * 10);
+  const W = 640, H = 220, L = 36, R = 12, T = 12, B = 26;
+  const X = t => L + (W - L - R) * (t - t0) / Math.max(1, t1 - t0), Y = v => T + (H - T - B) * (1 - (v - yMin) / Math.max(1, yMax - yMin));
+  let path = "";
+  for (let t = t0; t <= pl.goalDate.getTime(); t += 3 * 864e5) path += (path ? "L" : "M") + X(t).toFixed(1) + " " + Y(pl.aim(t)).toFixed(1);
+  path += "L" + X(pl.goalDate.getTime()).toFixed(1) + " " + Y(pl.goal).toFixed(1);
+  let g = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Checks against the aim line" style="width:100%;max-width:760px;height:auto;display:block;margin-top:8px">';
+  for (let v = yMin; v <= yMax; v += (yMax - yMin > 120 ? 40 : 20)) {
+    g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
+      '<text x="' + (L - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + v + "</text>";
+  }
+  const d0 = new Date(t0);
+  for (let y = d0.getFullYear(), m = d0.getMonth() + 1; ; m++) {
+    if (m > 11) { m = 0; y++; }
+    const t = new Date(y, m, 1).getTime(); if (t > t1) break;
+    g += '<text x="' + X(t) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + window.SuiteOrf.goals.MONTHS[m].slice(0, 3) + "</text>";
+  }
+  g += '<path d="' + path + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>';
+  if (pl.winterDue && pl.winterGoal != null) g += '<circle cx="' + X(pl.winterDue.getTime()) + '" cy="' + Y(pl.winterGoal) + '" r="4" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+  g += '<circle cx="' + X(pl.goalDate.getTime()) + '" cy="' + Y(pl.goal) + '" r="5" fill="var(--accent)"/>';
+  pl.checks.forEach(c => {
+    const under = c.t > t0 && c.y < pl.aim(c.t);
+    g += '<circle cx="' + X(c.t).toFixed(1) + '" cy="' + Y(c.y).toFixed(1) + '" r="4.5" fill="' + (under ? "var(--s1)" : "var(--s3)") + '"><title>' + orfDay(c.t) + ": " + c.y + "</title></circle>";
+  });
+  return g + "</svg>";
+}
+function orfAnalysisHTML(db) {
+  if (!db || !orfGoalsReady()) return "";
+  const G = window.SuiteOrf.goals, gs = orfGoalsForPlans(), comp = orfCompState(), now = UI.orfToday ? new Date(UI.orfToday) : new Date();
+  const people = orfPeople(db);
+  const rows = people.map(p => ({ p: p, pl: G.planFor(db, p.o.id, gs, now, comp) }));
+  let h = "";
+
+  /* ---- the class ---- */
+  h += '<div class="card pad"><div class="sectionhead"><h2>Reading goals</h2><span class="spacer"></span>' +
+    '<span class="hint">Goal by ' + esc(G.fmtLong(G.dueIn(now, gs.springDue, gs.seasons.fall))) + ", from each child\u2019s first check. Pick a name for the aim line.</span></div>";
+  const withPlan = rows.filter(x => x.pl);
+  if (!withPlan.length) h += '<p class="hint" style="margin-top:6px">No checks this school year yet.</p>';
+  else {
+    h += '<div class="scroll"><table style="margin-top:6px"><thead><tr><th>Student</th><th class="c">Start</th><th class="c">Goal</th><th class="c">Latest</th>' +
+      '<th class="c">vs aim line</th><th>Where they are</th><th class="c">Comp.</th></tr></thead><tbody>';
+    rows.forEach(({ p, pl }) => {
+      const sel = UI.orfGoalSid === p.o.id;
+      if (!pl) { h += '<tr><td>' + esc(p.name) + '</td><td colspan="6" class="muted small">no checks this year</td></tr>'; return; }
+      const col = ORF_STATUS_COLOR[pl.status] || "inherit";
+      const flag = pl.belowRun >= 3 || pl.flagged;
+      h += '<tr class="clickable' + (sel ? " sel" : "") + '" onclick="orfPickGoal(\'' + esc(p.o.id) + '\')" style="cursor:pointer' + (sel ? ";background:var(--s4-bg)" : "") + '">' +
+        "<td>" + esc(p.name) + (p.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + (p.st ? "" : ' <span class="tiny muted">not on the roster</span>') + "</td>" +
+        '<td class="c num">' + pl.base + "</td>" +
+        '<td class="c num"><strong>' + pl.goal + (pl.comp ? "+" : "") + "</strong>" + (pl.custom ? ' <span class="tiny muted">set</span>' : "") + "</td>" +
+        '<td class="c num">' + pl.latestY + "</td>" +
+        '<td class="c num" style="color:' + (pl.diff < 0 ? "var(--s1)" : "var(--s3)") + '">' + (pl.status === "start" ? "\u2014" : (pl.diff > 0 ? "+" : "") + pl.diff) + "</td>" +
+        '<td><span style="color:' + col + ';font-weight:600">' + esc(G.statusLabel(pl)) + "</span>" +
+        (flag ? ' <span class="tag reteach" title="' + (pl.flagged ? "below the grade-level line, within the margin of error" : pl.belowRun + " checks in a row below the aim line") + '">\u2691 ' +
+          (pl.flagged ? "flagged" : pl.belowRun + " below") + "</span>" : "") + "</td>" +
+        '<td class="c num">' + (pl.latestComp == null ? '<span class="muted">\u2014</span>' : pl.latestComp + "/3") + "</td></tr>";
+    });
+    h += "</tbody></table></div>";
+    const flagged = withPlan.filter(x => x.pl.belowRun >= 3);
+    if (flagged.length) h += '<p class="small" style="margin-top:8px"><span class="tag reteach">\u2691</span> Three or more checks in a row below the aim line: ' +
+      flagged.map(x => esc(x.p.name)).join(", ") + ".</p>";
+  }
+
+  /* ---- one child ---- */
+  const pick = rows.find(x => x.p.o.id === UI.orfGoalSid && x.pl);
+  if (pick) {
+    const { p, pl } = pick, own = pl.own || {};
+    h += '<div class="divider"></div><div class="sectionhead"><h3>' + esc(p.name) + "</h3><span class=\"spacer\"></span>" +
+      '<button class="btn sm" onclick="orfPickGoal(null)">Close</button></div>' +
+      '<p style="margin:6px 0 0;border-left:3px solid ' + (ORF_STATUS_COLOR[pl.status] || "var(--accent)") + ';padding:4px 0 4px 10px">' + esc(orfVerdict(pl)) + "</p>" +
+      orfAimSVG(pl) +
+      '<p class="hint" style="margin-top:4px">Dashed: the aim line to the goal. Dots: checks, red when under the line. How the goal was set: ' + esc(pl.why) + ".</p>" +
+      '<div class="row" style="margin-top:8px">' +
+      (pl.winterDue ? '<label class="fld">Winter goal<input type="number" min="1" max="300" value="' + (own.winter != null ? own.winter : "") + '" placeholder="' + (pl.suggestedWinter || "") + '" onchange="orfSetGoal(\'' + esc(p.o.id) + '\',\'winter\',this.value)"></label>' : "") +
+      '<label class="fld">Spring goal<input type="number" min="1" max="300" value="' + (own.spring != null ? own.spring : "") + '" placeholder="' + pl.suggested + '" onchange="orfSetGoal(\'' + esc(p.o.id) + '\',\'spring\',this.value)"></label>' +
+      (pl.custom ? '<button class="btn sm" onclick="orfSetGoal(\'' + esc(p.o.id) + '\',null)">Use the suggested goals</button>' : "") +
+      '</div><table style="margin-top:10px"><thead><tr><th>Check</th><th class="c">WCPM</th><th class="c">vs aim line</th><th class="c">Comprehension</th></tr></thead><tbody>' +
+      pl.checks.slice().reverse().map(c => {
+        const v = comp.records[c.rec.id];
+        return "<tr><td>" + esc(orfDay(c.t)) + (c.rec.passageTitle ? ' <span class="tiny muted">' + esc(c.rec.passageTitle) + "</span>" : "") + '</td><td class="c num">' + c.y +
+          '</td><td class="c num">' + (c.t === pl.baseDate.getTime() ? "start" : (Math.round(c.y - pl.aim(c.t)) > 0 ? "+" : "") + Math.round(c.y - pl.aim(c.t))) +
+          '</td><td class="c"><select aria-label="Comprehension for ' + esc(orfDay(c.t)) + '" onchange="orfSetComp(\'' + esc(c.rec.id) + '\',this.value)"><option value="">\u2014</option>' +
+          [0, 1, 2, 3].map(n => '<option value="' + n + '"' + (v === n ? " selected" : "") + ">" + n + "/3</option>").join("") + "</select></td></tr>";
+      }).join("") + "</tbody></table>";
+  }
+
+  /* ---- how goals are set ---- */
+  h += '<details style="margin-top:12px"><summary class="small">How goals are set</summary><div class="row" style="margin-top:8px">' +
+    '<label class="fld">Method<select onchange="orfSetting(\'method\',this.value)">' +
+    [["table", "Last year\u2019s table"], ["realistic", "1.5 words a week"], ["ambitious", "2 words a week"]].map(m => '<option value="' + m[0] + '"' + (gs.method === m[0] ? " selected" : "") + ">" + m[1] + "</option>").join("") + "</select></label>" +
+    '<label class="fld">Grade-level line<input type="number" min="1" max="300" value="' + (gs.expectation || "") + '" placeholder="' + window.SuiteOrf.HT[gs.grade][50][2] + '" onchange="orfSetting(\'expectation\',this.value)"></label>' +
+    '<label class="fld">Margin of error<input type="number" min="0" max="30" value="' + gs.margin + '" onchange="orfSetting(\'margin\',this.value)"></label>' +
+    '<label class="row small" style="gap:6px"><input type="checkbox"' + (gs.rowUp ? " checked" : "") + ' onchange="orfSetting(\'rowUp\',this.checked)"> Below the 25th starts one row up</label>' +
+    '</div><p class="hint" style="margin-top:6px">Winter checkpoint ' + esc(G.fmtLong(G.dueIn(now, gs.winterDue, gs.seasons.fall))) + ", spring goal date " +
+    esc(G.fmtLong(G.dueIn(now, gs.springDue, gs.seasons.fall))) + ': set on the school calendar in <a href="#setup" onclick="document.querySelector(\'[data-tab=setup]\').click();return false">Setup</a>.</p></details></div>';
+
+  /* ---- suggested groups ---- */
+  if (window.SuiteOrf.suggest) {
+    const basis = UI.orfGroupBasis === "need" ? "need" : "rate";
+    const groups = window.SuiteOrf.suggest.suggest(db, basis, suiteCalendar().seasons);
+    h += '<div class="card pad"><div class="sectionhead"><h2>Suggested reading groups</h2><span class="spacer"></span>' +
+      '<label class="fld" style="margin:0">Group by<select onchange="UI.orfGroupBasis=this.value;renderORF()">' +
+      '<option value="rate"' + (basis === "rate" ? " selected" : "") + '>Similar rate</option><option value="need"' + (basis === "need" ? " selected" : "") + ">What they need next</option></select></label></div>";
+    if (!groups.length) h += '<p class="hint" style="margin-top:6px">Two or more children with checks are needed.</p>';
+    else groups.forEach(gr => {
+      h += '<div class="group" style="margin-top:10px"><h3>' + esc(gr.title) + '</h3><div class="body"><p class="small muted" style="margin:0 0 4px">' + esc(gr.desc) + '</p><div class="namelist">' +
+        gr.members.map(m => { const pp = people.find(x => x.o.id === m.orfId); return "<span>" + esc(pp ? pp.name : m.name) + ' <span class="tiny muted">' + m.wcpm + "</span></span>"; }).join("") + "</div></div></div>";
+    });
+    h += '<p class="hint" style="margin-top:6px">From each child\u2019s latest check. To use a group, place the children in Small Groups.</p></div>';
+  }
+
+  /* ---- missed-word patterns ---- */
+  const psid = UI.orfPatSid || "";
+  const real = new Set(people.map(p => p.o.id));
+  const pat = window.SuiteOrf.miscues.patterns(db.records.filter(r => real.has(r.studentId) && (!psid || r.studentId === psid)));
+  h += '<div class="card pad"><div class="sectionhead"><h2>Patterns in missed words</h2><span class="spacer"></span>' +
+    '<label class="fld" style="margin:0">For<select onchange="UI.orfPatSid=this.value;renderORF()"><option value="">The whole class</option>' +
+    people.map(p => '<option value="' + esc(p.o.id) + '"' + (psid === p.o.id ? " selected" : "") + ">" + esc(p.name) + "</option>").join("") + "</select></label></div>";
+  if (!pat.total) h += '<p class="hint" style="margin-top:6px">No missed words recorded' + (psid ? " for this child" : "") + " yet.</p>";
+  else {
+    const top = pat.features.length ? pat.features[0].n : 1;
+    h += '<div class="row" style="align-items:flex-start;gap:24px;margin-top:6px"><div style="flex:1 1 260px"><h3 class="small">What the misses share</h3>' +
+      pat.features.map(f => '<div style="margin:8px 0"><div class="row small" style="justify-content:space-between"><span>' + esc(f.feature) + '</span><span class="muted">' + f.n + " of " + pat.total +
+        '</span></div><span class="wbar" style="display:block;min-width:0;margin:3px 0"><i style="width:' + Math.max(6, f.n / top * 100).toFixed(0) + '%;background:var(--accent)"></i></span><div class="tiny muted">' + esc(f.examples.join(", ")) + "</div></div>").join("") +
+      '</div><div style="flex:1 1 260px"><h3 class="small">Words missed most</h3><table><thead><tr><th>Word</th><th class="c">Times</th>' + (psid ? "" : '<th class="c">Children</th>') + "</tr></thead><tbody>" +
+      pat.words.map(w => "<tr><td>" + esc(w.word) + '</td><td class="c num">' + w.count + "</td>" + (psid ? "" : '<td class="c num" title="' + esc(w.who.map(id => (people.find(x => x.o.id === id) || {}).name).filter(Boolean).join(", ")) + '">' + w.who.length + "</td>") + "</tr>").join("") +
+      "</tbody></table></div></div>";
+  }
+  return h + "</div>";
+}
+/* ---------- v88: the suite calendar ----------
+   One calendar for the suite, set in Setup and kept in this file's
+   settings: the teacher, the school year and its dates, the marking
+   periods, the ORF season lines and the ORF goal dates. Everything else
+   reads it through SuiteOrf.calendar(). The goal dates lived in
+   suite:orfgoals:v1 until v88; they are taken from there once, the same
+   way on every computer, and read from here from then on. */
+function suiteCalendar() {
+  return window.SuiteOrf ? window.SuiteOrf.calendar(S.settings, orfJSON(ORF_GOALS_KEY))
+    : { teacher: S.settings.teacher || "", seasons: S.settings.orfSeason, winterDue: "01-15", springDue: "05-14" };
+}
+function adoptCalendar() {
+  if (!window.SuiteOrf) return;
+  const cal = suiteCalendar();
+  let changed = false;
+  if (!/^\d{2}-\d{2}$/.test(String(S.settings.orfWinterDue || ""))) { S.settings.orfWinterDue = cal.winterDue; changed = true; }
+  if (!/^\d{2}-\d{2}$/.test(String(S.settings.orfSpringDue || ""))) { S.settings.orfSpringDue = cal.springDue; changed = true; }
+  if (changed) save();
+}
+/* the goals state with the calendar's dates and lines laid over it */
+function orfGoalsForPlans() {
+  const cal = suiteCalendar();
+  return Object.assign(orfGoalsState(), { winterDue: cal.winterDue, springDue: cal.springDue, seasons: cal.seasons });
+}
+function setCalendar(k, v) {
+  const m = String(v).match(/^\d{4}-(\d{2})-(\d{2})$/);
+  if (!m) { toast("Pick a date"); renderSetup(); return; }
+  const md = m[1] + "-" + m[2];
+  if (k === "orfWinterDue" || k === "orfSpringDue") { S.settings[k] = md; save(); renderSetup(); return; }
+  if (k === "fall" || k === "winter" || k === "spring") {
+    S.settings.orfSeason = Object.assign({ fall: "08-01", winter: "12-01", spring: "03-01" }, S.settings.orfSeason || {});
+    S.settings.orfSeason[k] = md;
+    const o = S.settings.orfSeason;
+    if (!(o.spring < o.fall && o.fall < o.winter)) toast("Windows should run spring, then fall, then winter through the year");
+    syncOrfScores(); renderSetup();
+  }
+}
+/* an MM-DD shown as a date in the school year it falls in */
+function calIso(mmdd) {
+  const y0 = Number(String(S.settings.yearStart || "").slice(0, 4)) || new Date().getFullYear();
+  const line = (S.settings.orfSeason && S.settings.orfSeason.fall) || "08-01";
+  return (String(mmdd) >= line ? y0 : y0 + 1) + "-" + mmdd;
+}
+/* v88: the district's dates, as the planner carries them (suite-boot.js
+   copies them to suite:district:v1 when the planner opens) */
+function districtCalendar() {
+  const d = orfJSON("suite:district:v1");
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(String(d.first)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(d.last))) return null;
+  const grading = (Array.isArray(d.grading) ? d.grading : []).filter(g => /^\d{4}-\d{2}-\d{2}$/.test(g) && g > d.first && g < d.last).sort();
+  const n = grading.length + 1;
+  const names = n === 4 ? QUARTER_NAMES : n === 3 ? TRI_NAMES : n === 2 ? SEM_NAMES : QUARTER_NAMES;
+  const terms = [];
+  for (let i = 0; i < n; i++) terms.push({ id: "t" + (i + 1), name: names[i] || "Term " + (i + 1),
+    start: i === 0 ? d.first : addDays(grading[i - 1], 1), end: i === n - 1 ? d.last : grading[i] });
+  return { first: d.first, last: d.last, grading: grading, terms: terms };
+}
+function districtDiffers(dc) {
+  if (!dc) return false;
+  if (dc.first !== S.settings.yearStart || dc.last !== S.settings.yearEnd || dc.terms.length !== S.terms.length) return true;
+  return dc.terms.some((t, i) => t.start !== S.terms[i].start || t.end !== S.terms[i].end);
+}
+function useDistrictCalendar() {
+  const dc = districtCalendar();
+  if (!dc) return;
+  const dropped = S.terms.filter(t => Number(t.id.slice(1)) > dc.terms.length).map(t => t.id);
+  if (dropped.length && !confirm("That makes " + dc.terms.length + " marking periods, which drops any marks you set by hand in the later ones. Continue?")) return;
+  dropped.forEach(id => Object.keys(S.overrides).forEach(k => { if (k.indexOf(id + "|") === 0) delete S.overrides[k]; }));
+  S.settings.yearStart = dc.first; S.settings.yearEnd = dc.last;
+  /* the same ids, so marks set by hand in each marking period stay with it */
+  S.terms = dc.terms.map(t => { const had = S.terms.find(x => x.id === t.id); return had ? Object.assign({}, had, { start: t.start, end: t.end }) : t; });
+  if (!S.terms.find(t => t.id === UI.reportTerm)) UI.reportTerm = S.terms[0].id;
+  save(); renderSetup(); toast("Using the district's dates");
+}
+function calendarCardHTML() {
+  const cal = suiteCalendar(), dc = districtCalendar();
+  const fmt = iso => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return '<div class="card pad" id="calendar-card"><h2>School calendar</h2>' +
+    '<p class="hint" style="margin-top:4px">The one calendar for the suite: the report card, the ORF marks and goals, sub plans and Walk to WIN all read these.</p>' +
+    (districtDiffers(dc) ? '<div class="notice warn" style="margin-top:8px"><p class="small" style="margin:0">The planner\u2019s district calendar has school from <strong>' + fmt(dc.first) + "</strong> to <strong>" + fmt(dc.last) +
+      "</strong>" + (dc.grading.length ? ", with grading days " + dc.grading.map(fmt).join(", ") : "") + ". The dates below are different.</p>" +
+      '<div class="row" style="margin-top:8px"><button class="btn primary" onclick="useDistrictCalendar()">Use the district\u2019s dates</button>' +
+      '<span class="hint">' + dc.terms.length + " marking periods, each ending on its grading day</span></div></div>" : "") +
+    '<div class="row" style="margin-top:8px">' +
+    '<label class="fld">Teacher / class label<input type="text" id="set-teacher" value="' + esc(S.settings.teacher) + '" placeholder="Room 12"></label>' +
+    '<label class="fld">School year<input type="text" id="set-year" value="' + esc(S.settings.year) + '" style="width:120px"></label></div>' +
+    '<div class="row" style="margin-top:8px;align-items:flex-end">' +
+    '<label class="fld">First day<input type="date" id="yr-start" value="' + esc(S.settings.yearStart || "") + '"></label>' +
+    '<label class="fld">Last day<input type="date" id="yr-end" value="' + esc(S.settings.yearEnd || "") + '"></label>' +
+    '<label class="fld">Marking periods<select id="yr-n"><option value="4">4 quarters</option><option value="3">3 trimesters</option><option value="2">2 semesters</option></select></label>' +
+    '<button class="btn" onclick="rebuildTerms()">Split the year evenly</button></div>' +
+    '<p class="hint" style="margin-top:8px">An even split is only a starting point \u2014 real quarters break on grading days and skip over breaks. Set the exact end dates below from the district calendar and everything downstream follows.</p>' +
+    '<table style="margin-top:8px"><thead><tr><th>Name</th><th>Starts</th><th>Ends</th></tr></thead><tbody>' +
+    S.terms.map(t => "<tr>" +
+      '<td><input type="text" data-tf="name" data-id="' + t.id + '" value="' + esc(t.name) + '"></td>' +
+      '<td><input type="date" data-tf="start" data-id="' + t.id + '" value="' + t.start + '"></td>' +
+      '<td><input type="date" data-tf="end" data-id="' + t.id + '" value="' + t.end + '"></td></tr>').join("") +
+    "</tbody></table>" +
+    '<h3 style="margin-top:16px">Reading checks</h3>' +
+    '<div class="row" style="margin-top:6px">' +
+    [["fall", "Fall window opens"], ["winter", "Winter window opens"], ["spring", "Spring window opens"]].map(x =>
+      '<label class="fld">' + x[1] + '<input type="date" data-cal="' + x[0] + '" value="' + calIso(cal.seasons[x[0]]) + '"></label>').join("") + "</div>" +
+    '<div class="row" style="margin-top:6px">' +
+    '<label class="fld">Winter goal checkpoint<input type="date" data-cal="orfWinterDue" value="' + calIso(cal.winterDue) + '"></label>' +
+    '<label class="fld">Spring goal date<input type="date" data-cal="orfSpringDue" value="' + calIso(cal.springDue) + '"></label></div>' +
+    '<p class="hint" style="margin-top:6px">The windows decide which norms a check is read against, and the fall window is where a new school year begins for the ORF goals. Only the month and day are kept, so these carry over from year to year.</p></div>';
+}
+function orfPickGoal(sid) { UI.orfGoalSid = sid; renderORF(); }
+function orfSetGoal(sid, which, val) {
+  if (which == null) { orfWrite(ORF_GOALS_KEY, g => { delete g.goals[sid]; }); renderORF(); return; }
+  const v = String(val).trim() === "" ? null : Math.round(+val);
+  if (v != null && !(v > 0 && v <= 300)) { toast("A goal between 1 and 300"); renderORF(); return; }
+  orfWrite(ORF_GOALS_KEY, g => {
+    let o = g.goals[sid];
+    o = typeof o === "number" ? { spring: o } : (o && typeof o === "object" ? o : {});
+    if (v == null) delete o[which]; else o[which] = v;
+    if (o.spring == null && o.winter == null) delete g.goals[sid]; else g.goals[sid] = o;
+  });
+  renderORF(); toast(v == null ? "Back to the suggested goal" : "Goal set");
+}
+function orfSetComp(recId, val) {
+  orfWrite(ORF_COMP_KEY, c => { if (val === "") delete c.records[recId]; else c.records[recId] = Math.max(0, Math.min(3, Math.round(+val))); });
+  renderORF();
+}
+function orfSetting(k, v) {
+  orfWrite(ORF_GOALS_KEY, g => {
+    if (k === "rowUp") g.rowUp = !!v;
+    else if (k === "method") g.method = v;
+    else if (k === "expectation") { const n = Math.round(+v); g.expectation = n > 0 && n <= 300 ? n : null; }
+    else if (k === "margin") { const n = Math.round(+v); g.margin = n >= 0 && n <= 30 ? n : 10; }
+  });
+  renderORF();
+}
+
 function renderORF() {
   const el = document.getElementById("panel-orf");
   const cuts = Object.assign({ 4: 75, 3: 50, 2: 25 }, S.settings.orfCuts || {});
@@ -2775,6 +3177,9 @@ function renderORF() {
     html += '<p class="hint" style="margin-top:4px">Not found in this browser. The live link works when both files are opened on the same computer in the same browser, which is how Chrome and Edge treat local files. If yours does not connect, the file import below does the same job.</p>';
   }
   html += "</div>";
+
+  /* v86: goals, aim line, groups, patterns, read live */
+  html += orfAnalysisHTML(db);
 
   /* import card */
   html += '<div class="card pad"><h2>Or bring in a file</h2>' +
@@ -2818,7 +3223,7 @@ function renderORF() {
       '<option value="season"' + (orfBasis() === "season" ? " selected" : "") + '>The norms for the season it was taken in</option></select></label>' +
     '<p class="hint">' + (orfBasis() === "eoy"
       ? "Every check is measured against the spring norms, whenever it was read, because report card marks are graded against end-of-year expectations. A 3 is the end-of-year 50th percentile, so fall and winter marks run lower by design."
-      : "Each check is measured against the norms for its own season, read from its date using the windows below.") +
+      : "Each check is measured against the norms for its own season, read from its date using the windows on the school calendar (Setup).") +
     ' Percentiles come from Hasbrouck &amp; Tindal (2017) grade 2 norms. Change the cut points if Creswell uses different ones.</p>' +
     '<table style="margin-top:10px"><thead><tr><th>Mark</th><th>Student is at or above</th>' +
     (orfBasis() === "eoy" ? '<th class="c">End of year</th>' : '<th class="c">Fall</th><th class="c">Winter</th><th class="c">Spring</th>') + '</tr></thead><tbody>' +
@@ -2832,9 +3237,6 @@ function renderORF() {
     "<tr><td>" + markHTML(1) + '</td><td colspan="' + (orfBasis() === "eoy" ? 2 : 4) + '" class="muted small">anything below the cut for a 2</td></tr>' +
     "</tbody></table>" +
     '<div class="row" style="margin-top:12px">' +
-    '<label class="fld">Fall window opens<input type="text" id="orf-sf" value="' + esc((S.settings.orfSeason || {}).fall || "08-01") + '" size="6" placeholder="MM-DD"></label>' +
-    '<label class="fld">Winter window opens<input type="text" id="orf-sw" value="' + esc((S.settings.orfSeason || {}).winter || "12-01") + '" size="6" placeholder="MM-DD"></label>' +
-    '<label class="fld">Spring window opens<input type="text" id="orf-ss" value="' + esc((S.settings.orfSeason || {}).spring || "03-01") + '" size="6" placeholder="MM-DD"></label>' +
     '<label class="fld">These marks land on<select id="orf-std">' +
     CATALOG.filter(s => s.s === "ELA" && s.d === "Foundational Skills").map(s => '<option value="' + s.c + '"' + (S.settings.orfStandard === s.c ? " selected" : "") + ">" + esc(s.c + " \u2014 " + s.lbl) + "</option>").join("") +
     "</select></label></div></div>";
@@ -2879,21 +3281,7 @@ function renderORF() {
     }
     html += "</div>";
 
-    /* growth */
-    const withTwo = S.students.filter(st => S.orf.filter(r => r.sid === st.id && !r.exclude && !r.gone).length >= 2);
-    if (withTwo.length) {
-      html += '<div class="card pad"><h3>Growth since the first check</h3><table style="margin-top:8px"><thead><tr><th>Student</th><th class="c">First</th><th class="c">Latest</th><th class="c">Change</th><th class="c">Per week</th><th class="c">Readings</th></tr></thead><tbody>';
-      withTwo.forEach(st => {
-        const a = S.orf.filter(r => r.sid === st.id && !r.exclude && !r.gone).sort((x, y) => x.date.localeCompare(y.date));
-        const f = a[0], l = a[a.length - 1];
-        const weeks = Math.max(1, (new Date(l.date) - new Date(f.date)) / (7 * 864e5));
-        const per = ((l.wcpm - f.wcpm) / weeks);
-        html += "<tr><td>" + esc(fullName(st)) + '</td><td class="c num">' + f.wcpm + '</td><td class="c num">' + l.wcpm +
-          '</td><td class="c num" style="font-weight:650;color:' + (l.wcpm >= f.wcpm ? "var(--s3)" : "var(--s1)") + '">' + (l.wcpm - f.wcpm > 0 ? "+" : "") + (l.wcpm - f.wcpm) +
-          '</td><td class="c num">' + per.toFixed(1) + '</td><td class="c num">' + a.length + "</td></tr>";
-      });
-      html += "</tbody></table></div>";
-    }
+    /* v86: "Growth since the first check" is the Reading goals card now */
 
     /* record list */
     html += '<div class="card pad"><div class="sectionhead"><h3>All readings</h3><span class="spacer"></span>' +
@@ -2919,17 +3307,6 @@ function renderORF() {
   document.getElementById("orf-auto").onchange = e => { S.settings.orfAutoScore = e.target.checked; syncOrfScores(); renderORF(); };
   document.getElementById("orf-autolink").onchange = e => { S.settings.orfAutoLink = e.target.checked; save(); };
   document.getElementById("orf-std").onchange = e => { S.settings.orfStandard = e.target.value; syncOrfScores(); renderORF(); };
-  [["orf-sf", "fall"], ["orf-sw", "winter"], ["orf-ss", "spring"]].forEach(pair => {
-    document.getElementById(pair[0]).onchange = e => {
-      const v = e.target.value.trim();
-      if (!/^\d{2}-\d{2}$/.test(v)) { toast("Use MM-DD, for example 12-01"); renderORF(); return; }
-      S.settings.orfSeason = Object.assign({ fall: "08-01", winter: "12-01", spring: "03-01" }, S.settings.orfSeason || {});
-      S.settings.orfSeason[pair[1]] = v;
-      const o = S.settings.orfSeason;
-      if (!(o.spring < o.fall && o.fall < o.winter)) toast("Windows should run spring, then fall, then winter through the year");
-      syncOrfScores(); renderORF();
-    };
-  });
   const ag = document.getElementById("orf-against");
   if (ag) ag.onchange = () => { S.settings.orfAgainst = ag.value === "season" ? "season" : "eoy"; syncOrfScores(); renderORF(); };
   el.querySelectorAll("[data-cut]").forEach(sl => {
@@ -4011,7 +4388,7 @@ function initSync() {
   });
   window.SuiteSync.onChanged(changed => {
     if (changed.indexOf("gb2_standards_v1") >= 0) { reloadFromStorage(); settleCopies(); render(); }
-    if (changed.indexOf(ORF_KEY) >= 0 && S.settings.orfAutoLink) { syncFromOrf(true); render(); }
+    if (changed.indexOf(ORF_KEY) >= 0) { pushRosterToOrf(true); if (S.settings.orfAutoLink) syncFromOrf(true); render(); }
     const others = changed.filter(k => k !== "gb2_standards_v1");
     if (others.length) toast("Lesson plans and readings updated too \u2014 reopen those tools to see them");
     else if (changed.length) toast("Picked up changes from the synced file");
@@ -4336,35 +4713,24 @@ function benchmarkHTML(lp) {
 /* ============================================================
    TAB — PLANNING
    ============================================================ */
-function renderPlanning() {
-  const el = document.getElementById("panel-planning");
+/* ============================================================
+   v89: THE PLANNING TAB IS FOLDED AWAY
+   "Taught this day" was already on Enter scores (plannerPickHTML), and the
+   Reveal and Benchmark pacing are the planner's to show. What was left
+   went where it belongs: Coverage and "Before you move on" are about
+   marks, so they are at the foot of Groups & patterns; the unit-to-
+   standards map is a setting, so it is in Setup.
+   ============================================================ */
+function planningContext() {
   const lp = readPlanner();
-  if (!lp) {
-    el.innerHTML = '<div class="card empty"><strong>The lesson planner has not been found</strong>' +
-      'Open the planner from this same address at least once, save a day, then come back. ' +
-      'Both tools have to be served from the same place for this to work.</div>';
-    return;
-  }
-  const subs = unitSubjects(lp);
-  const taught = unitsTaught(lp);
-  let html = '<div class="stack">';
-
-  html += revealPacingHTML(lp);
-  html += benchmarkHTML(lp);
-
-  /* ---- what is coming up / what was taught today ---- */
-  const todayStds = standardsTaughtOn(todayISO());
-  html += '<div class="card pad"><div class="sectionhead"><h2>Today</h2><span class="spacer"></span>' +
-    '<span class="hint">' + esc(Object.keys(taught).length) + " units taught so far</span></div>";
-  if (todayStds.length) {
-    html += '<p class="small">From what the planner says you taught today:</p><div class="namelist">' +
-      todayStds.map(t => '<span>' + codeHTML(t.code) + " " + esc(byCode[t.code].lbl) + "</span>").join("") + "</div>" +
-      '<button class="btn sm" style="margin-top:6px" onclick="gotoTab(\'enter\')">Go and mark these</button>';
-  } else {
-    html += '<p class="hint">Nothing mapped for today yet. Either the day is not saved in the planner, or the units it covers have no standards attached below.</p>';
-  }
-  html += "</div>";
-
+  return lp ? { lp: lp, subs: unitSubjects(lp), taught: unitsTaught(lp) } : null;
+}
+/* Coverage and "Before you move on", for the foot of Groups & patterns */
+function planningAnalysisHTML() {
+  const ctx = planningContext();
+  if (!ctx) return "";
+  const lp = ctx.lp, subs = ctx.subs, taught = ctx.taught;
+  let html = '<div class="divider"></div>';
   /* ---- coverage ---- */
   const gaps = [], thin = [];
   Object.keys(taught).forEach(k => {
@@ -4430,8 +4796,16 @@ function renderPlanning() {
     html += "</div>";
   }
 
+  return html;
+}
+/* the unit-to-standards map, for Setup */
+function unitMapHTML() {
+  const ctx = planningContext();
+  if (!ctx) return '<div class="card pad" id="unitmap-card"><h2>Units and standards</h2><p class="hint">Open the planner from this same address and save a day, and the Reveal and Benchmark units appear here to map to standards.</p></div>';
+  const subs = ctx.subs, taught = ctx.taught;
+  let html = "";
   /* ---- the mapping itself ---- */
-  html += '<div class="divider"></div><div class="card pad"><div class="sectionhead"><h2>Units and standards</h2><span class="spacer"></span>' +
+  html += '<div class="card pad" id="unitmap-card"><div class="sectionhead"><h2>Units and standards</h2><span class="spacer"></span>' +
     '<span class="hint">tick the standards each unit covers</span></div>' +
     '<p class="hint">' + (window.RevealPacing
       ? "Math is filled in from the Reveal pacing guide and is known lesson by lesson. Reading is filled in from the Benchmark scope and sequence, week by week; Benchmark prints skill names rather than codes, so those were matched from the names. Change any unit here and the change is kept."
@@ -4464,24 +4838,36 @@ function renderPlanning() {
     }
     html += '<button class="btn sm" style="margin-top:8px" onclick="addUnitRow(\'' + esc(sb.id) + "'," + shown + ')">Show another unit</button>';
   });
-  html += "</div></div>";
-  el.innerHTML = html;
-
-  el.querySelectorAll("[data-usub]").forEach(cb => {
+  html += "</div>";
+  return html;
+}
+function wireUnitMap() {
+  document.querySelectorAll("#unitmap-card [data-usub]").forEach(cb => {
     cb.onchange = () => {
       const sid = cb.dataset.usub, u = Number(cb.dataset.unit);
       const cur = unitStandards(sid, u).slice();
       const i = cur.indexOf(cb.dataset.code);
       if (cb.checked) { if (i < 0) cur.push(cb.dataset.code); } else if (i >= 0) cur.splice(i, 1);
       setUnitStandards(sid, u, cur);
-      renderPlanning();
+      refreshUnitMap();
     };
   });
+}
+/* redraws only the map, keeping the details that are open and the page where it is */
+function refreshUnitMap() {
+  const card = document.getElementById("unitmap-card");
+  if (!card) return;
+  const open = Array.from(card.querySelectorAll("details")).map(d => d.open);
+  const tmp = document.createElement("div");
+  tmp.innerHTML = unitMapHTML();
+  card.replaceWith(tmp.firstElementChild);
+  Array.from(document.querySelectorAll("#unitmap-card details")).forEach((d, i) => { if (open[i]) d.open = true; });
+  wireUnitMap();
 }
 function addUnitRow(sbId, shown) {
   S.unitCount = S.unitCount || {};
   S.unitCount[sbId] = shown + 1;
-  save(); renderPlanning();
+  save(); refreshUnitMap();
 }
 
 /* ---------- Grading by Reveal lesson (v62) ----------
@@ -4946,6 +5332,8 @@ function initAssignmentKeys() {
 load();
 if (S.settings.subject) UI.subject = S.settings.subject;
 paintSubjSwitch();
+adoptCalendar();                                            /* v88 */
+setTimeout(() => { try { publishSuggestions(); } catch (e) { } }, 0);   /* v89 */
 const mergeRes = autoMergeDuplicates(true);
 foldIreadyRows();                                           /* v83 */
 const foldedOrf = foldOrfCopies();
@@ -4955,6 +5343,7 @@ if (foldedOrf) syncOrfScores();
    check against its own season) are rebuilt once. Converges: hand-entered
    marks are never touched, and a matching basis does nothing. */
 if (S.settings.orfMarksBasis !== orfBasis() && S.orf.length) syncOrfScores();
+pushRosterToOrf(true);                                      /* v87 */
 if (S.settings.orfAutoLink) {
   const pulled = syncFromOrf(true);
   if (pulled) setTimeout(() => toast("Brought in " + pulled + " new reading" + (pulled === 1 ? "" : "s") + " from your ORF tool"), 600);
@@ -4970,10 +5359,12 @@ initSync();
    the marks now rather than the next time the gradebook is opened (one
    arriving from the other computer comes through initSync's onChanged) */
 window.addEventListener("storage", e => {
-  if (e.key !== ORF_KEY || e.storageArea !== window.localStorage || !S.settings.orfAutoLink) return;
+  if (e.key !== ORF_KEY || e.storageArea !== window.localStorage) return;
   const a = document.activeElement;
   if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
-  syncFromOrf(true); render();
+  pushRosterToOrf(true);                                    /* v87: a restore there cannot bring an old roster back */
+  if (S.settings.orfAutoLink) syncFromOrf(true);
+  render();
 });
 initPWA();
 window.addEventListener("beforeunload", save);

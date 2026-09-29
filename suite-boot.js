@@ -405,6 +405,94 @@
   } catch (e) { }
 })();
 
+/* ---- v89: the planner's Team tab is retired ----
+   It shared plans through a Claude artifact's storage, which a page on
+   GitHub Pages does not have, so it could never work here (suite-boot.js
+   only reworded its note). The planner's file is the teacher's own and is
+   not edited: this takes the tab's button out of the nav, and if the
+   planner opened on it, moves to Today. Its data (lp:me:v1) is left. */
+(function () {
+  if (location.pathname.indexOf("planner") < 0) return;
+  function run() {
+    var b = document.querySelector('[role="tab"][data-view="team"]');
+    if (!b) return;
+    var was = b.getAttribute("aria-selected") === "true";
+    b.remove();
+    if (was) { var t = document.querySelector('[role="tab"][data-view="today"]'); if (t) t.click(); }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+})();
+
+/* ---- v88: the planner's district calendar, for the suite calendar ----
+   The planner carries Creswell's calendar in its own file (YEAR: first and
+   last day, and every day school is closed, grading days among them). That
+   file is the teacher's own and is not edited, and the gradebook cannot
+   read it, so this copies the few facts the suite calendar needs into
+   suite:district:v1 whenever the planner opens. Gradebook Setup offers
+   them ("Use the district's dates"); it never applies them by itself.
+   Derived from the planner's code, so every computer writes the same. */
+(function () {
+  if (location.pathname.indexOf("planner") < 0) return;
+  try {
+    /* a top-level const in the planner's script, visible to this one */
+    if (typeof YEAR === "undefined" || !YEAR || !YEAR.first || !YEAR.last) return;
+    var closed = YEAR.closed || {};
+    var out = { label: String(YEAR.label || ""), first: YEAR.first, last: YEAR.last,
+      grading: Object.keys(closed).filter(function (k) { return /grading day/i.test(closed[k]); }).sort() };
+    var v = JSON.stringify(out);
+    if (window.localStorage.getItem("suite:district:v1") !== v) window.localStorage.setItem("suite:district:v1", v);
+  } catch (e) { }
+})();
+
+/* ---- v87: the ORF tool is for taking checks ----
+   Its Growth, Reports, Gradebook and Students tabs are the gradebook's ORF
+   tab now (goals, aim line, groups, patterns: v86) and its roster (the
+   gradebook's, pushed one way: v87). The tool's file is the teacher's own
+   and is not edited: this takes those four tab buttons out of its nav, so
+   nothing can open them, and moves the one thing on them that belongs to
+   taking checks, the Records card (the saved checks, with Delete, and the
+   CSV, backup and restore buttons), onto Assess. The card keeps its own
+   listeners, and the tool already redraws it after every save. A line under
+   the tabs says where the rest went. Runs after the tool's script (this
+   file is deferred), before its first paint of data (that waits on an
+   async load), so the tabs never flash. */
+(function () {
+  if (location.pathname.indexOf("fluency") < 0) return;
+  var GONE = ["growth", "reports", "gradebook", "students"];
+  function run() {
+    var nav = document.querySelector("nav.tabs");
+    if (!nav) return;
+    var wasOpen = false;
+    GONE.forEach(function (t) {
+      var b = nav.querySelector('button[data-tab="' + t + '"]');
+      if (b) { if (b.getAttribute("aria-selected") === "true") wasOpen = true; b.remove(); }
+    });
+    var list = document.getElementById("recordList"), assess = document.getElementById("tab-assess");
+    var card = list && list.closest(".panel");
+    if (card && assess && card.parentNode !== assess) {
+      var h = card.querySelector("h2");
+      if (h) h.textContent = "Saved checks";
+      card.setAttribute("data-suite-moved", "records");
+      assess.appendChild(card);
+    }
+    if (!document.getElementById("suite-orf-where")) {
+      var p = document.createElement("p");
+      p.id = "suite-orf-where";
+      p.className = "hint";
+      p.style.cssText = "margin:6px 0 0";
+      p.innerHTML = 'Goals, growth, groups, patterns and the class list are in the <a href="../gradebook/#orf" style="color:var(--accent)">gradebook\u2019s ORF tab</a>.';
+      nav.parentNode.insertBefore(p, nav.nextSibling);
+    }
+    var first = nav.querySelector('button[data-tab="assess"]');
+    if (wasOpen && first) first.click();
+    GONE.forEach(function (t) { var sec = document.getElementById("tab-" + t); if (sec) sec.classList.add("hidden"); });
+    if (first && !nav.querySelector('button[aria-selected="true"]')) first.click();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+})();
+
 /* Starts sync and the service worker on the tools that have no boot code of
    their own. The gradebook does both itself and does not load this file.
 
@@ -452,6 +540,15 @@
     : location.pathname.indexOf("/groups") >= 0 ? []
     : ["running-records-v1"];
 
+  /* v87: the gradebook, open in another tab, puts its roster on the ORF
+     tool's (see pushRosterToOrf there). The tool reads storage only when it
+     starts, so say so rather than let a new child be missing from Assess. */
+  if (mine.indexOf("running-records-v1") >= 0) {
+    window.addEventListener("storage", function (e) {
+      if (e.key !== "running-records-v1" || e.storageArea !== window.localStorage) return;
+      banner("The class list or checks changed in another tab.", "Reload", function () { location.reload(); });
+    });
+  }
   window.SuiteSync.onChanged(function (changed) {
     if (!changed.some(function (k) { return mine.indexOf(k) >= 0; })) return;
     /* v80: the planner folds a pull into what it is showing; the banner

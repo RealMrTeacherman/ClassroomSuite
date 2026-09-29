@@ -101,128 +101,11 @@
   /* the running-records tool's own grade 2 rows, used only to reproduce its
      chart's scale for the aim line */
   var ROWS = ORF.norms(2);
-  var PACE = { realistic: 1.5, ambitious: 2.0 };
-  var METHODS = { table: 1, realistic: 1, ambitious: 1 };
-
-  /* Hasbrouck & Tindal 2017, grades 1-6 (suite-orf.js) */
-  var HT = ORF.HT;
-  var WIN = ["fall", "winter", "spring"];
-
-  /* One percentile row read as a timeline across grades, with each summer a
-     single step (one grade's spring and the next grade's fall):
-       0 g1 winter, 1 [g1 spring | g2 fall], 2 g2 winter, 3 [g2 spring | g3 fall],
-       ... 10 g6 winter, 11 g6 spring                                        */
-  function ladder(p) {
-    function r(pairs) { return { v: pairs.map(function (x) { return HT[x[0]][p][x[1]]; }), lab: pairs.map(function (x) { return "grade " + x[0] + " " + WIN[x[1]]; }) }; }
-    var out = [];
-    for (var g = 1; g <= 6; g++) { out.push(r([[g, 1]])); out.push(g < 6 ? r([[g, 2], [g + 1, 0]]) : r([[6, 2]])); }
-    return out;
-  }
-  function lowRung(r) { var i = r.v.length > 1 && r.v[1] < r.v[0] ? 1 : 0; return { v: r.v[i], lab: r.lab[i] }; }
-  function highRung(r) { var i = r.v.length > 1 && r.v[1] > r.v[0] ? 1 : 0; return { v: r.v[i], lab: r.lab[i] }; }
-  function ratioGap(a, b) { return Math.abs(Math.log(Math.max(a, 0.5) / Math.max(b, 0.5))); }
-  /* the rung a check in that window of that grade sits on */
-  function homeRung(grade, win) {
-    if (win === "winter") return 2 * (grade - 1);
-    if (win === "fall" && grade >= 2) return 2 * grade - 3;
-    return null;                        /* spring, or grade 1 fall (no norm) */
-  }
-
-  /* Last year's method, as rules. A fall check gets a winter and a spring
-     goal; a winter check (a new student, or the mid-year review) gets a
-     spring goal. Returns null where the table has nothing to offer. */
-  /* opts.rowUp: a student whose row is below the 25th (the 10th row on the
-     grade's own table) starts one row up, on the 25th. Holding the 10th row
-     keeps a student at the 10th percentile, and for students well below
-     grade level the guidance is a goal that closes the gap. Students read
-     past the bottom of the table (stepped into the grade below) are left on
-     their steps: from that far back, a year of growth is already the
-     ambitious goal. Only a START is moved up, never the mid-year review. */
-  function tableGoals(score, win, grade, opts) {
-    grade = HT[grade] ? +grade : 2;
-    var home = homeRung(grade, win);
-    if (home == null) return null;
-    var need = win === "fall" ? 2 : 1;
-    var L10 = ladder(10), L90 = ladder(90);
-    var col = win === "fall" ? 0 : 1;
-    var place;
-    var floor = home > 0 ? lowRung(L10[home - 1]).v : L10[0].v[0] / 2;
-    if (score < floor) {
-      /* below the rung under this grade's: step down along the 10th row.
-         Grade 1 has no fall norm, so "below grade 1 winter" is a rung of its
-         own, taken when the score is nearer nothing than that rung. */
-      var i = 0, bd = Infinity;
-      for (var q = 0; q < Math.max(1, home); q++) {
-        L10[q].v.forEach(function (v) { var d = ratioGap(score, v); if (d < bd - 1e-9) { bd = d; i = q; } });
-      }
-      if (i === 0 && score * 2 < L10[0].v[0]) i = -1;
-      place = { p: 10, i: i, off: "below" };
-    } else {
-      var best = null;
-      PCTS.slice().reverse().forEach(function (p) {
-        var d = ratioGap(score, HT[grade][p][col]);
-        if (!best || d < best.d - 1e-9) best = { d: d, p: p, i: home, off: false };
-      });
-      for (var k = home + 1; k <= L90.length - 1 - need; k++) {
-        L90[k].v.forEach(function (v) { var d = ratioGap(score, v); if (d < best.d - 1e-9) best = { d: d, p: 90, i: k, off: "above" }; });
-      }
-      place = best;
-    }
-    var L = place.p === 10 ? L10 : place.p === 90 ? L90 : ladder(place.p);
-    var at = place.i < 0 ? { v: 0, lab: "below grade 1 winter" } : lowRung(L[place.i]);
-    var last = L.length - 1;
-    var out = { grade: grade, row: place.p, off: place.off, at: at, winter: null, winterLab: null };
-    var moved = false;
-    if (!place.off && place.p === 10 && opts && opts.rowUp) { place.p = 25; moved = true; }
-    if (!place.off) {
-      /* on the grade's own table the goals are simply that row's values —
-         its own spring, not the next grade's fall, which for grade 1's
-         lower rows is the larger number */
-      if (need === 2) { out.winter = HT[grade][place.p][1]; out.winterLab = "grade " + grade + " winter"; }
-      out.spring = HT[grade][place.p][2]; out.springLab = "grade " + grade + " spring";
-      out.row = place.p; out.movedUp = moved;
-      return out;
-    }
-    if (need === 2) { var w = lowRung(L[Math.min(last, place.i + 1)]); out.winter = w.v; out.winterLab = w.lab; }
-    var sp = highRung(L[Math.min(last, place.i + need)]);
-    out.spring = sp.v; out.springLab = sp.lab;
-    return out;
-  }
-
-  /* The mid-year review, as last year's sheet did it (20 of its 21 rows):
-       - winter check below the spring goal: the goal stands
-       - past it, and the goal was on this grade's own table: place the winter
-         check on the winter values and take the next step, never lower
-       - past it, and the goal was already above this grade's table: keep the
-         number and add "all 3 comprehension questions correct"            */
-  function midYearReview(boyTable, boySpring, winterActual, grade) {
-    if (winterActual == null || winterActual < boySpring) return { spring: boySpring, changed: false, comp: false };
-    if (boyTable && boyTable.off === "above") return { spring: boySpring, changed: true, comp: true };
-    var t = tableGoals(winterActual, "winter", grade);
-    var next = t ? t.spring : boySpring;
-    return { spring: Math.max(boySpring, next), changed: next > boySpring, comp: false, table: t };
-  }
-
-  /* Last year's four colours, as rules (they reproduce all 21 students):
-       green   made the goal in force at spring (the mid-year one if it was
-               raised), comprehension included where the goal asks for it
-       blue    missed that, but made the start-of-year goal
-       yellow  missed both, at or above the grade-level expectation
-       red     missed both, below it
-     The grade-level expectation is the end-of-year 50th percentile (100 in
-     grade 2), with the margin of error around it: a score within the margin
-     below the line is yellow but flagged as below expectations, and only
-     one further below than that is red.                                   */
-  function springResult(o) {
-    var tol = o.tolerance == null ? 2 : o.tolerance;
-    function made(goal, needComp) { return o.actual >= goal - tol && (!needComp || o.comp === 3); }
-    if (made(o.goal, o.needComp)) return "green";
-    if (o.reviewed && made(o.boySpring, false)) return "blue";
-    return o.actual >= o.expectation - (o.margin || 0) ? "yellow" : "red";
-  }
-
-  var INSTR_RATIO = 32 / (242 / 7);      /* 32 instructional weeks, Sep 15 to May 15 */
-  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  /* v86: the goals engine lives in suite-orf.js, shared with the gradebook */
+  var G = ORF.goals;
+  var PACE = G.PACE, METHODS = G.METHODS, INSTR_RATIO = G.INSTR_RATIO, MONTHS = G.MONTHS;
+  var HT = ORF.HT, WIN = ["fall", "winter", "spring"];
+  var tableGoals = G.tableGoals, midYearReview = G.midYearReview, springResult = G.springResult;
 
   /* ---------- storage ---------- */
   function readDB() {
@@ -235,24 +118,7 @@
   function readGoals() {
     var g = null;
     try { g = JSON.parse(window.localStorage.getItem(GOALS_KEY) || "null"); } catch (e) { }
-    if (!g || typeof g !== "object") g = {};
-    if (!g.goals || typeof g.goals !== "object") g.goals = {};
-    if (!METHODS[g.method]) g.method = "table";
-    if (!/^\d{2}-\d{2}$/.test(String(g.winterDue || ""))) g.winterDue = "01-15";
-    if (!/^\d{2}-\d{2}$/.test(String(g.springDue || ""))) g.springDue = "05-14";
-    if (!HT[g.grade]) g.grade = 2;
-    if (g.rowUp !== false) g.rowUp = true;
-    /* the margin of error around the grade-level line: a single ORF passage
-       is typically off by about 10 words either way */
-    if (!(g.margin >= 0 && g.margin <= 30)) g.margin = 10;
-    g.grade = +g.grade;
-    /* spring results: a score this many words short still counts as made
-       (last year 71 against 72 and 159 against 161 were counted made), and
-       the grade-level expectation that splits yellow from red (null: the
-       grade's spring 25th percentile) */
-    if (!(g.tolerance >= 0 && g.tolerance <= 15)) g.tolerance = 2;
-    if (!(g.expectation > 0 && g.expectation <= 300)) g.expectation = null;
-    return g;
+    return G.normGoals(g);
   }
   /* Comprehension, 0-3 questions, per saved check. The tool's own records
      have no field for it and it would drop one on its next save, so it
@@ -261,8 +127,7 @@
   function readComp() {
     var c = null;
     try { c = JSON.parse(window.localStorage.getItem(COMP_KEY) || "null"); } catch (e) { }
-    if (!c || typeof c !== "object" || !c.records || typeof c.records !== "object") c = { records: {} };
-    return c;
+    return G.normComp(c);
   }
   function writeComp(c) {
     try { window.localStorage.setItem(COMP_KEY, JSON.stringify(c)); return true; }
@@ -273,271 +138,23 @@
     catch (e) { toast("Couldn't save the goal on this device."); return false; }
   }
 
-  /* ---------- dates ---------- */
-  /* A reading is stamped with toISOString(), which is UTC; an evening check
-     would otherwise land on tomorrow. A bare date is taken as written. */
-  function localDay(iso) {
-    var s = String(iso || "");
-    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
-    if (isNaN(d)) return null;
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
-  }
+  /* ---------- dates, curve and plan: suite-orf.js (v86) ---------- */
+  var localDay = G.localDay, yearStart = G.yearStart, dueIn = G.dueIn, benchDates = G.benchDates,
+    instrWeeks = G.instrWeeks, fmtShort = G.fmtShort, fmtLong = G.fmtLong, along = G.along,
+    rowAt = G.rowAt, standing = G.standing, curveFor = G.curveFor, ordinal = G.ordinal;
   function today() { return api.today ? new Date(api.today) : new Date(); }
-  /* The school year a date falls in starts on August 1. */
-  function yearStart(now) { return new Date(now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1, 7, 1); }
-  function dueIn(now, mmdd) {
-    var y = yearStart(now).getFullYear();
-    var mm = +String(mmdd).slice(0, 2), dd = +String(mmdd).slice(3, 5);
-    return new Date(mm >= 8 ? y : y + 1, mm - 1, dd, 12);
+  /* v88: the goal dates and season lines are the suite calendar's, set in
+     gradebook Setup; until a gradebook has been opened here there is none,
+     and the goals keep their own */
+  function withCalendar(goalsState) {
+    var gb = null;
+    try { gb = JSON.parse(window.localStorage.getItem("gb2_standards_v1") || "null"); } catch (e) { }
+    if (!gb || !gb.settings || !/^\d{2}-\d{2}$/.test(String(gb.settings.orfSpringDue || ""))) return goalsState;
+    var cal = ORF.calendar(gb.settings, goalsState);
+    return Object.assign({}, goalsState, { winterDue: cal.winterDue, springDue: cal.springDue, seasons: cal.seasons });
   }
-  function benchDates(now) {
-    var y = yearStart(now).getFullYear();
-    return [new Date(y, 8, 15, 12).getTime(), new Date(y + 1, 0, 15, 12).getTime(), new Date(y + 1, 4, 15, 12).getTime()];
-  }
-  function instrWeeks(t0, t1) { return Math.max(0, (t1 - t0) / (7 * DAY)) * INSTR_RATIO; }
-  function endOfMonth(y, m) { return new Date(y, m + 1, 0, 12); }
-  function fmtShort(d) { return MONTHS[d.getMonth()].slice(0, 3) + " " + d.getDate(); }
-  function fmtLong(d) { return MONTHS[d.getMonth()] + " " + d.getDate(); }
-
-  /* ---------- the norm curve (pace methods and the percentile shown) ---------- */
-  /* WCPM along the year for one row: straight between the windows, carried on
-     at the nearest segment's slope before fall and after spring. Grade 1 has
-     no fall value, so its winter-to-spring slope is carried back. */
-  function along(row, t, B) {
-    var r = row[0] == null ? [row[1] - (row[2] - row[1]) * (B[1] - B[0]) / (B[2] - B[1]), row[1], row[2]] : row;
-    var i = t <= B[1] ? 0 : 1;
-    var f = (t - B[i]) / (B[i + 1] - B[i]);
-    return r[i] + f * (r[i + 1] - r[i]);
-  }
-  function rowAt(p, grade) {
-    var T = HT[grade] || HT[2];
-    p = Math.max(10, Math.min(90, p));
-    for (var i = 0; i < PCTS.length - 1; i++) {
-      var a = PCTS[i], b = PCTS[i + 1];
-      if (p <= b) {
-        var f = (p - a) / (b - a);
-        return [0, 1, 2].map(function (k) { return T[a][k] == null ? null : T[a][k] + f * (T[b][k] - T[a][k]); });
-      }
-    }
-    return T[90].slice();
-  }
-  function standing(w, t, B, grade) {
-    var T = HT[grade] || HT[2];
-    var v = PCTS.map(function (p) { return along(T[p], t, B); });
-    if (w <= v[0]) return { p: 10, scale: v[0] > 0 ? w / v[0] : 1, below: w < v[0] };
-    if (w >= v[4]) return { p: 90, scale: w / v[4], above: w > v[4] };
-    for (var i = 0; i < 4; i++) {
-      if (w <= v[i + 1]) {
-        var f = (w - v[i]) / (v[i + 1] - v[i]);
-        return { p: PCTS[i] + f * (PCTS[i + 1] - PCTS[i]), scale: 1 };
-      }
-    }
-    return { p: 50, scale: 1 };
-  }
-  function curveFor(st, B, grade) {
-    var row = rowAt(st.p, grade);
-    return function (t) { return st.scale * along(row, t, B); };
-  }
-  function ordinal(n) {
-    var s = ["th", "st", "nd", "rd"], v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  }
-
-  /* ---------- one student's plan ---------- */
-  function median(a) {
-    var s = a.slice().sort(function (x, y) { return x - y; });
-    var n = s.length;
-    return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
-  }
-  function checksIn(db, sid, from, to) {
-    return db.records.filter(function (r) { return r.studentId === sid; })
-      .map(function (r) { var d = localDay(r.date); return d ? { t: d.getTime(), d: d, y: Math.round(Number(r.wcpm) || 0), rec: r } : null; })
-      .filter(function (x) { return x && x.t >= from && x.t <= to; })
-      .sort(function (a, b) { return a.t - b.t; });
-  }
-  /* several passages read on one day count as one reading: their median */
-  function dayMedian(checks, t) { return Math.round(median(checks.filter(function (c) { return c.t === t; }).map(function (c) { return c.y; }))); }
-  function windowOf(d) { var m = d.getMonth(); return m >= 7 && m <= 10 ? "fall" : (m === 11 || m <= 1) ? "winter" : "spring"; }
-  function ownGoals(goalsState, sid) {
-    var o = goalsState.goals[sid];
-    if (o == null) return {};
-    if (typeof o === "number") return { spring: o };
-    var out = {};
-    if (isFinite(+o.winter) && +o.winter > 0) out.winter = Math.round(+o.winter);
-    if (isFinite(+o.spring) && +o.spring > 0) out.spring = Math.round(+o.spring);
-    return out;
-  }
-
   function planFor(db, sid, goalsState, now, compState) {
-    now = now || today();
-    var compMap = (compState || readComp()).records;
-    function compOn(t) {
-      var best = null;
-      checks.forEach(function (c) { var v = compMap[c.rec.id]; if (c.t === t && v != null && (best == null || v > best)) best = v; });
-      return best;
-    }
-    var grade = HT[goalsState.grade] ? +goalsState.grade : 2;
-    var y0 = yearStart(now).getTime();
-    var springDate = dueIn(now, goalsState.springDue || "05-14");
-    var tG = springDate.getTime();
-    var checks = checksIn(db, sid, y0, tG + 45 * DAY);
-    if (!checks.length) return null;
-    var B = benchDates(now);
-    var t0 = checks[0].t;
-    var base = dayMedian(checks, t0);
-    if (t0 >= tG) return null;
-    var tW = dueIn(now, goalsState.winterDue || "01-15").getTime();
-    var hasWinter = tW > t0 + 7 * DAY && tW < tG;
-    var win = windowOf(new Date(t0));
-
-    var st = standing(base, t0, B, grade);
-    var curve = curveFor(st, B, grade);
-    var classGoal = grade === 2 ? Math.max(1, +(db.settings && db.settings.goalWcpm) || 100) : HT[grade][50][2];
-    var method = METHODS[goalsState.method] ? goalsState.method : "table";
-    var weeks = instrWeeks(t0, tG);
-    var tg = method === "table" ? tableGoals(base, hasWinter ? win : (win === "fall" ? "winter" : win), grade, { rowUp: goalsState.rowUp !== false }) : null;
-    var usedMethod = tg ? "table" : (method === "table" ? "realistic" : method);
-    var pace = PACE[usedMethod] || PACE.realistic;
-    var hold = Math.round(st.scale * rowAt(st.p, grade)[2]);
-    var reach = Math.round(base + pace * weeks);
-
-    var sugSpring, sugWinter = null, why;
-    var colName = win === "fall" ? "fall" : "winter";
-    if (tg) {
-      sugSpring = tg.spring;
-      sugWinter = hasWinter ? tg.winter : null;
-      if (tg.movedUp) {
-        why = "one row up: " + base + " is closest to the grade " + grade + " 10th-percentile row's " + colName + " value, " +
-          HT[grade][10][win === "fall" ? 0 : 1] + ", so the goals come from the 25th row instead" +
-          (sugWinter != null ? ", winter " + sugWinter + " and spring " + sugSpring : ", spring " + sugSpring);
-      } else if (!tg.off) {
-        why = "the grade " + grade + " " + ordinal(tg.row) + "-percentile row: " + base + " is closest to its " + colName +
-          " value, " + HT[grade][tg.row][win === "fall" ? 0 : 1] + (sugWinter != null ? ", so the goals are its winter " + sugWinter + " and spring " + sugSpring : ", so the goal is its spring " + sugSpring);
-      } else {
-        why = "the " + ordinal(tg.row) + "-percentile row, read past the grade " + grade + " table: " + base + " is nearest " + tg.at.lab + (tg.at.v ? " (" + tg.at.v + ")" : "") +
-          ", so the goals are the next steps along that row: " + (sugWinter != null ? tg.winterLab + " (" + sugWinter + ") by winter and " : "") + tg.springLab + " (" + sugSpring + ") by spring";
-      }
-    } else {
-      sugSpring = Math.max(hold, Math.min(classGoal, reach), base + 1);
-      if (sugSpring === hold && hold >= classGoal) why = "keeps them at about the " + ordinal(Math.round(st.p)) + " percentile, where they started";
-      else if (sugSpring === classGoal) why = "the grade " + grade + " spring 50th percentile, which " + pace.toFixed(1) + " words a week gets to from " + base;
-      else if (sugSpring === hold) why = "an average year's growth from where they started";
-      else why = pace.toFixed(1) + " words a week from " + base + " over about " + Math.round(weeks) + " school weeks";
-      if (method === "table") why += grade === 1 && win === "fall"
-        ? " (H\u0026T has no grade 1 fall norms, so a fall start uses 1.5 words a week)"
-        : " (a start this late in the year is past the table's last window, so this uses 1.5 words a week)";
-    }
-    if (hasWinter && sugWinter == null) {
-      var sp = curve(tG) - curve(t0);
-      sugWinter = Math.round(sp > 0.5 ? base + (sugSpring - base) * (curve(tW) - curve(t0)) / sp : base + (sugSpring - base) * (tW - t0) / (tG - t0));
-    }
-
-    var own = ownGoals(goalsState, sid);
-    var winterGoal = hasWinter ? (own.winter != null ? own.winter : sugWinter) : null;
-
-    /* the winter benchmark: the last reading from December 1 to two weeks
-       past the due date */
-    var winterActual = null, winterDate = null;
-    if (hasWinter) {
-      var wFrom = new Date(new Date(tW).getFullYear() - (new Date(tW).getMonth() === 11 ? 0 : 1), 11, 1).getTime();
-      var inWin = checks.filter(function (c) { return c.t >= wFrom && c.t <= tW + 14 * DAY && c.t > t0; });
-      if (inWin.length) { winterDate = inWin[inWin.length - 1].t; winterActual = dayMedian(checks, winterDate); }
-    }
-    var review = hasWinter ? midYearReview(tg, sugSpring, winterActual, grade) : { spring: sugSpring, changed: false, comp: false };
-    var boySpring = sugSpring;
-    var goal = own.spring != null ? own.spring : review.spring;
-    var comp = own.spring == null && review.comp;
-    var custom = own.spring != null || own.winter != null;
-
-    /* the aim line: straight pieces through the winter checkpoint when there
-       is one, re-starting from a winter reading the review raised the goal
-       from; otherwise the student's own norm curve, stretched to the goal */
-    var span = curve(tG) - curve(t0);
-    var piecewise = hasWinter && (usedMethod === "table" || own.winter != null || review.changed);
-    var restart = review.changed && winterActual != null ? Math.max(winterGoal, winterActual) : winterGoal;
-    function aim(t) {
-      if (t <= t0) return base;
-      if (t >= tG) return goal;
-      if (piecewise) {
-        if (t <= tW) return base + (winterGoal - base) * (t - t0) / (tW - t0);
-        return restart + (goal - restart) * (t - tW) / (tG - tW);
-      }
-      if (goal <= base) return goal;
-      var f = span > 0.5 ? (curve(t) - curve(t0)) / span : (t - t0) / (tG - t0);
-      return base + (goal - base) * f;
-    }
-
-    var months = [];
-    var d0 = new Date(t0);
-    var winterRowDone = !hasWinter;
-    for (var y = d0.getFullYear(), m = d0.getMonth(); ; m++) {
-      if (m > 11) { m = 0; y++; }
-      var end = endOfMonth(y, m);
-      var at = Math.min(end.getTime(), tG);
-      if (!winterRowDone && tW <= at) {
-        months.push({ y: y, m: m, label: "Winter goal", checkpoint: "winter", by: new Date(tW), target: winterGoal,
-          checks: winterActual == null ? [] : [{ y: winterActual, t: winterDate, vs: winterActual - winterGoal }] });
-        winterRowDone = true;
-      }
-      if (at - t0 >= 10 * DAY) {
-        var inMonth = checks.filter(function (c) { return c.d.getFullYear() === y && c.d.getMonth() === m && c.t <= tG + 14 * DAY; });
-        months.push({
-          y: y, m: m, label: at === tG ? "Spring goal" : MONTHS[m], checkpoint: at === tG ? "spring" : null,
-          by: new Date(at), target: Math.round(aim(at)),
-          checks: inMonth.map(function (c) { return { y: c.y, t: c.t, id: c.rec.id, vs: Math.round(c.y - aim(c.t)) }; })
-        });
-      }
-      if (end.getTime() >= tG) break;
-      if (months.length > 16) break;
-    }
-
-    /* the spring benchmark: the last reading from 30 days before the spring
-       due date to three weeks after, and after the winter one */
-    var springActual = null, sDay = null, springComp = null, result = null;
-    var sIn = checks.filter(function (c) { return c.t >= tG - 30 * DAY && c.t <= tG + 21 * DAY && c.t > t0 && (!winterDate || c.t > winterDate); });
-    if (sIn.length) { sDay = sIn[sIn.length - 1].t; springActual = dayMedian(checks, sDay); springComp = compOn(sDay); }
-    var expectation = goalsState.expectation > 0 ? +goalsState.expectation : HT[grade][50][2];
-    var margin = goalsState.margin >= 0 ? +goalsState.margin : 10;
-    if (springActual != null) {
-      /* "reviewed": the goal in force at spring is not the start-of-year one,
-         whether the review raised it or it was typed (as 124 was last year) */
-      result = springResult({ goal: goal, needComp: comp, boySpring: boySpring, reviewed: goal > boySpring || comp,
-        actual: springActual, comp: springComp, expectation: expectation, margin: margin, tolerance: goalsState.tolerance });
-    }
-
-    var latest = checks[checks.length - 1];
-    var latestY = dayMedian(checks, latest.t);
-    var below = 0;
-    /* checks on the first day are the starting point, not progress */
-    for (var i = checks.length - 1; i >= 0 && checks[i].t > t0; i--) { if (checks[i].y < aim(checks[i].t)) below++; else break; }
-    var diff = Math.round(latestY - aim(latest.t));
-    var status = latest.t === t0 ? "start"
-      : latestY >= goal ? "met"
-      /* the sheet's blue: judged at the spring benchmark, not the moment
-         the review raises the goal */
-      : review.changed && own.spring == null && latestY >= boySpring && latest.t >= tG - 21 * DAY ? "metBoy"
-      : diff >= 0 ? "on" : diff >= -5 ? "close" : "below";
-    if (result) status = "r-" + result;
-    var perWeekNow = latest.t < tG ? (goal - latestY) / Math.max(0.5, instrWeeks(latest.t, tG)) : null;
-
-    var nowT = now.getTime();
-    var thisMonth = null;
-    for (var k = 0; k < months.length; k++) { if (months[k].checkpoint !== "winter" && months[k].by.getTime() >= nowT - DAY) { thisMonth = months[k]; break; } }
-
-    return {
-      sid: sid, grade: grade, base: base, baseDate: new Date(t0), window: win, standing: st,
-      goal: goal, comp: comp, boySpring: boySpring, review: review, winterGoal: winterGoal,
-      winterActual: winterActual, winterDate: winterDate ? new Date(winterDate) : null,
-      winterDue: hasWinter ? new Date(tW) : null, custom: custom, own: own, table: tg,
-      suggested: review.spring, suggestedWinter: hasWinter ? sugWinter : null, why: why, hold: hold, reach: reach,
-      classGoal: classGoal, goalDate: springDate, method: usedMethod,
-      months: months, aim: aim, checks: checks, latest: latest, latestY: latestY, diff: diff, status: status,
-      belowRun: below, perWeekNow: perWeekNow, thisMonth: thisMonth,
-      springActual: springActual, springDate: sDay ? new Date(sDay) : null, springComp: springComp,
-      result: result, expectation: expectation, margin: margin,
-      flagged: result === "yellow" && springActual < expectation, latestComp: compOn(latest.t), compOn: compOn
-    };
+    return G.planFor(db, sid, withCalendar(goalsState), now || today(), compState || readComp());
   }
 
   /* ---------- page helpers ---------- */
@@ -564,10 +181,7 @@
     "r-red": ["Goal not made, below grade level", "var(--err)"]
   };
   var RESULT_ORDER = ["r-green", "r-blue", "r-yellow", "r-red"];
-  function statusLabel(pl) {
-    if (pl.status === "r-green" && (pl.goal > pl.boySpring || pl.comp)) return "Made the mid-year goal";
-    return STATUS[pl.status][0];
-  }
+  function statusLabel(pl) { return G.statusLabel(pl); }
   var COMP = "all 3 comprehension questions correct";
   function statusCell(pl) {
     var s = STATUS[pl.status];
@@ -627,11 +241,19 @@
     if (sid) {
       var st = db.students.find(function (s) { return s.id === sid; });
       var pl = st && planFor(db, sid, g);
+      /* v89: one verdict. The tool's own line above measures a child against
+         the class-wide goal (80 by June 5, by default) and could say "on
+         pace" beside this one saying "below the line". With a plan for the
+         child, theirs is the only one shown. */
+      var nv = document.getElementById("gwVerdict");
+      if (nv) nv.hidden = !!pl;
       el.innerHTML = pl ? studentHTML(st, pl, g) :
         "<h2>Goals</h2><p class=\"empty\">No checks yet this school year. The first one sets the starting point, and the goals follow from it.</p>";
       drawAimLine(db, pl);
       return;
     }
+    var nv0 = document.getElementById("gwVerdict");
+    if (nv0) nv0.hidden = false;
     var rows = db.students.map(function (s) { var p = planFor(db, s.id, g); return p ? { st: s, pl: p } : null; })
       .filter(Boolean)
       .sort(function (a, b) {

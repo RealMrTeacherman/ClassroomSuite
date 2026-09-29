@@ -293,7 +293,6 @@
 <script src="../suite-boot.js" defer></script>
 <script src="sub-deck-template.js" defer></script>
 <script src="sub-slides.js" defer></script>
-<script src="orf-suggest.js" defer></script>
 <script src="win.js" defer></script>
 </head>
 <body class="tab-math">
@@ -330,6 +329,9 @@
       <span class="status" id="slideStatus" role="status"></span>
     </div>
     <p class="note">Makes the four-rotation deck for a substitute from this board as it is now: your group names, today’s students, your station names and every page number. It opens in PowerPoint, and Google Slides takes it through File &rarr; Import slides or by uploading it to Drive.</p>
+
+    <h2>Skill groups from the gradebook</h2>
+    <div id="gbSuggest"></div>
 
     <h2>Students</h2>
     <p class="note" id="rosterNote"></p>
@@ -491,6 +493,56 @@
     roster = list;
   }
   function byId(id) { for (var i = 0; i < roster.length; i++) if (roster[i].id === id) return roster[i]; return null; }
+  function calLines() {
+    try { var st = JSON.parse(localStorage.getItem(ROSTER_KEY) || "null"); return st && st.settings ? st.settings.orfSeason : null; } catch (e) { return null; }
+  }
+
+  /* ---------- v89: skill groups from the gradebook ----------
+     The gradebook publishes the skill groups its Groups & patterns tab
+     shows (suite:suggest:v1: for Math, the standard, and each group as
+     gradebook ids, lowest first). The board offers them in Setup; nothing
+     is grouped here. "Use these groups" places each child in the group of
+     the same number, for up to four groups, and can be undone. */
+  var gbUndo = null;
+  function gbSuggest() { try { return JSON.parse(localStorage.getItem("suite:suggest:v1") || "null"); } catch (e) { return null; } }
+  function gbSugRender() {
+    var box = document.getElementById("gbSuggest");
+    if (!box) return;
+    box.textContent = "";
+    var s = gbSuggest(), m = s && s.math;
+    if (!m || !Array.isArray(m.groups) || !m.groups.length) {
+      box.appendChild(mk("p", "note", "Nothing from the gradebook yet. Its Groups & patterns tab makes skill groups from your math marks; open it once and they appear here."));
+      return;
+    }
+    box.appendChild(mk("p", "note", "From the gradebook\u2019s Groups & patterns, " + (m.label || "Math") + (s.at ? ", as of " + shortDate(s.at) : "") + ". Lowest first."));
+    var list = mk("div", "gb-sug");
+    m.groups.forEach(function (ids, i) {
+      var names = ids.map(function (id) { var r = byId(id); return r ? r.label : null; }).filter(Boolean);
+      var row = mk("p", null);
+      var g = M().groups[i];
+      row.appendChild(mk("b", null, (g ? g.name : "Group " + (i + 1)) + ": "));
+      row.appendChild(document.createTextNode(names.join(", ") || "\u2014"));
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    var btns = mk("div", "row");
+    if (m.groups.length <= 4) {
+      var use = mk("button", "primary", "Use these groups");
+      use.addEventListener("click", function () {
+        if (!confirm("Put every child in the group of the same number? Anyone not in these groups keeps their place.")) return;
+        gbUndo = JSON.stringify(M().place);
+        m.groups.forEach(function (ids, i) { ids.forEach(function (id) { if (byId(id)) M().place[id] = i; }); });
+        save(); render(); gbSugRender(); say("Placed from the gradebook\u2019s skill groups.");
+      });
+      btns.appendChild(use);
+    } else btns.appendChild(mk("span", "note", m.groups.length + " groups: the board has four, so place them by hand."));
+    if (gbUndo) {
+      var un = mk("button", null, "Undo");
+      un.addEventListener("click", function () { M().place = JSON.parse(gbUndo); gbUndo = null; save(); render(); gbSugRender(); });
+      btns.appendChild(un);
+    }
+    box.appendChild(btns);
+  }
 
   function members(gi) {
     var m = M(), out = [];
@@ -921,6 +973,7 @@
   document.getElementById("arrange").addEventListener("click", function () { arranging = !arranging; selected = null; adding = null; render(); });
   var drawer = document.getElementById("drawer");
   document.getElementById("settings").addEventListener("click", function () {
+    gbSugRender();
     drawer.classList.toggle("open");
     if (drawer.classList.contains("open")) buildStationFields();
   });
@@ -1355,7 +1408,9 @@
   function shortDate(iso) { var d = new Date(iso); return isNaN(d) ? "" : MONTHS[d.getMonth()] + " " + d.getDate(); }
   function sugGroups() {
     var db = readOrf();
-    var gs = window.OrfSuggest ? window.OrfSuggest.suggest(db, sugBasis) : [];
+    /* v89: the gradebook's own suggestions (suite-orf.js), in the windows
+       of the suite calendar; nothing is worked out here */
+    var gs = window.SuiteOrf && window.SuiteOrf.suggest ? window.SuiteOrf.suggest.suggest(db, sugBasis, calLines()) : [];
     gs.forEach(function (g, i) {
       if (!(g.key in sugMap)) sugMap[g.key] = RIDS[i] || "";
       g.members.forEach(function (m) { m.student = orfToRoster(m.orfId, m.name); });

@@ -3,7 +3,8 @@
    The grade's lists (who goes to which teacher for Walk to Read on
    Monday/Thursday and Walk to Math on Tuesday/Friday) are pasted in as the
    school sends them. This finds this class's children on them, puts them on
-   one projectable slide, and prints the list of everyone coming to this room.
+   a projectable slide per subject (v85: one at a time, so no child sees their
+   name twice), and prints the list of everyone coming to this room.
 
    suite:win:v1 = { v:1, me:"josh", teachers:{ key:{ call, room } },
      lists:{ id:{ id, start:"YYYY-MM-DD", added, name,
@@ -361,6 +362,8 @@
       var ts = teachersOf(L);
       /* the teacher whose name the device or planner carries, if any one does */
       var hints = [];
+      /* v88: the suite calendar's teacher (gradebook Setup) first */
+      try { hints.push(String(((JSON.parse(localStorage.getItem(ROSTER_KEY) || "{}") || {}).settings || {}).teacher || "")); } catch (e) { }
       try { hints.push(String((JSON.parse(localStorage.getItem("lp:me:v1") || "{}") || {}).name || "")); } catch (e) { }
       try { hints.push(String(localStorage.getItem("suite:device:v1") || "")); } catch (e) { }
       var guess = ts.filter(function (t) { return hints.some(function (h) { return h && norm(h).indexOf(t.key) >= 0; }); });
@@ -387,14 +390,17 @@
   }
 
   /* ================= the slide ================= */
+  /* opts.subject ("read" | "math") draws that subject alone, which is what
+     the page projects: a child on both lists sees one card with their name.
+     Without it, both halves (kept for the API and its tests). */
   function slideHTML(L, roster, opts) {
     opts = opts || {};
     var a = assignments(L, roster), t = opts.date || today();
     var dow = fromIso(t).getDay(), h = "";
-    var unsure = [];
+    var unsure = [], only = opts.subject || "";
     SUBJECTS.forEach(function (S) {
       var sub = L.subjects[S.id];
-      if (!sub) return;
+      if (!sub || (only && S.id !== only)) return;
       var isToday = sub.days.some(function (d) { return DAYNUM[d] === dow; }) && t >= L.start;
       var cards = {};
       roster.forEach(function (s) {
@@ -439,11 +445,30 @@
     if (unsure.length) {
       var parts = SUBJECTS.map(function (S) {
         var names = unsure.filter(function (u) { return u.sub === S; }).map(function (u) { return esc(u.s.label); });
-        return names.length ? "<span>" + S.word + ": " + names.join(", ") + "</span>" : "";
+        return names.length ? "<span>" + (only ? "" : S.word + ": ") + names.join(", ") + "</span>" : "";
       }).filter(Boolean);
       h += '<div class="w-ask"><b>Check with ' + esc(W.me ? teacherName(W.me, L) : "your teacher") + ":</b> " + parts.join(" \u00b7 ") + "</div>";
     }
-    return '<div class="w-slide">' + h + "</div>";
+    return '<div class="w-slide' + (only ? " w-one" : "") + '">' + h + "</div>";
+  }
+
+  /* Which subject the slide shows: the one chosen here this visit, else the
+     subject of today or the next Walk to WIN day (Wednesday shows Thursday's
+     reading, the weekend Monday's). */
+  function slideSubject(L) {
+    if (!L) return "";
+    if (slideSub && L.subjects[slideSub]) return slideSub;
+    var d = fromIso(today());
+    for (var i = 0; i < 7; i++) {
+      var k = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d.getDay()];
+      for (var j = 0; j < SUBJECTS.length; j++) {
+        var sub = L.subjects[SUBJECTS[j].id];
+        if (sub && sub.days.indexOf(k) >= 0) return SUBJECTS[j].id;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    for (var n = 0; n < SUBJECTS.length; n++) if (L.subjects[SUBJECTS[n].id]) return SUBJECTS[n].id;
+    return "";
   }
   /* largest type that fits: shrink until nothing overflows */
   function fitSlide(el) {
@@ -459,7 +484,7 @@
       for (var i = 0; i < cards.length; i++) if (cards[i].scrollHeight > cards[i].clientHeight + 1) return true;
       return false;
     }
-    var size = Math.max(10, Math.round(el.clientWidth / 36));
+    var size = Math.max(10, Math.round(el.clientWidth / (slide.classList.contains("w-one") ? 24 : 36)));
     slide.style.fontSize = size + "px";
     var guard = 0;
     while (guard++ < 60 && size > 8 && over()) { size -= 1; slide.style.fontSize = size + "px"; }
@@ -504,6 +529,31 @@
     });
     return out;
   }
+  /* v89: for sub plans. On a date: the subject Walk to WIN runs that day
+     (by the list's own days), where each of this class goes, and who comes
+     to this room. Worked out by the same matching as the board, so the sub
+     plan and the slide never disagree. null when there is no WIN that day. */
+  var DAYKEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  function forDay(iso, roster) {
+    var d = new Date(iso + "T12:00:00");
+    if (isNaN(d) || iso < FIRST_DAY) return null;
+    var dn = DAYKEYS[d.getDay()], L = listOn(iso);
+    if (!L) return null;
+    var S = null;
+    SUBJECTS.forEach(function (x) { var sub = L.subjects[x.id]; if (sub && (sub.days || x.days).indexOf(dn) >= 0) S = x; });
+    if (!S) return null;
+    var a = assignments(L, roster)[S.id];
+    var room = function (k) { return W.teachers[k] && W.teachers[k].room ? " (" + W.teachers[k].room + ")" : ""; };
+    var ours = roster.map(function (s) {
+      var p = a.place[s.id];
+      var goes = !p ? "not sure" : (p.how === "list" || p.how === "fix") ? (p.key === W.me ? "stays in our room" : teacherName(p.key, L) + room(p.key))
+        : p.how === "none" ? "not going" : "not sure \u2014 check the list";
+      return { name: s.label, goes: goes };
+    });
+    var c = comingToMe(L, roster).filter(function (x) { return x.subject.id === S.id; })[0];
+    return { subject: S.label, word: S.word, me: W.me ? teacherName(W.me, L) : "", listStart: L.start, ours: ours,
+      coming: c ? c.rows.map(function (r) { return { name: r.name, note: r.note || "", ours: r.ours }; }) : [] };
+  }
   function printHTML(L, roster) {
     var me = W.me ? teacherName(W.me, L) : "";
     return comingToMe(L, roster).map(function (c) {
@@ -522,7 +572,7 @@
   }
 
   /* ================= the page ================= */
-  var root = null, viewId = "", draft = null, lastRemoved = null, msgT = null;
+  var root = null, viewId = "", draft = null, lastRemoved = null, msgT = null, slideSub = "";
   var CSS =
     "#win{display:none;min-height:100vh;padding:clamp(10px,1.4vw,22px);padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));" +
     "padding-top:calc(clamp(10px,1.4vw,22px) + env(safe-area-inset-top,0px));background:#E4E9EE;font-family:var(--font)}" +
@@ -537,6 +587,11 @@
     ".w-rail{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}" +
     ".w-rail button{font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid #B9C6D2;background:#fff;cursor:pointer;color:#16202B}" +
     ".w-rail button[aria-pressed=true]{background:#10655C;border-color:#10655C;color:#fff}" +
+    ".w-pick{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}" +
+    ".w-pick button{font:inherit;font-size:14px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid #B9C6D2;background:#fff;cursor:pointer;color:#16202B}" +
+    ".w-pick button em{font-style:normal;font-weight:400;font-size:12.5px;color:#56677A;margin-left:6px}" +
+    ".w-pick button[aria-pressed=true]{background:#10655C;border-color:#10655C;color:#fff}.w-pick button[aria-pressed=true] em{color:#D5ECE8}" +
+    ".w-pick .hint{font-size:12.5px;color:#56677A;margin-left:4px}" +
     ".w-rail em{font-style:normal;opacity:.75;margin-left:4px}" +
     ".w-panel{background:#fff;border:1px solid #CBD6E0;border-radius:14px;padding:14px 16px;margin-bottom:12px;font-size:14px;line-height:1.45}" +
     ".w-panel h2{margin:0 0 6px;font-size:16px}.w-panel p{margin:6px 0}.w-panel .hint{color:#56677A;font-size:13px}" +
@@ -615,6 +670,7 @@
       '<div class="w-msg" id="w-msg" role="status" hidden></div>' +
       '<nav class="w-rail" id="w-rail" aria-label="Lists"></nav>' +
       '<div id="w-addPanel" class="w-panel" hidden></div>' +
+      '<div class="w-pick" id="w-pick" role="group" aria-label="Which slide to show" hidden></div>' +
       '<div class="w-stage" id="w-stage" tabindex="-1"></div>' +
       '<div id="w-changes"></div>' +
       '<div id="w-review" class="w-panel"></div>' +
@@ -631,6 +687,7 @@
       if (act === "view") { viewId = b.getAttribute("data-id"); render(); }
       if (act === "suggest") { setFix(b.getAttribute("data-sub"), b.getAttribute("data-sid"), "t:" + b.getAttribute("data-key")); }
       if (act === "remove") removeList(b.getAttribute("data-id"));
+      if (act === "slide") { slideSub = b.getAttribute("data-sub"); renderSlide(); }
     });
     root.addEventListener("change", function (e) {
       var t = e.target;
@@ -649,6 +706,20 @@
     document.getElementById("w-printBtn").onclick = printList;
     window.addEventListener("resize", function () { if (document.body.classList.contains("tab-win")) fitSlide(document.getElementById("w-stage")); });
     document.addEventListener("fullscreenchange", function () { setTimeout(function () { fitSlide(document.getElementById("w-stage")); }, 60); });
+    /* presenting fills the screen with no buttons, so the arrow keys (and a
+       clicker's page keys) switch between the two subjects */
+    document.addEventListener("keydown", function (e) {
+      var st = document.getElementById("w-stage");
+      if (!st || (document.fullscreenElement || document.webkitFullscreenElement) !== st) return;
+      if (["ArrowLeft", "ArrowRight", "PageUp", "PageDown"].indexOf(e.key) < 0) return;
+      var L = current(); if (!L) return;
+      var ids = SUBJECTS.map(function (S) { return S.id; }).filter(function (id) { return L.subjects[id]; });
+      if (ids.length < 2) return;
+      e.preventDefault();
+      var i = ids.indexOf(slideSubject(L)), step = e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1;
+      slideSub = ids[(i + step + ids.length) % ids.length];
+      renderSlide();
+    });
   }
   function current() {
     if (viewId && W.lists[viewId]) return W.lists[viewId];
@@ -693,8 +764,22 @@
     }).join("");
     rail.hidden = !all.length;
   }
+  function renderPick(L) {
+    var pick = document.getElementById("w-pick"), pres = document.getElementById("w-present");
+    var ids = L ? SUBJECTS.filter(function (S) { return L.subjects[S.id]; }) : [];
+    var on = slideSubject(L);
+    pick.hidden = !ids.length;
+    pick.innerHTML = ids.map(function (S) {
+      var days = L.subjects[S.id].days.map(function (d) { return DAYNAMES[d].slice(0, 3); }).join(" & ");
+      return '<button type="button" data-w="slide" data-sub="' + S.id + '" aria-pressed="' + (S.id === on) + '">' +
+        esc(S.label) + "<em>" + days + "</em></button>";
+    }).join("") + (ids.length > 1 ? '<span class="hint">While presenting, \u2190 \u2192 switch.</span>' : "");
+    var cur = SUBJECTS.filter(function (S) { return S.id === on; })[0];
+    if (pres) pres.textContent = cur ? "Present " + cur.label : "Present";
+  }
   function renderSlide() {
     var st = document.getElementById("w-stage"), L = current(), roster = readRoster();
+    renderPick(L);
     if (!L) {
       st.innerHTML = '<div class="w-empty"><div><p><b>No lists yet.</b></p><p>Press <b>Add a new list</b> and paste the grade\u2019s Walk to Read and Walk to Math lists.</p></div></div>';
       return;
@@ -703,7 +788,7 @@
       st.innerHTML = '<div class="w-empty"><div><p><b>No roster yet.</b></p><p>Your class comes from the gradebook: Setup \u2192 Roster.</p></div></div>';
       return;
     }
-    st.innerHTML = slideHTML(L, roster);
+    st.innerHTML = slideHTML(L, roster, { subject: slideSubject(L) });
     fitSlide(st);
   }
   function renderReview() {
@@ -841,6 +926,7 @@
   load();
   window.SuiteWin = {
     KEY: KEY, parse: parse, matchSubject: matchSubject, readRoster: readRoster,
+    forDay: function (iso) { load(); return forDay(iso, readRoster()); },
     state: function () { load(); return W; },
     addList: function (text, start, name) { load(); var p = typeof text === "string" ? parse(text) : text; return addList(p, start || defaultStart(), name); },
     listOn: function (d) { load(); return listOn(d || today()); },
@@ -852,7 +938,8 @@
     setMe: function (k) { load(); W.me = k; save(); },
     setFix: function (id, sub, sid, v) { load(); var L = W.lists[id]; if (!v || v === "auto") delete L.fix[sub][sid]; else L.fix[sub][sid] = v; save(); },
     defaultStart: defaultStart,
-    show: function () { build(); viewId = ""; render(); },
+    slideSubject: function (L) { load(); return slideSubject(L || current()); },
+    show: function () { build(); viewId = ""; slideSub = ""; render(); },
     render: render
   };
   /* the page ran setTab("win") before this deferred file arrived */
