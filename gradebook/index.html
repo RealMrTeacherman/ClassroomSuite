@@ -2846,11 +2846,14 @@ function syncOrfScores() {
    read fresh and written whole each time (nothing held in memory to go
    stale), so the ORF page and the other computer see them.
    ============================================================ */
-const ORF_GOALS_KEY = "suite:orfgoals:v1", ORF_COMP_KEY = "suite:orfcomp:v1";
+const ORF_GOALS_KEY = "suite:orfgoals:v1", ORF_COMP_KEY = "suite:orfcomp:v1", ORF_NOTES_KEY = "suite:orfnotes:v1";
 function orfJSON(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
 function orfGoalsReady() { return !!(window.SuiteOrf && window.SuiteOrf.goals); }
 function orfGoalsState() { return window.SuiteOrf.goals.normGoals(orfJSON(ORF_GOALS_KEY)); }
 function orfCompState() { return window.SuiteOrf.goals.normComp(orfJSON(ORF_COMP_KEY)); }
+/* v90: what the student said on missed words, and how long the timer was
+   paused, per check (fluency-assess.js writes it; read-only here) */
+function orfNotesState() { return window.SuiteOrf.notes ? window.SuiteOrf.notes.norm(orfJSON(ORF_NOTES_KEY)) : { records: {} }; }
 function orfWrite(k, mutate) {
   const cur = k === ORF_GOALS_KEY ? orfGoalsState() : orfCompState();
   mutate(cur);
@@ -2954,7 +2957,7 @@ function orfAnalysisHTML(db) {
   /* ---- one child ---- */
   const pick = rows.find(x => x.p.o.id === UI.orfGoalSid && x.pl);
   if (pick) {
-    const { p, pl } = pick, own = pl.own || {};
+    const { p, pl } = pick, own = pl.own || {}, notesAll = orfNotesState();
     h += '<div class="divider"></div><div class="sectionhead"><h3>' + esc(p.name) + "</h3><span class=\"spacer\"></span>" +
       '<button class="btn sm" onclick="orfPickGoal(null)">Close</button></div>' +
       '<p style="margin:6px 0 0;border-left:3px solid ' + (ORF_STATUS_COLOR[pl.status] || "var(--accent)") + ';padding:4px 0 4px 10px">' + esc(orfVerdict(pl)) + "</p>" +
@@ -2966,11 +2969,14 @@ function orfAnalysisHTML(db) {
       (pl.custom ? '<button class="btn sm" onclick="orfSetGoal(\'' + esc(p.o.id) + '\',null)">Use the suggested goals</button>' : "") +
       '</div><table style="margin-top:10px"><thead><tr><th>Check</th><th class="c">WCPM</th><th class="c">vs aim line</th><th class="c">Comprehension</th></tr></thead><tbody>' +
       pl.checks.slice().reverse().map(c => {
-        const v = comp.records[c.rec.id];
-        return "<tr><td>" + esc(orfDay(c.t)) + (c.rec.passageTitle ? ' <span class="tiny muted">' + esc(c.rec.passageTitle) + "</span>" : "") + '</td><td class="c num">' + c.y +
+        const v = comp.records[c.rec.id], nt = notesAll.records[c.rec.id], NT = window.SuiteOrf.notes;
+        const said = nt && nt.notes.length ? '<tr class="orf-said"><td colspan="4" class="small" style="border-top:0;padding-top:0"><span class="muted">What they said:</span> ' +
+          nt.notes.map(x => esc(NT.text(x))).join(" \u00b7 ") + "</td></tr>" : "";
+        const paused = nt && nt.paused ? ' <span class="tiny" style="display:inline-block;padding:1px 7px;border-radius:5px;background:var(--s2-bg);color:var(--s2);font-weight:600" title="The timer was paused for an interruption. The norms assume one unbroken minute, so read this score with that in mind.">paused ' + esc(NT.paused(nt.paused)) + "</span>" : "";
+        return "<tr><td>" + esc(orfDay(c.t)) + (c.rec.passageTitle ? ' <span class="tiny muted">' + esc(c.rec.passageTitle) + "</span>" : "") + paused + '</td><td class="c num">' + c.y +
           '</td><td class="c num">' + (c.t === pl.baseDate.getTime() ? "start" : (Math.round(c.y - pl.aim(c.t)) > 0 ? "+" : "") + Math.round(c.y - pl.aim(c.t))) +
           '</td><td class="c"><select aria-label="Comprehension for ' + esc(orfDay(c.t)) + '" onchange="orfSetComp(\'' + esc(c.rec.id) + '\',this.value)"><option value="">\u2014</option>' +
-          [0, 1, 2, 3].map(n => '<option value="' + n + '"' + (v === n ? " selected" : "") + ">" + n + "/3</option>").join("") + "</select></td></tr>";
+          [0, 1, 2, 3].map(n => '<option value="' + n + '"' + (v === n ? " selected" : "") + ">" + n + "/3</option>").join("") + "</select></td></tr>" + said;
       }).join("") + "</tbody></table>";
   }
 

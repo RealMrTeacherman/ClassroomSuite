@@ -5,7 +5,7 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v89-8a22745f";
+const CACHE = "classroom-suite-v90-42f5a6e5";
 
 const SHELL = [
   "./",
@@ -40,6 +40,7 @@ const SHELL = [
   "sub-plans.js",
   "suite-migrate.js",
   "fluency-extras.js",
+  "fluency-assess.js",
   "curriculum.js",
   "suite-icon-180.png",
   "suite-icon-192.png",

@@ -780,6 +780,40 @@
     return { suggest: suggest, latest: latest, percentileOf: percentileOf, windowFor: windowFor, kmeans1d: kmeans1d };
   })();
 
+  /* ---- v90: what the student said, per check (suite:orfnotes:v1) ----
+     Written by fluency-assess.js when a check is saved, read by the
+     gradebook. One entry per reading id:
+       { paused: <seconds the timer was paused>,
+         notes: [ { w: word, kind: "e" | "s", n, said, told } ] }
+     kind "e" is a miss, "s" a self-correction; n is the word's place in the
+     reading's own missed (e) or selfCorr (s) list, so the note and the tool's
+     record line up even when a word is missed twice. told: the teacher said
+     the word. */
+  var NOTES_KEY = "suite:orfnotes:v1";
+  function normNotes(c) {
+    if (!c || typeof c !== "object" || !c.records || typeof c.records !== "object") c = { records: {} };
+    Object.keys(c.records).forEach(function (id) {
+      var r = c.records[id];
+      if (!r || typeof r !== "object") { delete c.records[id]; return; }
+      if (!Array.isArray(r.notes)) r.notes = [];
+      r.notes = r.notes.filter(function (x) { return x && typeof x === "object" && x.w; });
+      if (!(r.paused > 0)) delete r.paused;
+    });
+    return c;
+  }
+  /* porch -> "patch" / porch -> told / porch -> "p-", told / want -> "went", self-corrected */
+  function noteText(x) {
+    var bits = [];
+    if (x.said) bits.push("\u201c" + x.said + "\u201d");
+    if (x.kind === "s") bits.push("self-corrected");
+    else if (x.told) bits.push("told");
+    return x.w + " \u2192 " + (bits.length ? bits.join(", ") : "missed");
+  }
+  function pausedText(sec) {
+    sec = Math.max(0, Math.round(+sec || 0));
+    return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+  }
+
   window.SuiteOrf = Object.freeze({
     VERSION: 1,
     HT: HT, PCTS: PCTS, SEASONS: SEASONS, norms: norms, windowFor: windowFor,
@@ -794,6 +828,7 @@
       ordinal: ordinal, planFor: planFor, normGoals: normGoals, normComp: normComp
     }),
     miscues: Object.freeze({ clean: clean, features: features, syllables: syllables, patterns: patterns }),
-    suggest: Object.freeze(SUGGEST)
+    suggest: Object.freeze(SUGGEST),
+    notes: Object.freeze({ KEY: NOTES_KEY, norm: normNotes, text: noteText, paused: pausedText })
   });
 })();

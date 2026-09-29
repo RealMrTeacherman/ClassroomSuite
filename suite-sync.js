@@ -22,6 +22,7 @@
     "suite:subplan:v1",     /* sub plan standing notes */
     "suite:orfgoals:v1",    /* each student's own ORF year-end goal (fluency-extras.js) */
     "suite:orfcomp:v1",     /* comprehension questions per ORF check (fluency-extras.js) */
+    "suite:orfnotes:v1",    /* v90: what the student said on missed words, and pauses, per ORF check (fluency-assess.js) */
     "suite:groups:v1",      /* math rotation groups: placements by gradebook student id (groups/) */
     "suite:readgroups:v1",  /* reading volunteer groups, per unit, by gradebook student id (groups/) */
     "suite:win:v1",         /* Walk to WIN lists for the grade, and where this class goes (groups/win.js) */
