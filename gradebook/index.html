@@ -712,6 +712,9 @@ let UI = {
   /* The Reveal day being graded, as an index into the guide, or null to
      follow the date: the lesson the planner has on it (v62). */
   enterLesson: null,
+  /* v92: the card takes the day's lesson (its standard and name) when it
+     opens and when the date changes; see followDayLesson() */
+  enterFollow: true,
   /* the unit being looked through in the Unit menu, or null for the lesson's own */
   enterUnit: null,
   /* the standards being graded together, or null for one at a time (v70) */
@@ -868,6 +871,8 @@ function openTabFromHash() {
     }
   }
   if (params.std && byCode[params.std]) UI.enterStd = params.std;
+  /* a link that names the standard or the assignment has chosen; don't follow over it */
+  if ((params.std && byCode[params.std]) || params.ctx != null) UI.enterFollow = false;
   if (params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)) UI.enterDate = params.date;
   if (params.ctx != null) { UI.enterCtx = params.ctx; UI.enterLesson = lessonFromCtx(params.ctx); }
   if (params.student) UI.enterStudent = params.student;
@@ -906,6 +911,7 @@ function renderEnter() {
 
   const codes = activeCodes(UI.subject);
   if (!codes.includes(UI.enterStd)) UI.enterStd = codes[0] || "";
+  if (UI.enterFollow && lessonRowShown()) { UI.enterFollow = false; followDayLesson(); }
   const domains = [];
   codes.forEach(c => { const d = byCode[c].d; if (!domains.includes(d)) domains.push(d); });
   const stdOpts = domains.map(d => {
@@ -997,8 +1003,9 @@ function renderEnter() {
   document.getElementById("e-std").onchange = e => { UI.enterStd = e.target.value; UI.enterMulti = null; renderEnter(); };
   document.getElementById("e-date").onchange = e => {
     UI.enterDate = e.target.value;
-    /* where the planner has a lesson on the new date, that is the lesson */
-    if (revealStepOn(UI.enterDate)) UI.enterLesson = null;
+    /* where the planner has a lesson on the new date, that is the lesson,
+       and the card takes its standard and name (v92) */
+    if (plannedStepOn(UI.enterDate)) { UI.enterLesson = null; UI.enterFollow = true; }
     UI.enterUnit = null;
     renderEnter();
   };
@@ -4438,7 +4445,7 @@ function readPlanner() {
     const subjects = (JSON.parse(s) || {}).subjects || [];
     const days = d ? (JSON.parse(d) || {}) : {};
     if (!subjects.length) return null;
-    return { subjects: subjects, days: days };
+    return { subjects: subjects, days: days, templates: (JSON.parse(s) || {}).templates || {} };
   } catch (e) { return null; }
 }
 /* only subjects that actually march through units can be mapped this way */
@@ -4486,6 +4493,50 @@ function revealStepOn(dateISO, lp) {
   const e = rec && rec.entries && rec.entries.math;
   if (!rec || rec.noSchool || !e || !e.taught || !R.on(sb)) return null;
   return R.find(e.pos);
+}
+/* v92: the Reveal lesson the planner SHOWS for a date, saved or not. A saved
+   day is what it says (revealStepOn). An unsaved day is the planner's own
+   draft: an edit already started on that day's card (lp:pending:v1), or
+   else the lesson after the last one taught before the date, as the
+   planner's suggest() does. A weekend, or a day whose schedule has blocks
+   but no Math, has none. Only the Enter card's default reads this; anything
+   that counts what was taught (dates, ranges, "taught" labels) still reads
+   revealStepOn, which is saved days only. */
+const LP_PENDING = "lp:pending:v1";
+function readPlannerPending() {
+  try { const o = JSON.parse(window.localStorage.getItem(LP_PENDING) || "{}"); return o && typeof o === "object" ? o : {}; }
+  catch (e) { return {}; }
+}
+function mathTaughtBefore(dateISO, lp) {
+  const ks = Object.keys(lp.days || {}).filter(k => k < dateISO).sort().reverse();
+  for (const k of ks) {
+    const r = lp.days[k];
+    if (!r || r.noSchool || r.saved === false) continue;
+    const e = r.entries && r.entries.math;
+    if (e && e.taught && e.pos) return e.pos;
+  }
+  return null;
+}
+function plannedStepOn(dateISO, lp) {
+  const R = window.RevealPacing;
+  lp = lp || readPlanner();
+  if (!R || !lp || !dateISO) return null;
+  const sb = lp.subjects.find(x => x.id === "math");
+  if (!R.on(sb)) return null;
+  if ((lp.days || {})[dateISO]) return revealStepOn(dateISO, lp);
+  if (!sb.on) return null;   /* the planner drafts only subjects that are on */
+  const pend = readPlannerPending()[dateISO];
+  if (pend) {
+    const e = pend.entries && pend.entries.math;
+    return !pend.noSchool && e && e.taught && e.pos ? R.find(e.pos) : null;
+  }
+  const dow = new Date(dateISO + "T12:00:00").getDay();
+  if (dow === 0 || dow === 6) return null;
+  const tpl = (lp.templates || {})[dow] || [];
+  if (tpl.length && !tpl.some(b => b && b.s === "math")) return null;
+  const last = mathTaughtBefore(dateISO, lp);
+  const pos = last ? R.next(last) : sb.start;
+  return pos ? R.find(pos) : null;
 }
 /* what to call marks from that day: "Lesson 2-3", "Unit 2 test". The
    unit test was "Unit 2 assessment" in v60 and v61, which were never
@@ -4904,7 +4955,24 @@ function enterLessonStep() {
   const R = window.RevealPacing;
   if (!R) return null;
   if (UI.enterLesson != null && R.FLAT[UI.enterLesson]) return R.FLAT[UI.enterLesson];
-  return revealStepOn(UI.enterDate);
+  return plannedStepOn(UI.enterDate);
+}
+/* v92: the card takes the day's lesson the way choosing it in the Lesson
+   menu does: its first standard (unless the one showing is already in it),
+   and its name, replacing only a name this made, never one typed, and never
+   beside marks entered without a name, which would split one assignment.
+   Runs when the card opens and when the date changes, not on every render,
+   so clearing "What was it?" by hand stays cleared. */
+function followDayLesson() {
+  if (UI.enterLesson != null || UI.enterMulti) return;
+  const step = plannedStepOn(UI.enterDate);
+  if (!step) return;
+  const codes = lessonCodes(step);
+  if (!codes.length) return;
+  if (codes.indexOf(UI.enterStd) < 0) UI.enterStd = codes[0];
+  const c = revealCtx(step);
+  const unnamed = S.scores.some(x => x.std === UI.enterStd && x.date === UI.enterDate && !x.ctx && !x.source);
+  if (UI.enterCtx ? lessonFromCtx(UI.enterCtx) != null : !unnamed) UI.enterCtx = c;
 }
 function lessonCodes(step) {
   const act = activeCodes(UI.subject);
@@ -4926,7 +4994,8 @@ function unitRange(u, taught) {
 function lessonPickHTML() {
   if (!lessonRowShown()) return "";
   const R = window.RevealPacing, lp = readPlanner();
-  const dayStep = revealStepOn(UI.enterDate, lp);
+  const dayStep = plannedStepOn(UI.enterDate, lp);
+  const daySaved = !!dayStep && !!revealStepOn(UI.enterDate, lp);
   const step = enterLessonStep();
   /* when each guide day was taught, from the planner, for the lists */
   const taught = {};
@@ -4965,6 +5034,7 @@ function lessonPickHTML() {
         (UI.enterMulti ? ' aria-pressed="' + pickOn(c) + '"' : "") + ' title="' + esc(R.name(step)) + '">' + esc(byCode[c].lbl) + "</button>").join("") + multiButtonHTML(codes, ctx)
         : '<span class="tiny muted">No grade 2 standards to mark on this day' + (R.oregon(step).length ? " that are switched on in Setup" : "") + ".</span>") +
       '<span class="tiny muted lessonname">' + esc(R.name(step)) + "</span></div>";
+    if (following && !daySaved) h += '<div class="hint" style="margin-top:6px">This day isn\u2019t saved in the planner yet, so this is the lesson its card shows for it.</div>';
     if (step.tg && step.tg.length) h += '<div class="hint" style="margin-top:6px">' + esc(step.tg.join(" ")) + "</div>";
   } else {
     h += '<div class="hint" style="margin-top:8px">The planner has no Reveal lesson on this date. Pick one above, or choose a standard.</div>';
@@ -4980,7 +5050,7 @@ function chooseLesson(v) {
   UI.enterUnit = null;
   UI.enterMulti = null;
   let msg = "";
-  const onDay = revealStepOn(UI.enterDate);
+  const onDay = plannedStepOn(UI.enterDate);
   if (!onDay || onDay.i !== i) {
     const dates = revealDatesOf(i);
     if (dates.length) {

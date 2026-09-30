@@ -25,6 +25,18 @@
   var EMU_PT = 12700;
   var STATION_HEX = ["0F6B6B", "4B3FA8", "B01E55", "2E6B2E"];
   var TINTS = { fox: "FBE7DE", bear: "F2E7E0", tiger: "FDF0D9", lion: "F7EBD9" };
+  /* v91: the colors look. In slot order (Red, Blue, Yellow, Green): the
+     card's border and name color, and the tint behind each name. The
+     animal colors they replace are the template's own, in the same order.
+     Station bars go to one slate, as on the board. The medallion pictures
+     are in sub-deck-colors.js. Kept in step with LOOKS in index.html
+     (test-group-looks.js checks). */
+  var ANIMAL_HEX = ["C9481E", "6E4630", "D08207", "A9722B"];
+  var COLOR_LOOK = {
+    card: ["C62828", "1F5FAE", "9A7300", "2E7D32"],
+    tint: ["FDE4E2", "E1ECFA", "FFF4CC", "E2F2E3"],
+    station: "34424F"
+  };
 
   /* Where the template's cards and bars are, in EMU (13.33 x 7.5 in slide). */
   var CARD = [[384048, 841248], [6195060, 841248], [384048, 3767328], [6195060, 3767328]];
@@ -131,7 +143,8 @@
   }
 
   /* model: { title, stations:[4], pageStations:[4],
-              groups:[{ animal, name, names:[...], pages:{stationIndex: "12"} } x4], madeOn } */
+              groups:[{ animal, name, names:[...], pages:{stationIndex: "12"} } x4], madeOn,
+              look: "animals" | "colors" (v91; absent is animals) } */
   function fill(model, opts) {
     opts = opts || {};
     var T = opts.template || (typeof window !== "undefined" && window.SUB_DECK_TEMPLATE);
@@ -143,18 +156,26 @@
     var title = model.title || "Math Groups";
     var stations = model.stations;
     var pageSt = model.pageStations || [false, false, true, false];
+    var colors = model.look === "colors";
+    var stationHex = colors ? [0, 1, 2, 3].map(function () { return COLOR_LOOK.station; }) : STATION_HEX;
+    if (colors) {
+      var C = opts.colorMedallions || (typeof window !== "undefined" && window.SUB_DECK_COLORS);
+      if (!C) throw new Error("The color pictures for the slides did not load.");
+      Object.keys(C).forEach(function (k) { files[k] = C[k]; });
+    }
 
     function text(k, fn) { files[k] = { text: fn(T[k].text) }; }
 
     /* ---- the BOARD layout: title, group names, name chips ---- */
     text("ppt/slideLayouts/slideLayout2.xml", function (s) {
       s = s.split("{{TITLE}}").join(xml(title));
+      if (colors) ANIMAL_HEX.forEach(function (h, i) { s = s.split('val="' + h + '"').join('val="' + COLOR_LOOK.card[i] + '"'); });
       var chips = "", id = 1000;
       groups.forEach(function (g, i) {
         s = s.split("{{G" + i + "}}").join(xml(g.name));
         var lay = layoutNames(g.names, measure);
         if (!lay.fits) warnings.push(g.name + " has more names than fit on its card; some run past the bottom.");
-        lay.chips.forEach(function (c) { chips += chipXml(id++, c, CARD[i][0], CARD[i][1], TINTS[g.animal] || TINTS.fox); });
+        lay.chips.forEach(function (c) { chips += chipXml(id++, c, CARD[i][0], CARD[i][1], colors ? COLOR_LOOK.tint[i] : (TINTS[g.animal] || TINTS.fox)); });
       });
       return s.replace("<!--NAMES-->", chips);
     });
@@ -163,6 +184,7 @@
     for (var r = 0; r < 4; r++) {
       (function (r) {
         text("ppt/slides/slide" + (r + 1) + ".xml", function (s) {
+          if (colors) STATION_HEX.forEach(function (h) { s = s.split('val="' + h + '"').join('val="' + COLOR_LOOK.station + '"'); });
           var out = "", id = 2000;
           for (var c = 0; c < 4; c++) {
             var st = (c + r) % 4, bx = BAR[c][0], by = BAR[c][1];
@@ -170,14 +192,14 @@
             out += labelXml(id++, bx + LABEL_DX, by, hasPage ? LABEL_W_PAGE : LABEL_W, stations[st]);
             if (hasPage) {
               var v = groups[c].pages && groups[c].pages[st] != null ? String(groups[c].pages[st]).trim() : "";
-              out += pageXml(id++, bx + PAGE_DX, by + PAGE_DY, STATION_HEX[st], v);
+              out += pageXml(id++, bx + PAGE_DX, by + PAGE_DY, stationHex[st], v);
             }
           }
           return s.replace("<!--CORNERS-->", out);
         });
         text("ppt/notesSlides/notesSlide" + (r + 1) + ".xml", function (s) {
           var lines = ["ROTATION " + (r + 1) + " OF 4 \u2014 for the substitute", "",
-            "Each group keeps the same corner of the screen. Only the colored bar changes.", ""];
+            "Each group keeps the same corner of the screen. Only the " + (colors ? "station" : "colored") + " bar changes.", ""];
           for (var c = 0; c < 4; c++) {
             var st = (c + r) % 4;
             var pg = pageSt[st] && groups[c].pages && String(groups[c].pages[st] || "").trim();

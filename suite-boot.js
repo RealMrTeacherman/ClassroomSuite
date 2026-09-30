@@ -134,7 +134,8 @@
   function run() {
     if (!ready()) return;
     var rail = document.querySelector(".rail");
-    if (rail && typeof cursor !== "undefined") {
+    /* v93: a rail laid out by the day (below) is already in order, with rows between the cards */
+    if (rail && typeof cursor !== "undefined" && !rail.classList.contains("byday")) {
       var date = cursor;
       var cards = [].filter.call(rail.children, function (n) { return n.classList && n.classList.contains("sub"); });
       arrange(rail, cards, function (n) {
@@ -603,4 +604,217 @@
   };
   fix();
   new MutationObserver(fix).observe(main, { childList: true });
+})();
+
+/* ---- v93: the day, in one place ----
+   The Today view had the subject cards ("Where we are") and, under them, a
+   read-only timeline of the day's schedule ("The day, block by block") that
+   repeated them. He planned on the cards and never used the timeline. Now
+   the cards ARE the day: the rail is laid out in the order of that
+   weekday's schedule, and every block without a lesson (arrival, recess,
+   lunch, specials, dismissal) is a slim row in its place, with any standing
+   note from Settings and a note of its own for that day. The timeline panel
+   is taken away. The planner is protected, so this wraps its functions, the
+   way curriculum.js wraps cardHTML:
+
+   - renderToday: after the planner draws, the rail is rebuilt in schedule
+     order. The card nodes are moved, not redrawn, so every control keeps
+     the handler wireToday gave it. A subject's card sits at its first block;
+     its later blocks in the same run are listed inside the card; a block for
+     it that comes back after something else is a slim "continued" row. A
+     subject that is on but has no block that day keeps its place at the end.
+     A day with no schedule is left as the planner draws it, empty-state
+     panel and "Copy Monday's schedule here" included.
+   - cardHTML: the card lists its blocks (time, name, standing note) when
+     there is more than one, or one with its own name or a standing note.
+     Done in the card's HTML so a card redrawn on its own keeps it.
+   - copySubPlan: the copied plan carries each block's note for the day.
+
+   A block's note for the day is draft.blockNotes["8:00|Recess"] (start time
+   and name, as Settings has them). The planner saves the whole draft, so it
+   is saved, stashed and synced with the day and nothing else; a day built
+   fresh has none, so notes never carry forward. Sub plans print them under
+   "Just for this day". */
+(function () {
+  function isPlanner() {
+    return typeof renderToday === "function" && typeof cardHTML === "function" && typeof blocksFor === "function" &&
+      typeof touch === "function" && typeof copySubPlan === "function" && typeof blockEnd === "function" && typeof sub === "function" &&
+      typeof span === "function" && typeof S !== "undefined" && S && Array.isArray(S.subjects);
+  }
+  if (!isPlanner()) return;
+
+  function e$(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function bkey(b) { return String(b.t || "") + "|" + String(b.l || ""); }
+  function onIds() {
+    var o = {};
+    S.subjects.forEach(function (s) { if (s && s.on) o[s.id] = s; });
+    return o;
+  }
+  /* the day, in order: cards, rows, and "continued" rows */
+  function dayPlan(blocks) {
+    var on = onIds(), seen = {}, prev = null, out = [];
+    blocks.forEach(function (b, i) {
+      var s = b && b.s && on[b.s] ? b.s : null;
+      if (s) {
+        if (!seen[s]) { seen[s] = true; out.push({ kind: "card", id: s }); }
+        else if (prev !== s) out.push({ kind: "cont", id: s, b: b, i: i });
+      } else out.push({ kind: "row", b: b, i: i });
+      prev = s;
+    });
+    S.subjects.forEach(function (s) { if (s && s.on && !seen[s.id]) out.push({ kind: "card", id: s.id }); });
+    return out;
+  }
+  window.PlannerDay = { dayPlan: dayPlan, key: bkey };
+
+  var STYLE = [
+    ".rail.byday .dayrow{grid-column:1/-1;display:flex;gap:12px;align-items:flex-start;padding:7px 4px 7px 2px;border-top:1.5px solid var(--line)}",
+    ".rail.byday .dayrow time{font-family:var(--mono);font-size:11px;color:var(--ink-2);flex:0 0 82px;padding-top:3px}",
+    ".rail.byday .drbody{flex:1;min-width:0}",
+    ".rail.byday .drlabel{font-size:14px;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+    ".rail.byday .drlabel .drsub{font-size:12.5px;color:var(--ink-3)}",
+    ".rail.byday .drnote{font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.5;white-space:pre-line}",
+    ".rail.byday .dradd{background:none;border:0;padding:2px 0;margin-top:1px;font:inherit;font-size:12.5px;color:var(--ink-3);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}",
+    ".rail.byday .dradd:hover{color:var(--ink-2)}",
+    ".rail.byday .drday{display:block;width:100%;box-sizing:border-box;margin-top:5px;resize:none;overflow:hidden;min-height:34px;font:inherit;font-size:13.5px;line-height:1.45;color:var(--ink);background:var(--card, #fff);border:1.5px solid var(--line);border-radius:8px;padding:6px 9px}",
+    ".rail.byday .drday:focus{outline:none;border-color:var(--ink-2)}",
+    ".sub .cblocks{list-style:none;margin:8px 0 0;padding:0;font-size:12.5px;color:var(--ink-2);line-height:1.45}",
+    ".sub .cblocks li{display:flex;gap:8px;padding:1px 0}",
+    ".sub .cblocks time{font-family:var(--mono);font-size:11px;flex:0 0 76px;padding-top:1px;color:var(--ink-3)}",
+    ".sub .cblocks .cbn{display:block;color:var(--ink-3)}",
+    "@media (max-width:760px){.rail.byday .dayrow time{flex-basis:70px}.rail.byday .drday{font-size:16px}}",
+    "@media print{.rail.byday .dradd{display:none}}"
+  ].join("\n");
+  function style() {
+    if (document.getElementById("pl-day-style")) return;
+    var st = document.createElement("style");
+    st.id = "pl-day-style";
+    st.textContent = STYLE;
+    document.head.appendChild(st);
+  }
+
+  /* ---------- the card lists its blocks ---------- */
+  var OWN_CARD = window.cardHTML;
+  window.cardHTML = function (sb) {
+    var html = OWN_CARD.apply(this, arguments);
+    try {
+      var blocks = blocksFor(cursor), mine = [];
+      blocks.forEach(function (b, i) { if (b && sb && b.s === sb.id) mine.push({ b: b, i: i }); });
+      var show = mine.length > 1 || mine.some(function (x) { return x.b.n || String(x.b.l || "") !== sb.name; });
+      if (!show) return html;
+      var list = '<ul class="cblocks" aria-label="' + e$(sb.name) + ' blocks today">' + mine.map(function (x) {
+        return "<li><time>" + e$(span(x.b.t, blockEnd(blocks, x.i))) + "</time><span>" + e$(x.b.l) +
+          (x.b.n ? '<span class="cbn">' + e$(x.b.n) + "</span>" : "") + "</span></li>";
+      }).join("") + "</ul>";
+      var at = html.indexOf('<textarea class="subnote"');
+      if (at >= 0) html = html.slice(0, at) + list + html.slice(at);
+    } catch (x) { }
+    return html;
+  };
+
+  /* ---------- the day laid out ---------- */
+  function rowHTML(item, blocks) {
+    var b = item.b, t = span(b.t, blockEnd(blocks, item.i));
+    if (item.kind === "cont") {
+      var sb = sub(item.id);
+      return '<div class="dayrow cont" style="--c:' + e$(sb.color) + '"><time>' + e$(t) + '</time><div class="drbody">' +
+        '<div class="drlabel"><span class="dot"></span>' + e$(b.l) + '<span class="drsub">' + e$(sb.name) + ", continued from its card</span></div>" +
+        (b.n ? '<div class="drnote">' + e$(b.n) + "</div>" : "") + "</div></div>";
+    }
+    var k = bkey(b), note = (draft && draft.blockNotes && draft.blockNotes[k]) || "";
+    return '<div class="dayrow" data-bk="' + e$(k) + '"><time>' + e$(t) + '</time><div class="drbody">' +
+      '<div class="drlabel">' + e$(b.l) + "</div>" +
+      (b.n ? '<div class="drnote">' + e$(b.n) + "</div>" : "") +
+      (note
+        ? '<textarea class="drday" rows="1" data-bk="' + e$(k) + '" aria-label="Today\u2019s note for ' + e$(b.l) + '">' + e$(note) + "</textarea>"
+        : '<button type="button" class="dradd" data-bk="' + e$(k) + '">Add a note for today</button>') +
+      "</div></div>";
+  }
+  function fit(ta) { try { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + 2 + "px"; } catch (x) { } }
+  function wireRow(row) {
+    var k = row.getAttribute("data-bk");
+    if (!k) return;
+    function bindTa(ta) {
+      fit(ta);
+      ta.addEventListener("input", function () {
+        if (!draft) return;
+        var v = ta.value;
+        if (!draft.blockNotes || typeof draft.blockNotes !== "object") draft.blockNotes = {};
+        if (v.trim()) draft.blockNotes[k] = v; else delete draft.blockNotes[k];
+        if (!Object.keys(draft.blockNotes).length) delete draft.blockNotes;
+        fit(ta);
+        touch();
+      });
+    }
+    var ta = row.querySelector("textarea.drday");
+    if (ta) bindTa(ta);
+    var add = row.querySelector(".dradd");
+    if (add) add.addEventListener("click", function () {
+      var t = document.createElement("textarea");
+      t.className = "drday"; t.rows = 1; t.setAttribute("data-bk", k);
+      t.setAttribute("aria-label", "Today\u2019s note for " + (row.querySelector(".drlabel").textContent || ""));
+      t.placeholder = "Just for today";
+      add.parentNode.replaceChild(t, add);
+      bindTa(t);
+      t.focus();
+    });
+  }
+  function layout() {
+    var rail = document.querySelector(".rail");
+    if (!rail || typeof cursor === "undefined") return;
+    var blocks = blocksFor(cursor) || [];
+    if (!blocks.length) return;               /* no schedule: the planner's own empty state stays */
+    style();
+    var cards = {};
+    [].forEach.call(rail.querySelectorAll(":scope > .sub"), function (c) {
+      var b = c.querySelector("[data-skip]");
+      if (b) cards[b.getAttribute("data-skip")] = c;
+    });
+    var frag = document.createDocumentFragment(), holder = document.createElement("div");
+    dayPlan(blocks).forEach(function (item) {
+      if (item.kind === "card") { if (cards[item.id]) { frag.appendChild(cards[item.id]); delete cards[item.id]; } return; }
+      holder.innerHTML = rowHTML(item, blocks);
+      var row = holder.firstChild;
+      wireRow(row);
+      frag.appendChild(row);
+    });
+    Object.keys(cards).forEach(function (id) { frag.appendChild(cards[id]); });   /* anything unexpected keeps a place */
+    [].slice.call(rail.childNodes).forEach(function (n) { if (!(n.classList && n.classList.contains("sub"))) rail.removeChild(n); });
+    rail.appendChild(frag);
+    rail.classList.add("byday");
+    /* the timeline panel it replaces */
+    [].forEach.call(document.querySelectorAll(".panel > h2"), function (h) {
+      if (/^The day, block by block$/.test(h.textContent.trim())) h.parentNode.parentNode.removeChild(h.parentNode);
+    });
+  }
+  var OWN_TODAY = window.renderToday;
+  window.renderToday = function () {
+    var r = OWN_TODAY.apply(this, arguments);
+    try { layout(); } catch (x) { if (window.console) console.error("planner day layout:", x); }
+    return r;
+  };
+
+  /* ---------- the copied plan carries the day's block notes ---------- */
+  var OWN_COPY = window.copySubPlan;
+  window.copySubPlan = function () {
+    var notes = draft && draft.blockNotes;
+    if (!notes || !Object.keys(notes).length) return OWN_COPY.apply(this, arguments);
+    var OWN_BF = window.blocksFor;
+    window.blocksFor = function (d) {
+      return OWN_BF(d).map(function (b) {
+        var n = notes[bkey(b)];
+        if (!n) return b;
+        var c = Object.assign({}, b);
+        c.n = (b.n ? b.n + " \u00b7 " : "") + "Today: " + String(n).replace(/\s*\n\s*/g, " / ");
+        return c;
+      });
+    };
+    try { return OWN_COPY.apply(this, arguments); } finally { window.blocksFor = OWN_BF; }
+  };
+
+  /* the planner may already have drawn Today before this ran */
+  try { if (typeof view !== "undefined" && view === "today" && document.querySelector(".rail")) renderToday(); } catch (x) { }
 })();

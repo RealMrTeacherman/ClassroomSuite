@@ -117,6 +117,21 @@
     if (Array.isArray(src.watch)) b.watch = src.watch.filter(function (w) { return w && w.name; })
       .map(function (w) { return { name: String(w.name), note: String(w.note || "") }; });
     if (src.specials && typeof src.specials === "object") b.specials = src.specials;
+    /* v94: what the sub needs on each of the planner's blocks, by the
+       planner block's start and name; and old block text not yet placed */
+    if (src.details && typeof src.details === "object") {
+      b.details = {};
+      Object.keys(src.details).forEach(function (k) {
+        var x = src.details[k] || {};
+        var d = { detail: String(x.detail || ""), emergency: String(x.emergency || "") };
+        if (d.detail || d.emergency) b.details[k] = d;
+      });
+    }
+    if (Array.isArray(src.unplaced)) b.unplaced = src.unplaced.filter(function (x) { return x && (x.detail || x.emergency); })
+      .map(function (x) {
+        return { title: String(x.title || ""), start: String(x.start || ""), end: String(x.end || ""), days: String(x.days || ""),
+          subject: String(x.subject || ""), detail: String(x.detail || ""), emergency: String(x.emergency || ""), partly: !!x.partly };
+      });
     if (Array.isArray(src.blocks) && src.blocks.length) {
       b.blocks = src.blocks.map(function (x) {
         return {
@@ -205,8 +220,10 @@
         if (!live.saved) draftDays[live.__key] = true;
         else delete draftDays[live.__key];
       }
+      var set = JSON.parse(s) || {};
       return {
-        subjects: (JSON.parse(s) || {}).subjects || [],
+        subjects: set.subjects || [],
+        templates: set.templates && typeof set.templates === "object" ? set.templates : null,
         days: days
       };
     } catch (e) { return null; }
@@ -251,10 +268,97 @@
   /* In clock order. A block added in the editor lands at the bottom of the
      list, which printed it after dismissal. Array sort is stable, so blocks
      that share a start time keep the order they were written in. */
-  function blocksFor(iso) {
+  function legacyBlocksFor(iso) {
     var k = dayKeyOf(iso);
     return S.blocks.filter(function (b) { return !b.days || b.days.indexOf(k) >= 0; })
       .slice().sort(function (a, b) { return clock(a.start) - clock(b.start); });
+  }
+
+  /* ---------- v94: the day's blocks are the planner's ----------
+     The sub plan kept its own list of blocks (times, names, days, subject),
+     typed separately from the planner's schedule, and the two drifted. Now
+     the planner's schedule (Settings) is the one list: times, names, days,
+     subject and the standing note come from it. What only a sub needs, "What
+     to do" and "If you cannot find it", is kept here in S.details, on the
+     planner block by its start and name ("10:15|Math core lesson"), the same
+     key as the planner's notes for one day (v93). Written once, it shows on
+     every day that block runs. The old list stays in S.blocks: it is what a
+     device with no planner schedule still prints. */
+  function bkey(t, l) { return String(t || "") + "|" + String(l || ""); }
+  function schedule() {
+    var lp = planner();
+    if (!lp || !lp.templates) return null;
+    var any = Object.keys(lp.templates).some(function (d) { return Array.isArray(lp.templates[d]) && lp.templates[d].length; });
+    return any ? lp.templates : null;
+  }
+  function tplFor(T, dow) {
+    return (Array.isArray(T[dow]) ? T[dow] : []).filter(function (b) { return b && (b.t || b.l); })
+      .slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
+  }
+  function blocksFor(iso) {
+    var T = schedule();
+    if (!T) return legacyBlocksFor(iso);
+    placeOld(T);
+    var tpl = tplFor(T, new Date(iso + "T12:00:00").getDay()), D = S.details || {};
+    return tpl.map(function (b, i) {
+      var k = bkey(b.t, b.l), x = D[k] || {};
+      return { start: String(b.t || ""), end: tpl[i + 1] ? String(tpl[i + 1].t || "") : "", title: String(b.l || ""),
+        subject: String(b.s || ""), standing: String(b.n || ""), detail: x.detail || "", emergency: x.emergency || "", key: k };
+    });
+  }
+  /* The old list's text moves onto the planner's blocks once, and again
+     whenever it comes back without S.details (an older standing-notes file
+     loaded, say). A block is matched on each of its days only on strong
+     evidence, strongest first: the same start and name; the same subject and
+     start; the only block with that name; the only block of that subject
+     overlapping its time. Text matched on no day, or missing a day, goes to
+     S.unplaced for him to put where it belongs; nothing is dropped. */
+  var DOW = { M: 1, T: 2, W: 3, R: 4, F: 5 };
+  function norm(t) { return String(t || "").toLowerCase().replace(/[\u2014\u2013-]/g, " ").replace(/&/g, "and").replace(/\s+/g, " ").trim(); }
+  function matchOn(tpl, o) {
+    var ends = function (i) { return tpl[i + 1] ? clock(tpl[i + 1].t) : 1e9; };
+    var tries = [
+      function (b) { return clock(b.t) === clock(o.start) && norm(b.l) === norm(o.title); },
+      function (b) { return o.subject && b.s === o.subject && clock(b.t) === clock(o.start); },
+      function (b) { return norm(b.l) === norm(o.title); },
+      function (b, i) { return o.subject && b.s === o.subject && clock(b.t) < (o.end ? clock(o.end) : clock(o.start) + 1) && ends(i) > clock(o.start); }
+    ];
+    for (var t = 0; t < tries.length; t++) {
+      var hit = tpl.filter(tries[t]);
+      if (hit.length === 1) return hit[0];
+      if (hit.length > 1) return null;          /* more than one fits: not confident */
+    }
+    return null;
+  }
+  function addText(to, x) {
+    ["detail", "emergency"].forEach(function (f) {
+      var v = String(x[f] || "").trim();
+      if (!v) return;
+      if (!to[f]) to[f] = v;
+      else if (to[f].indexOf(v) < 0) to[f] = to[f] + "\n\n" + v;
+    });
+  }
+  function placeOld(T) {
+    if (S.details) return;
+    var details = {}, unplaced = [];
+    S.blocks.forEach(function (o) {
+      if (!String(o.detail || "").trim() && !String(o.emergency || "").trim()) return;
+      var missed = [], got = 0;
+      String(o.days || "MTRF").split("").forEach(function (L) {
+        if (!DOW[L]) return;
+        var b = matchOn(tplFor(T, DOW[L]), o);
+        if (!b) { missed.push(L); return; }
+        var k = bkey(b.t, b.l);
+        details[k] = details[k] || { detail: "", emergency: "" };
+        addText(details[k], o);
+        got++;
+      });
+      if (missed.length) unplaced.push({ title: o.title, start: o.start, end: o.end, subject: o.subject || "",
+        days: missed.join(""), detail: o.detail || "", emergency: o.emergency || "", partly: got > 0 });
+    });
+    S.details = details;
+    S.unplaced = (S.unplaced || []).concat(unplaced);
+    persist();
   }
   function when(b) { return b.end ? esc(b.start) + " – " + esc(b.end) : esc(b.start); }
   function lessonFor(iso, subjectId) {
@@ -313,11 +417,34 @@
     var rec = lp.days[iso];
     return rec && Array.isArray(rec.flags) ? rec.flags.filter(function (f) { return f && f !== "Sub"; }) : [];
   }
+  /* v93: a note on one block for this day only, written on its row in the
+     planner's Today view: { "9:30|Recess": "Indoor recess, games in the bin" }.
+     The key is the planner's block (start time and name), which need not
+     match a block here, so they print together, in time order, by name. */
+  function dayBlockNotes(iso) {
+    var lp = planner();
+    if (!lp) return [];
+    var rec = lp.days[iso], o = rec && rec.blockNotes;
+    if (!o || typeof o !== "object") return [];
+    return Object.keys(o).filter(function (k) { return String(o[k] || "").trim(); }).map(function (k) {
+      var cut = k.indexOf("|");
+      return { t: cut < 0 ? "" : k.slice(0, cut), l: cut < 0 ? k : k.slice(cut + 1), note: String(o[k]) };
+    }).sort(function (a, b) { return clock(a.t) - clock(b.t); });
+  }
+  function blockNoteFor(iso, b) {
+    var lp = planner(), rec = lp && lp.days[iso], o = rec && rec.blockNotes;
+    return o && b && b.key && o[b.key] ? String(o[b.key]).trim() : "";
+  }
   function justToday(iso) {
+    var onDay = {};
+    blocksFor(iso).forEach(function (b) { if (b.key) onDay[b.key] = true; });
     var note = dayNote(iso), flags = dayFlags(iso), h = "";
-    if (!note && !flags.length) return "";
+    /* v94: a note on a block prints on that block; one whose block is gone prints here */
+    var blk = dayBlockNotes(iso).filter(function (x) { return !onDay[bkey(x.t, x.l)]; });
+    if (!note && !flags.length && !blk.length) return "";
     if (flags.length) h += "<p><b>Heads up today:</b> " + esc(flags.join(" · ")) + "</p>";
     if (note) h += nl(note);
+    blk.forEach(function (x) { h += "<p><b>" + esc(x.l) + (x.t ? " (" + esc(x.t) + ")" : "") + ":</b> " + nl(x.note) + "</p>"; });
     return '<div class="box">' + h + "</div>";
   }
   /* A free-text subject on a day that has not been saved is suggested from
@@ -346,6 +473,8 @@
   function specialFor(iso, title) {
     var pair = S.specials[dayKeyOf(iso)];
     if (!pair) return "";
+    /* v94: "Specials 2 \u2014 PE", from the planner, already says what it is */
+    if (/\u2014|\s-\s/.test(String(title || ""))) return "";
     if (/specials\s*1/i.test(title)) return pair[0] || "";
     if (/specials\s*2/i.test(title)) return pair[1] || "";
     return "";
@@ -357,7 +486,8 @@
   }
   function hasContent() {
     return !!(S.intro || S.signal || S.contact || S.trusted || S.watch.length ||
-      S.blocks.some(function (b) { return b.detail || b.emergency; }));
+      S.blocks.some(function (b) { return b.detail || b.emergency; }) ||
+      Object.keys(S.details || {}).length > 0);
   }
 
   /* ---------- the printed documents ---------- */
@@ -478,6 +608,9 @@
         return;
       }
       if (l && l.where) h += '<span class="w"><b>' + esc(l.label) + "</b> &middot; " + esc(l.where) + "</span>";
+      var tnote = blockNoteFor(iso, b);                                        /* v94 */
+      if (tnote) h += '<p class="today"><b>Today:</b> ' + nl(tnote) + "</p>";
+      if (b.standing) h += "<p>" + nl(b.standing) + "</p>";
       if (l && !noted["rv|" + b.subject]) {
         noted["rv|" + b.subject] = true;
         if (l.targets && l.targets.length) h += "<p><b>Learning targets:</b> " + esc(l.targets.join(" ")) + "</p>";
@@ -518,7 +651,8 @@
         : l && l.where ? esc(l.label + " · " + l.where)
         : '<span class="muted">—</span>';
       h += "<tr><td>" + (b.end ? esc(b.start) + "–" + esc(b.end) : esc(b.start)) + "</td><td><b>" + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</b></td><td>" +
-        cell + (b.emergency && !off ? '<br><span class="muted">Stuck? ' + esc(firstSentence(b.emergency)) + "</span>" : "") + "</td></tr>";
+        cell + (blockNoteFor(iso, b) && !off ? "<br><b>Today:</b> " + esc(firstSentence(blockNoteFor(iso, b))) : "") +
+        (b.emergency && !off ? '<br><span class="muted">Stuck? ' + esc(firstSentence(b.emergency)) + "</span>" : "") + "</td></tr>";
     });
     h += "</tbody></table>";
     var today = justToday(iso);
@@ -636,6 +770,61 @@
     document.head.appendChild(s);
   }
 
+  /* v94: the Blocks editor when the planner has a schedule. Times, names and
+     standing notes are the planner's and are shown, not edited; the two sub
+     fields are edited here, once per block. */
+  var editDay = null;
+  var WD = ["", "Mon", "Tue", "Wed", "Thu", "Fri"];
+  function placeChoices(T) {
+    var by = {}, order = [];
+    for (var d = 1; d <= 5; d++) tplFor(T, d).forEach(function (b) {
+      var k = bkey(b.t, b.l);
+      if (!by[k]) { by[k] = { t: b.t, l: b.l, days: [] }; order.push(k); }
+      by[k].days.push(WD[d]);
+    });
+    order.sort(function (a, b) { return clock(by[a].t) - clock(by[b].t) || by[a].l.localeCompare(by[b].l); });
+    return order.map(function (k) { return { key: k, label: by[k].t + " " + by[k].l + " (" + by[k].days.join(", ") + ")" }; });
+  }
+  function plannerBlocksHTML(T) {
+    if (editDay == null) { var dw = new Date(curDate + "T12:00:00").getDay(); editDay = dw >= 1 && dw <= 5 ? dw : 1; }
+    var lp = planner(), subs = {};
+    (lp ? lp.subjects : []).forEach(function (x) { subs[x.id] = x.name; });
+    var toSettings = !!document.querySelector('.tab[data-view="settings"]');
+    var h = '<h3>Blocks</h3><p class="hint">Times, names and standing notes come from the planner\u2019s schedule. ' +
+      "What you write under a block goes on it every day that block runs.</p>" +
+      (toSettings ? '<div class="row" style="margin-top:6px"><button class="b" data-act="plsettings">Change times and names in the planner\u2019s Settings</button></div>' : "");
+    if (S.unplaced && S.unplaced.length) {
+      var opts = placeChoices(T).map(function (o) { return '<option value="' + esc(o.key) + '">' + esc(o.label) + "</option>"; }).join("");
+      h += '<div class="warn"><b>Notes that need a block.</b> These were written on the sub plan\u2019s old list of blocks and don\u2019t match one in the planner\u2019s schedule' +
+        ", or not on every day. Pick where each belongs.</div>";
+      S.unplaced.forEach(function (u, i) {
+        var dn = u.days.split("").map(function (L) { return WD[DOW[L]] || L; }).join(", ");
+        h += '<div class="blkrow"><div><b>' + esc(u.title || "Untitled block") + "</b> " +
+          '<span class="hint" style="display:inline">' + esc((u.start ? u.start + (u.end ? "\u2013" + u.end : "") + " \u00b7 " : "") + dn) +
+          (u.partly ? " \u00b7 the other days found their block" : "") + "</span></div>" +
+          (u.detail ? '<p style="margin:5px 0 0"><b>What to do:</b> ' + nl(u.detail) + "</p>" : "") +
+          (u.emergency ? '<p style="margin:5px 0 0"><b>If you cannot find it:</b> ' + nl(u.emergency) + "</p>" : "") +
+          '<div class="row" style="margin-top:7px"><select data-placeto="' + i + '" style="flex:1;min-width:220px" aria-label="Where it belongs">' +
+          '<option value="">Put it on\u2026</option>' + opts + "</select>" +
+          '<button class="b" data-place="' + i + '">Put it there</button>' +
+          '<button class="b d" data-unrm="' + i + '">Remove</button></div></div>';
+      });
+    }
+    h += '<div class="row" role="tablist" aria-label="Day" style="margin-top:10px">';
+    for (var d = 1; d <= 5; d++) h += '<button class="b' + (d === editDay ? " p" : "") + '" role="tab" aria-selected="' + (d === editDay) + '" data-wd="' + d + '">' + WD[d] + "</button>";
+    h += "</div>";
+    var tpl = tplFor(T, editDay);
+    if (!tpl.length) h += '<p class="hint">No blocks are set for a ' + DAYS[editDay] + " in the planner.</p>";
+    tpl.forEach(function (b, i) {
+      var k = bkey(b.t, b.l), x = (S.details || {})[k] || {};
+      h += '<div class="blkrow" data-key="' + esc(k) + '"><div><b>' + esc(b.t + (tpl[i + 1] ? "\u2013" + tpl[i + 1].t : "")) + "</b> " + esc(b.l) +
+        (b.s && subs[b.s] ? ' <span class="hint" style="display:inline">\u00b7 ' + esc(subs[b.s]) + "</span>" : "") + "</div>" +
+        (b.n ? '<p class="hint" style="margin:3px 0 0">' + esc(b.n) + "</p>" : "") +
+        '<textarea data-d="detail" data-k="' + esc(k) + '" rows="2" style="margin-top:7px" placeholder="What to do">' + esc(x.detail || "") + "</textarea>" +
+        '<textarea data-d="emergency" data-k="' + esc(k) + '" rows="2" style="margin-top:6px" placeholder="If you cannot find it\u2026">' + esc(x.emergency || "") + "</textarea></div>";
+    });
+    return h;
+  }
   function panelHTML() {
     var blocks = blocksFor(curDate);
     var lp = planner();
@@ -717,19 +906,23 @@
     });
     h += "</tbody></table>";
 
-    h += '<h3>Blocks</h3><p class="hint">Days uses M T W R F. Subject links a block to the planner so the lesson fills itself in.</p>';
-    S.blocks.forEach(function (b, i) {
-      h += '<div class="blkrow"><div class="row">' +
-        '<input data-b="start" data-i="' + i + '" value="' + esc(b.start) + '" style="width:74px" aria-label="Start">' +
-        '<input data-b="end" data-i="' + i + '" value="' + esc(b.end) + '" style="width:74px" aria-label="End">' +
-        '<input data-b="title" data-i="' + i + '" value="' + esc(b.title) + '" style="flex:1;min-width:170px" aria-label="Title">' +
-        '<input data-b="days" data-i="' + i + '" value="' + esc(b.days) + '" style="width:78px" aria-label="Days">' +
-        '<select data-b="subject" data-i="' + i + '" style="width:auto" aria-label="Planner subject">' + subjOpts(b.subject) + "</select>" +
-        '<button class="b d" data-rmb="' + i + '">Remove</button></div>' +
-        '<textarea data-b="detail" data-i="' + i + '" rows="2" style="margin-top:7px" placeholder="What to do">' + esc(b.detail) + "</textarea>" +
-        '<textarea data-b="emergency" data-i="' + i + '" rows="2" style="margin-top:6px" placeholder="If you cannot find it…">' + esc(b.emergency) + "</textarea></div>";
-    });
-    h += '<button class="b" style="margin-top:9px" data-act="addb">Add a block</button>';
+    var T = schedule();
+    if (T) h += plannerBlocksHTML(T);
+    else {
+      h += '<h3>Blocks</h3><p class="hint">Days uses M T W R F. Subject links a block to the planner so the lesson fills itself in.</p>';
+      S.blocks.forEach(function (b, i) {
+        h += '<div class="blkrow"><div class="row">' +
+          '<input data-b="start" data-i="' + i + '" value="' + esc(b.start) + '" style="width:74px" aria-label="Start">' +
+          '<input data-b="end" data-i="' + i + '" value="' + esc(b.end) + '" style="width:74px" aria-label="End">' +
+          '<input data-b="title" data-i="' + i + '" value="' + esc(b.title) + '" style="flex:1;min-width:170px" aria-label="Title">' +
+          '<input data-b="days" data-i="' + i + '" value="' + esc(b.days) + '" style="width:78px" aria-label="Days">' +
+          '<select data-b="subject" data-i="' + i + '" style="width:auto" aria-label="Planner subject">' + subjOpts(b.subject) + "</select>" +
+          '<button class="b d" data-rmb="' + i + '">Remove</button></div>' +
+          '<textarea data-b="detail" data-i="' + i + '" rows="2" style="margin-top:7px" placeholder="What to do">' + esc(b.detail) + "</textarea>" +
+          '<textarea data-b="emergency" data-i="' + i + '" rows="2" style="margin-top:6px" placeholder="If you cannot find it…">' + esc(b.emergency) + "</textarea></div>";
+      });
+      h += '<button class="b" style="margin-top:9px" data-act="addb">Add a block</button>';
+    }
     return h + "</div>";
   }
 
@@ -755,6 +948,40 @@
     panel.querySelectorAll("[data-rmw]").forEach(function (el) {
       el.onclick = function () { S.watch.splice(+el.dataset.rmw, 1); persist(); paint(); };
     });
+    /* v94: the planner-schedule editor */
+    panel.querySelectorAll("[data-d]").forEach(function (el) {
+      el.onchange = function () {
+        var k = el.dataset.k, f = el.dataset.d;
+        if (!S.details) S.details = {};
+        var x = S.details[k] || { detail: "", emergency: "" };
+        x[f] = el.value;
+        if (String(x.detail || "").trim() || String(x.emergency || "").trim()) S.details[k] = x; else delete S.details[k];
+        persist();
+      };
+    });
+    panel.querySelectorAll("[data-wd]").forEach(function (el) {
+      el.onclick = function () { editDay = +el.dataset.wd; paint(); };
+    });
+    panel.querySelectorAll("[data-place]").forEach(function (el) {
+      el.onclick = function () {
+        var i = +el.dataset.place, sel = panel.querySelector('[data-placeto="' + i + '"]');
+        if (!sel || !sel.value || !S.unplaced || !S.unplaced[i]) return;
+        if (!S.details) S.details = {};
+        S.details[sel.value] = S.details[sel.value] || { detail: "", emergency: "" };
+        addText(S.details[sel.value], S.unplaced[i]);
+        S.unplaced.splice(i, 1);
+        persist(); paint();
+      };
+    });
+    panel.querySelectorAll("[data-unrm]").forEach(function (el) {
+      el.onclick = function () {
+        var i = +el.dataset.unrm;
+        if (!S.unplaced || !S.unplaced[i]) return;
+        if (typeof window.confirm === "function" && !window.confirm("Remove this note for good?")) return;
+        S.unplaced.splice(i, 1);
+        persist(); paint();
+      };
+    });
     panel.querySelectorAll("[data-rmb]").forEach(function (el) {
       el.onclick = function () { S.blocks.splice(+el.dataset.rmb, 1); persist(); paint(); };
     });
@@ -762,6 +989,11 @@
       el.onclick = function () {
         var a = el.dataset.act;
         if (a === "close") close();
+        else if (a === "plsettings") {
+          var tab = document.querySelector('.tab[data-view="settings"]');
+          close();
+          if (tab) tab.click();
+        }
         else if (a === "full" || a === "glance") { flushPlanner(); doPrint(a, curDate); }
         else if (a === "savefirst") {
           /* commitDay(true) is the planner's own explicit-save path: it marks

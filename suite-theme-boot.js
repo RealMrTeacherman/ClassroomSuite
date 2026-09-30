@@ -1,22 +1,16 @@
 /* ==========================================================================
    suite-theme-boot.js
 
-   Sits in <head> and runs synchronously, so the chosen look is already on the
-   root element before the first pixel is drawn. Doing this from the deferred
-   nav script instead would paint the quiet theme and then repaint the
-   textured one, which reads as a fault rather than a preference.
+   Sits in <head> and runs synchronously. It warms the font connections, and
+   since v92 clears the old look preference.
 
-   Deliberately tiny and dependency-free. Deleting the one <script> tag puts
-   every tool back to the quiet theme with nothing else to undo.
+   The suite had three looks until v91: 2026, 2006 ("textured") and 2046,
+   chosen from Look in the corner switcher and applied here, before the first
+   paint, as `data-suite-theme` on the root element. v92 kept 2026 only. The
+   attribute is never set now; suite-theme.css still prefixes its 2026 rules
+   with `html:not([data-suite-theme])` (see the note there). `data-theme` on
+   the same element is the planner's own, and was never this file's.
    ========================================================================== */
-/* The attribute is `data-suite-theme`, not `data-theme`, and that matters.
-   The planner has five looks of its own and sets `data-theme` on this very
-   element as it boots (atomic, moonbase, console, fourcolor, formica). Both
-   scripts writing the same attribute meant whichever ran last won: this one
-   runs first, so the planner overwrote it a moment later and every one of
-   the textured theme's rules stopped matching. The textured look had never
-   worked on the planner at all, and pressing Look there wiped the planner's
-   own theme until the next reload. Two names, two looks, no collision. */
 (function () {
   /* suite-theme.css asks for its typefaces with @import, which serialises:
      the browser cannot even discover the font request until it has fetched
@@ -35,15 +29,8 @@
     });
   } catch (e) { /* the fonts still load, just a little later */ }
 
-  try {
-    /* three looks: "" is 2026 (quiet), "textured" is 2006, "2046" is 2046 */
-    var t = localStorage.getItem("suite:theme:v1");
-    var BAR = { textured: "#283130", "2046": "#0F1322" };
-    if (t === "textured" || t === "2046") {
-      document.documentElement.setAttribute("data-suite-theme", t);
-      /* the notch and the status bar are part of the page on a phone */
-      var m = document.querySelector('meta[name="theme-color"]');
-      if (m) m.setAttribute("content", BAR[t]);
-    }
-  } catch (e) { /* private mode, or storage disabled: quiet theme, no harm */ }
+  /* v92: a device that chose 2006 or 2046 kept "suite:theme:v1". Nothing
+     reads or writes it now, so it goes. It was never synced, and nothing can
+     set it again, so this converges on every load rather than using a flag. */
+  try { localStorage.removeItem("suite:theme:v1"); } catch (e) { }
 })();

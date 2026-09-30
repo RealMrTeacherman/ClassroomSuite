@@ -141,14 +141,6 @@
       a.innerHTML = '<span class="ic">' + p.icon + '</span><b class="lbl">' + p.label + "</b>";
       nav.appendChild(a);
     });
-    var themeBtn = document.createElement("button");
-    themeBtn.type = "button";
-    themeBtn.id = "suitetheme";
-    themeBtn.innerHTML = '<span class="ic">\u25A7</span><b class="lbl">Look</b>';
-    themeBtn.setAttribute("aria-haspopup", "dialog");
-    themeBtn.onclick = pickLook;
-    nav.appendChild(themeBtn);
-
     installBtn = document.createElement("button");
     installBtn.type = "button";
     installBtn.innerHTML = '<span class="ic">\u2913</span><b class="lbl">Install</b>';
@@ -166,10 +158,6 @@
     };
     nav.appendChild(installBtn);
     paintInstall();
-    /* paintTheme() only ever ran from setTheme(), so on a page loaded with
-       the textured look already on, the button showed the icon for turning
-       it on and carried no aria-pressed at all. */
-    paintTheme();
 
     if (window.SuiteSync) {
       var sep = document.createElement("span"); sep.className = "sep"; nav.appendChild(sep);
@@ -436,49 +424,9 @@
     });
   }
 
-  /* ---------- look ---------- */
-  /* `data-suite-theme`, deliberately not `data-theme`: the planner owns
-     `data-theme` for its own five looks and sets it on the same element. */
-  var THEME_KEY = "suite:theme:v1";
-  /* Three looks, named for the years they borrow from. The stored values are
-     unchanged for the first two ("quiet" and "textured"), so a device keeps
-     the look it already had. */
-  var LOOKS = [
-    { id: "quiet", name: "2026", hint: "Quiet \u2014 clean surfaces, loud marks", icon: "\u25A7", bar: "#EDF0F2" },
-    { id: "textured", name: "2006", hint: "Textured \u2014 slate, manila and ruled paper", icon: "\u25A6", bar: "#283130" },
-    { id: "2046", name: "2046", hint: "Future \u2014 a dark instrument, the marks lit", icon: "\u25C8", bar: "#0F1322" }
-  ];
-  function lookOf(id) { for (var i = 0; i < LOOKS.length; i++) if (LOOKS[i].id === id) return LOOKS[i]; return LOOKS[0]; }
-  function currentTheme() {
-    var a = document.documentElement.getAttribute("data-suite-theme");
-    return a === "textured" || a === "2046" ? a : "quiet";
-  }
-  function setTheme(t) {
-    var look = lookOf(t);
-    if (look.id === "quiet") document.documentElement.removeAttribute("data-suite-theme");
-    else document.documentElement.setAttribute("data-suite-theme", look.id);
-    var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute("content", look.bar);
-    try { localStorage.setItem(THEME_KEY, look.id); } catch (e) { }
-    paintTheme();
-  }
-  /* A picker, not a toggle: with three looks a toggle would make you cycle
-     through one you did not want to reach the one you did. It uses the same
-     sheet as the sync menu, so each choice is a button that says what it is. */
-  function pickLook() {
-    var cur = currentTheme();
-    sheet("Look", "Applies to all three tools on this device.", LOOKS.map(function (l) {
-      return { label: l.name + (l.id === cur ? " \u2713" : ""), hint: l.hint, run: function () { setTheme(l.id); say("Look: " + l.name); } };
-    }));
-  }
-  function paintTheme() {
-    var b = document.getElementById("suitetheme");
-    if (!b) return;
-    var look = lookOf(currentTheme());
-    b.title = "Look: " + look.name + " \u2014 choose another";
-    b.setAttribute("aria-label", "Look: " + look.name);
-    b.querySelector(".ic").textContent = look.icon;
-  }
+  /* ---------- look ----------
+     Until v91 a Look button here chose between 2026, 2006 and 2046. v92
+     kept 2026 only; see suite-theme-boot.js. */
 
   /* ---------- the switcher steps aside while you scroll down ----------
      Fixed in the corner, it sat on whatever row was under it — on desktop it

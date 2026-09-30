@@ -42,7 +42,7 @@
   var NEVER_SYNC = {
     "suite:gh:v1": "holds the GitHub token; it must never travel to another device",
     "suite:gd:v1": "holds the Drive client id and file id, which are per-device",
-    "suite:theme:v1": "which look this device uses is a preference, not data",
+    "suite:theme:v1": "the look this device used until v91; a preference, not data, and cleared on load since v92",
     "suite:device:v1": "this device's own name",
     "suite:syncBase:v1": "the merge base; superseded by IndexedDB, kept for migration",
     "suite:folderSeen:v1": "drops this device has already absorbed",

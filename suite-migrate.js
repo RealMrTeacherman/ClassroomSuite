@@ -613,6 +613,40 @@
     try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
   }
 
+  /* v94: three standing block notes he reworded, because sub plans now
+     print them for a stranger to read: WIN says which walk is which day,
+     Shoutouts says what a Mighty Mustang is, and Math small groups are on a
+     digital slide now, not the yellow chart. The old text is the planner's
+     built-in default, in the protected file, so it is corrected here. Only a
+     note that is still exactly the old default changes; anything typed is
+     kept. Converges, like subPlanWalkToWin(): a device not yet updated can
+     sync the old text back, and this puts it right on the next load. */
+  var NOTE_FIXES = [
+    { match: function (b) { return b.s === "win"; }, from: "Pull-outs for extra support",
+      to: "Walk to Read Mondays and Thursdays, Walk to Math Tuesdays and Fridays" },
+    { match: function (b) { return b.l === "Shoutouts"; }, from: "Bonus Mighty Mustangs",
+      to: "Students nominate others for Mighty Mustangs" },
+    { match: function (b) { return b.l === "Math small groups" && b.s === "math"; }, from: "Yellow chart",
+      to: "Groups are on the digital slide" }
+  ];
+  function standingNotes2026() {
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !st.templates || typeof st.templates !== "object") return;
+    var touched = false;
+    Object.keys(st.templates).forEach(function (d) {
+      var tpl = st.templates[d];
+      if (!Array.isArray(tpl)) return;
+      tpl.forEach(function (b) {
+        if (!b) return;
+        NOTE_FIXES.forEach(function (f) {
+          if (b.n === f.from && f.match(b)) { b.n = f.to; touched = true; }
+        });
+      });
+    });
+    if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { } }
+  }
+
   function runAll() {
     /* Science and Social Studies covers too much variety to be "Lesson 4", and
        Writing runs on its own rhythm rather than the curriculum's unit, week
@@ -629,6 +663,7 @@
     subPlanEndOfDay();
     walkToWin();
     subPlanWalkToWin();
+    standingNotes2026();                 /* after mondayShoutouts(), which can add the old Shoutouts note */
     repairDays();
     skipUnscheduled();
   }
