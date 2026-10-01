@@ -2164,6 +2164,7 @@ function renderSetup() {
   html += duplicateNoticeHTML();
 
   html += syncCardHTML();
+  html += emailCardHTML();                                 /* v95 */
 
   html += calendarCardHTML();                              /* v88 */
 
@@ -4217,6 +4218,29 @@ function orfReadingCount() {
   } catch (e) { return 0; }
 }
 
+/* v95: the sync file, attached to an email for the school computer. The
+   address is this device's only (suite:mailto:v1, never synced); it is filled
+   in where the device has no share sheet and a new email is opened instead. */
+function emailCardHTML() {
+  const SS = window.SuiteSync;
+  if (!SS || !SS.emailFile) return "";
+  return '<div class="card pad"><h2>Email the sync file</h2>' +
+    '<p class="hint">Attaches the current sync file to a new email. Pick Mail, send it to your school address, and on the school computer download the attachment: if the suite there is watching Downloads, it is merged on its own within a few seconds. Send it from your district account so it stays in the district\u2019s email.</p>' +
+    '<div class="row" style="align-items:flex-end;margin-top:10px">' +
+    '<label class="fld" style="flex:1;min-width:260px">Your school email address (this device only)' +
+    '<input type="email" id="mailto-addr" autocomplete="email" placeholder="you@your-district.org" value="' + esc(SS.mailAddress()) + '" onchange="setMailTo(this.value)"></label>' +
+    '<button class="btn primary" onclick="emailSyncFile()">Email the sync file</button></div></div>';
+}
+function setMailTo(v) {
+  const a = window.SuiteSync.setMailAddress(v);
+  toast(a ? "Saved for this device" : "Address cleared");
+}
+function emailSyncFile() {
+  window.SuiteSync.emailFile().then(r => {
+    if (r.how === "cancelled") return;
+    toast(r.how === "share" ? "Ready to send" : "Saved " + r.name + ". Attach it to the email that opened.");
+  }).catch(e => toast("Could not email: " + (e.message || e)));
+}
 function syncCardHTML() {
   const SS = window.SuiteSync;
   let h = '<div class="card pad"><h2>Sync</h2>';

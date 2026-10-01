@@ -43,6 +43,7 @@
     "suite:gh:v1": "holds the GitHub token; it must never travel to another device",
     "suite:gd:v1": "holds the Drive client id and file id, which are per-device",
     "suite:theme:v1": "the look this device used until v91; a preference, not data, and cleared on load since v92",
+    "suite:mailto:v1": "v95: the address this device's Email button fills in; set per device, like its name",
     "suite:device:v1": "this device's own name",
     "suite:syncBase:v1": "the merge base; superseded by IndexedDB, kept for migration",
     "suite:folderSeen:v1": "drops this device has already absorbed",
@@ -440,6 +441,83 @@
   }
 
   /* ------------------------------------------------------------
+     Emailing the sync file (v95)
+
+     A web page cannot send email. What it can do is hand a file to the
+     device's share sheet, where Mail is one of the choices, with the subject
+     and a line of instructions filled in. So the button prepares exactly what
+     Save a sync file makes and opens the share sheet with it attached; he
+     picks Mail and sends it to himself at school, where downloading the
+     attachment into a watched Downloads folder merges it on its own.
+
+     Chrome shares only some file types, and .json may not be one of them, so
+     the same file goes as .txt where .json is refused; the watcher, the
+     picker and drag-and-drop all take a classroom-*.txt. Where nothing can
+     be shared, it saves the file and opens a new email to the address set
+     for this device, to attach it to. Called from a real tap, and nothing is
+     awaited before share(), or Safari refuses it.
+     ------------------------------------------------------------ */
+  var MAIL_KEY = "suite:mailto:v1";
+  function mailAddress() { try { return String(localStorage.getItem(MAIL_KEY) || "").trim(); } catch (e) { return ""; } }
+  function setMailAddress(v) {
+    v = String(v || "").trim();
+    try { if (v) localStorage.setItem(MAIL_KEY, v); else localStorage.removeItem(MAIL_KEY); } catch (e) { }
+    return v;
+  }
+  function emailFile() {
+    var payload = snapshot();
+    payload.from = ownFile();
+    payload.fromName = deviceName();
+    var prev = exportState();
+    payload.n = (prev && typeof prev.n === "number" ? prev.n : 0) + 1;
+    var name = exportName();
+    var json = JSON.stringify(payload, null, 1);
+    var when = "";
+    try { when = new Date().toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { when = new Date().toString(); }
+    var subject = "Classroom sync file \u00b7 " + deviceName() + " \u00b7 " + when;
+    var body = "The classroom suite's sync file from " + deviceName() + ", " + when + ".\n\n" +
+      "On the other computer, download the attachment. If the suite there is watching Downloads, it is merged on its own " +
+      "within a few seconds; otherwise drop it on any page of the suite.";
+    function sent(how, file) {
+      setExportState({ at: payload.updatedAt, dirty: false, name: file, n: payload.n }); tellUnsent();
+      return { name: file, how: how };
+    }
+    function make(n, type) { try { return new File([json], n, { type: type }); } catch (e) { return null; } }
+    function shareable(f) {
+      if (!f || !navigator.share || !navigator.canShare) return false;
+      try { return navigator.canShare({ files: [f] }); } catch (e) { return false; }
+    }
+    function fallback() {
+      var url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      var a = document.createElement("a");
+      a.href = url; a.download = name; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      var m = document.createElement("a");
+      m.href = "mailto:" + encodeURIComponent(mailAddress()).replace(/%40/g, "@") +
+        "?subject=" + encodeURIComponent(subject) +
+        "&body=" + encodeURIComponent(body + "\n\nAttach " + name + " from your Downloads folder before you send this.");
+      document.body.appendChild(m); m.click(); m.remove();
+      return sent("mailto", name);
+    }
+    var asJson = make(name, "application/json");
+    var asTxt = make(name.replace(/\.json$/i, ".txt"), "text/plain");
+    var file = shareable(asJson) ? asJson : shareable(asTxt) ? asTxt : null;
+    if (file) {
+      return navigator.share({ files: [file], title: subject, text: body })
+        .then(function () { return sent("share", file.name); })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") return { name: file.name, how: "cancelled" };
+          return fallback();
+        });
+    }
+    return Promise.resolve(fallback());
+  }
+  /* a sync file that went by email as .txt (v95) */
+  var TXT_SYNC_RE = /^classroom-.*\.txt$/i;
+  function syncFileName(n) { return /\.json$/i.test(n || "") || TXT_SYNC_RE.test(n || ""); }
+
+  /* ------------------------------------------------------------
      Loading a file by hand (v77)
 
      Up to v76 loading a file replaced this device's data with it. That is
@@ -580,7 +658,7 @@
     return new Promise(function (res, rej) {
       var inp = document.createElement("input");
       inp.type = "file";
-      inp.accept = "application/json,.json";
+      inp.accept = "application/json,.json,text/plain,.txt";
       inp.style.cssText = "position:fixed;left:-9999px";
       inp.onchange = function () {
         var f = inp.files && inp.files[0];
@@ -1474,7 +1552,7 @@
       return it.next().then(function (step) {
         if (step.done) return out;
         var name = step.value[0], h = step.value[1];
-        if (h.kind === "file" && /\.json$/i.test(name)) out.push({ name: name, handle: h });
+        if (h.kind === "file" && syncFileName(name)) out.push({ name: name, handle: h });
         return walk(it);
       });
     })(folder.entries()).catch(function () { return out; });
@@ -1742,6 +1820,7 @@
     connect: connect,
     disconnect: disconnect,
     connectGitHub: ghConnect,
+    emailFile: emailFile, mailAddress: mailAddress, setMailAddress: setMailAddress, isSyncFileName: syncFileName,
     disconnectGitHub: ghDisconnect,
     connectDrive: gdConnect,
     disconnectDrive: gdDisconnect,

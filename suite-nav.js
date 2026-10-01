@@ -361,6 +361,15 @@
       run: function () {
         S.exportFile().then(afterExport).catch(function (e) { say("Could not save: " + (e.message || e)); });
       } });
+    /* v95: the file, attached to an email, for a computer with no live sync */
+    if (S.emailFile) opts.push({ label: "Email the sync file",
+      hint: S.mailAddress && S.mailAddress() ? "to " + S.mailAddress() : "pick Mail and send it to yourself", run: function () {
+        S.emailFile().then(function (r) {
+          if (r.how === "cancelled") return;
+          say(r.how === "share" ? "Ready. On the other computer, download the attachment and the suite takes it from there."
+            : "Saved " + r.name + ". Attach it to the email that just opened, then send.");
+        }).catch(function (e) { say("Could not email: " + (e.message || e)); });
+      } });
     opts.push({ label: "Load a backup", hint: "merges it in; nothing here is lost" + (S.folderSupported ? " (or drop the file on any page)" : ""), run: function () {
       S.importFile().then(afterImport).catch(importFailed);
     } });
@@ -419,7 +428,8 @@
       hide();
       var S = window.SuiteSync, f = e.dataTransfer.files && e.dataTransfer.files[0];
       if (!S || !S.importBlob || !f) return;
-      if (!/\.json$/i.test(f.name || "")) { say("That is not a classroom sync file (they end in .json)."); return; }
+      var okName = S && S.isSyncFileName ? S.isSyncFileName(f.name || "") : /\.json$/i.test(f.name || "");
+      if (!okName) { say("That is not a classroom sync file (they end in .json, or .txt when they came by email)."); return; }
       S.importBlob(f).then(afterImport).catch(importFailed);
     });
   }
