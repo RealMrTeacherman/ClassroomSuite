@@ -66,6 +66,12 @@
   .board button.primary,.drawer button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
   .tools{display:flex;gap:8px;flex-wrap:wrap}
   .board button.flag{border-color:#B01E55;color:#B01E55}
+  /* v97: after arranging, the offer to send the groups to the gradebook */
+  .gb-offer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:2px solid var(--rule);border-radius:14px;
+    padding:8px 10px 8px 16px;font-size:clamp(.9rem,1.1vw,1.1rem);font-weight:600}
+  .gb-offer[hidden]{display:none}
+  .gb-offer span{flex:1 1 auto}
+  @media print{ .gb-offer{display:none!important} }
 
   .grid{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(10px,1.2vw,20px);min-height:0}
   .group{position:relative;display:flex;flex-direction:column;background:var(--card);border:4px solid var(--gc);border-radius:22px;
@@ -328,6 +334,7 @@
       <button id="full" title="Full screen (F)">Full screen</button>
     </div>
   </div>
+  <div class="gb-offer" id="gbOffer" role="status" hidden></div>
 
   <div class="drawer" id="drawer">
     <h2>Sub plans</h2>
@@ -596,12 +603,84 @@
       });
       btns.appendChild(use);
     } else btns.appendChild(mk("span", "note", m.groups.length + " groups: the board has four, so place them by hand."));
+    /* v97 */
+    var now = boardNow().groups, sent = lastSent();
+    var matches = sameGroups(now, m.groups), wasSent = !matches && sameGroups(now, sent && sent.groups);
+    var send = mk("button", null, matches ? "The gradebook has these groups" : wasSent ? "Sent to the gradebook" : "Send the board to the gradebook");
+    send.disabled = matches || wasSent;
+    send.title = "The gradebook pins everyone where the board has them, for " + (gbStdLabel() || "the standard it groups math on");
+    send.addEventListener("click", function () {
+      if (!sendToGb()) return;
+      gbSugRender(); hideOffer(); say("Sent. The gradebook takes these groups the next time it is open, and can undo it.");
+    });
+    btns.appendChild(send);
     if (gbUndo) {
       var un = mk("button", null, "Undo");
       un.addEventListener("click", function () { M().place = JSON.parse(gbUndo); gbUndo = null; save(); render(); gbSugRender(); });
       btns.appendChild(un);
     }
     box.appendChild(btns);
+  }
+
+  /* ---------- v97: and back again ----------
+     After arranging, the board's groups can go to the gradebook. The board
+     never writes the gradebook's data: it leaves a request in
+     suite:boardGroups:v1 (the four groups in slot order, first slot first,
+     and who is not placed), and the gradebook takes it the next time it is
+     open, on whichever device, and pins everyone there. The standard is the
+     one the gradebook is grouping math on, as published in suite:suggest:v1. */
+  var BKEY = "suite:boardGroups:v1";
+  function boardNow() {
+    var m = M(), groups = [[], [], [], []], out = [];
+    roster.forEach(function (s) {
+      var p = m.place[s.id];
+      if (typeof p === "number" && p >= 0 && p < 4) groups[p].push(s.id); else out.push(s.id);
+    });
+    groups.forEach(function (g) { g.sort(); }); out.sort();
+    return { groups: groups, out: out };
+  }
+  function sameGroups(a, b) {
+    if (!a || !b || !Array.isArray(a) || a.length !== 4 || b.length !== 4) return false;
+    var known = {}; roster.forEach(function (s) { known[s.id] = 1; });
+    var norm = function (g) { return (Array.isArray(g) ? g : []).filter(function (id) { return known[id]; }).slice().sort().join(","); };
+    for (var i = 0; i < 4; i++) if (norm(a[i]) !== norm(b[i])) return false;
+    return true;
+  }
+  function lastSent() { try { return JSON.parse(localStorage.getItem(BKEY) || "null"); } catch (e) { return null; } }
+  /* does the gradebook already have these, or have they already been sent? */
+  function gbHasBoard() {
+    var now = boardNow().groups, s = gbSuggest(), sent = lastSent();
+    return sameGroups(now, s && s.math && s.math.groups) || sameGroups(now, sent && sent.groups);
+  }
+  function gbStdLabel() {
+    var s = gbSuggest(), m = s && s.math;
+    if (!m || !m.std) return "";
+    return m.std === "__all" ? "all math standards" : String(m.label || m.std).split(" \u00b7 ")[0];
+  }
+  function sendToGb() {
+    var now = boardNow(), s = gbSuggest(), m = s && s.math;
+    var req = { at: new Date().toISOString(), std: (m && m.std) || "", label: (m && m.label) || "", groups: now.groups, out: now.out };
+    try { localStorage.setItem(BKEY, JSON.stringify(req)); } catch (e) { say("Could not save \u2014 browser storage may be full.", true); return false; }
+    return true;
+  }
+  function hideOffer() { var o = document.getElementById("gbOffer"); if (o) { o.hidden = true; o.textContent = ""; } }
+  function offerSend() {
+    var o = document.getElementById("gbOffer");
+    if (!o || !roster.length || gbHasBoard()) { hideOffer(); return; }
+    var std = gbStdLabel();
+    o.textContent = "";
+    o.appendChild(mk("span", null, "Send these groups to the gradebook" + (std ? ", for " + std : "") + "?"));
+    var go = mk("button", "primary", "Send to gradebook");
+    go.addEventListener("click", function () {
+      if (!sendToGb()) return;
+      o.textContent = "";
+      o.appendChild(mk("span", null, "Sent. The gradebook takes them the next time it is open, and can undo it."));
+      setTimeout(hideOffer, 6000);
+    });
+    var no = mk("button", null, "Not now");
+    no.addEventListener("click", hideOffer);
+    o.appendChild(go); o.appendChild(no);
+    o.hidden = false;
   }
 
   function members(gi) {
@@ -1101,7 +1180,10 @@
   titleEl.addEventListener("blur", function () { M().title = titleEl.textContent.trim() || "Math Groups"; titleEl.textContent = M().title; save(); });
   titleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); titleEl.blur(); } });
   document.getElementById("rotate").addEventListener("click", rotate);
-  document.getElementById("arrange").addEventListener("click", function () { arranging = !arranging; selected = null; adding = null; render(); });
+  document.getElementById("arrange").addEventListener("click", function () {
+    arranging = !arranging; selected = null; adding = null; render();
+    if (arranging) hideOffer(); else offerSend();          /* v97 */
+  });
   var drawer = document.getElementById("drawer");
   document.getElementById("settings").addEventListener("click", function () {
     gbSugRender();

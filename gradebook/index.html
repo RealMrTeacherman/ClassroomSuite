@@ -1251,6 +1251,8 @@ function gClearPins() {
   const key = pinKey(UI.subject, skillSel());
   if (!S.groupPins[key]) return;
   delete S.groupPins[key];
+  /* v97: and they are no longer the board's groups */
+  if (S.boardTaken && S.boardTaken.key === key) S.boardTaken.undone = true;
   save(); renderSkillGroups(); toast("Back to the suggested groups");
 }
 let gDragSid = null;
@@ -1310,6 +1312,59 @@ function publishSuggestions() {
   try { localStorage.setItem("suite:suggest:v1", JSON.stringify(Object.assign({ at: new Date().toISOString() }, out))); } catch (e) { }
 }
 function schedulePublish() { clearTimeout(publishT); publishT = setTimeout(publishSuggestions, 600); }
+
+/* ---------- v97: the math board's groups, taken back ----------
+   The Small Groups board writes suite:boardGroups:v1 when the teacher sends
+   his arrangement: { at, std, label, groups: [[ids] x 4, first slot first],
+   out: [ids] }. Only the gradebook writes its own data, so it takes the
+   request here: every child is pinned where the board put them, for that
+   standard, and the board's first slot is Group 1, as "Use these groups"
+   maps them the other way. A request is taken once (S.boardTaken.at, which
+   syncs with the gradebook, so another device does not take it again), and
+   can be undone: what the pins were is kept beside it. */
+const BOARD_KEY = "suite:boardGroups:v1";
+function takeBoardGroups() {
+  const r = orfJSON(BOARD_KEY);
+  if (!r || typeof r.at !== "string" || !Array.isArray(r.groups) || r.groups.length !== 4) return false;
+  if (S.boardTaken && S.boardTaken.at && S.boardTaken.at >= r.at) return false;
+  if (!S.students.length) return false;
+  const known = new Set(S.students.map(s => s.id));
+  const pins = {};
+  r.groups.forEach((g, i) => { (Array.isArray(g) ? g : []).forEach(id => { if (known.has(id)) pins[id] = i; }); });
+  (Array.isArray(r.out) ? r.out : []).forEach(id => { if (known.has(id) && !(id in pins)) pins[id] = UNPLACED; });
+  const std = r.std && (r.std === "__all" || byCode[r.std]) ? r.std : selFor("Math");
+  const key = pinKey("Math", std);
+  S.boardTaken = { at: r.at, std: std, key: key, prev: S.groupPins[key] ? JSON.parse(JSON.stringify(S.groupPins[key])) : null, undone: false };
+  if (Object.keys(pins).length) S.groupPins[key] = pins;
+  /* the gradebook shows them as the board does: four groups, on that standard */
+  UI.groupCount = 4;
+  if (UI.subject === "Math") UI.groupStd = std;
+  save();
+  publishSuggestions();
+  return true;
+}
+function undoBoardGroups() {
+  const t = S.boardTaken;
+  if (!t || t.undone || !t.key) return;
+  if (t.prev) S.groupPins[t.key] = t.prev; else delete S.groupPins[t.key];
+  t.undone = true;
+  save(); render(); publishSuggestions();
+  toast("Back to the groups from before the board\u2019s");
+}
+function boardTakenNoteHTML(subj, sel) {
+  const t = S.boardTaken;
+  if (!t || t.undone || subj !== "Math" || t.key !== pinKey(subj, sel)) return "";
+  const when = new Date(t.at);
+  return '<div class="card pad" style="margin-top:10px"><div class="row"><span class="hint" style="flex:1">These are the Small Groups board\u2019s groups, sent ' +
+    esc(isNaN(when) ? "" : when.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })) +
+    '. Everyone is pinned where the board put them, so new marks will not move them until you choose <em>Undo my moves</em>.</span>' +
+    '<button class="btn sm" onclick="undoBoardGroups()">Undo</button></div></div>';
+}
+function boardGroupsArrived() {
+  if (!takeBoardGroups()) return;
+  render();
+  toast("Took the board\u2019s groups for " + (S.boardTaken.std === "__all" ? "all math standards" : dispCode(S.boardTaken.std)) + " \u00b7 Undo is on Groups & patterns");
+}
 function renderSkillGroups() {
   const host = document.getElementById("skillgroups");
   if (!host) return;
@@ -1334,6 +1389,7 @@ function renderSkillGroups() {
     '<span class="spacer" style="flex:1"></span>' +
     '<span class="hint" style="max-width:420px">Every mark counts, but the newest counts most. Groups are as even as the roster allows, ordered lowest to highest. Drag a name, or use the arrows, to move anyone on a hunch \u2014 the move sticks.</span>' +
     "</div></div>";
+  h += boardTakenNoteHTML(subj, sel);                       /* v97 */
 
   if (!codes.length) {
     h += '<div class="card empty"><strong>No marks yet</strong>Enter a few scores and the groups build themselves.</div>';
@@ -4237,7 +4293,8 @@ function initSync() {
   window.SuiteSync.onChanged(changed => {
     if (changed.indexOf("gb2_standards_v1") >= 0) { reloadFromStorage(); settleCopies(); render(); }
     if (changed.indexOf(ORF_KEY) >= 0) { pushRosterToOrf(true); if (S.settings.orfAutoLink) syncFromOrf(true); render(); }
-    const others = changed.filter(k => k !== "gb2_standards_v1");
+    if (changed.indexOf(BOARD_KEY) >= 0) boardGroupsArrived();   /* v97 */
+    const others = changed.filter(k => k !== "gb2_standards_v1" && k !== BOARD_KEY);
     if (others.length) toast("Lesson plans and readings updated too \u2014 reopen those tools to see them");
     else if (changed.length) toast("Picked up changes from the synced file");
   });
@@ -5266,6 +5323,12 @@ if (mergeRes) setTimeout(() => toast((mergeRes.count
   : "Took the ELD tag off " + mergeRes.renamed + " name" + (mergeRes.renamed === 1 ? "" : "s")) + " \u2014 see Setup"), 300);
 initAssignmentKeys();
 initSync();
+/* v97: groups the board sent while the gradebook was closed; and, while it
+   is open, ones sent from another tab or arriving by sync */
+setTimeout(boardGroupsArrived, 400);
+window.addEventListener("storage", e => {
+  if (e.key === BOARD_KEY && e.storageArea === window.localStorage) boardGroupsArrived();
+});
 /* v83: a reading saved or corrected in the ORF tool in another tab reaches
    the marks now rather than the next time the gradebook is opened (one
    arriving from the other computer comes through initSync's onChanged) */

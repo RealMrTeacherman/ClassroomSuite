@@ -38,6 +38,7 @@
     "suite:readgroups:v1",  /* reading volunteer groups, per unit, by gradebook student id (groups/) */
     "suite:win:v1",         /* Walk to WIN lists for the grade, and where this class goes (groups/win.js) */
     "suite:suggest:v1",     /* v89: the gradebook's skill groups, offered on the Small Groups board */
+    "suite:boardGroups:v1", /* v97: the math board's groups, sent back for the gradebook to take */
     "suite:district:v1",    /* v88: the planner's district calendar (first, last, grading days), copied for gradebook Setup */
     /* Migration flags have to travel. They are not preferences: they record a
        decision ("Health/SEL was deliberately deleted", "leave Writing on its
