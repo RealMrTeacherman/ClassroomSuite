@@ -42,8 +42,8 @@
     sheet("Add to Home Screen",
       "Tap the Share button (in Safari it may be under \u2022\u2022\u2022), then <b>Add to Home Screen</b>, then <b>Add</b>. " +
       "Add it once. The app keeps its own copy of your data, separate from Safari and from any second icon. " +
-      "If you have been using the suite in Safari on this device, send yourself a backup first " +
-      "(Sync \u2192 Send to my desktop) and load it inside the app (Sync \u2192 Load a backup).",
+      "If you have been using the suite in Safari on this device, send its data first " +
+      "(Sync \u2192 Send) and bring it in inside the app (Sync \u2192 Get the latest).",
       opts);
   }
 
@@ -101,7 +101,19 @@
     '#suitenav .dot.err{background:#B4472F}' +
     '#suitenav::-webkit-scrollbar{display:none}' +
     '@media (max-width:520px){#suitenav .lbl{display:none}#suitenav a{padding:8px 10px}' +
-    '#suitenav a[aria-current="page"] .lbl{display:inline}}' +
+    '#suitenav a[aria-current="page"] .lbl{display:inline}#suitenav .syncbtn .lbl{display:inline}}' +
+    /* v96: on the narrowest phones the Sync label wins the room over the
+       current tool's, which its highlighted icon already shows */
+    '@media (max-width:420px){#suitenav a[aria-current="page"] .lbl{display:none}}' +
+    '#suiteget{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));' +
+    'z-index:2147483001;display:flex;gap:10px;align-items:center;padding:8px 8px 8px 14px;border-radius:12px;' +
+    'background:#14202A;color:#fff;box-shadow:0 2px 10px rgba(16,24,32,.24);width:max-content;max-width:min(520px,calc(100vw - 24px));box-sizing:border-box;' +
+    "font:13.5px/1.4 'IBM Plex Sans','Segoe UI',system-ui,sans-serif}" +
+    '#suiteget span{flex:1 1 auto}' +
+    '#suiteget button{border:0;border-radius:8px;font:inherit;cursor:pointer;min-height:40px}' +
+    '#suiteget .go{background:#10655C;color:#fff;font-weight:600;padding:0 14px;white-space:nowrap}' +
+    '#suiteget .x{background:transparent;color:#9FB2B5;font-size:18px;padding:0 8px}' +
+    '@media print{#suiteget{display:none!important}}' +
     /* A thumb needs more than a 12px glyph. */
     '#suitesheet{position:fixed;right:20px;bottom:calc(72px + env(safe-area-inset-bottom,0px));' +
     'z-index:2147483002;width:min(300px,calc(100vw - 40px));display:flex;flex-direction:column;gap:2px;' +
@@ -163,55 +175,52 @@
       var sep = document.createElement("span"); sep.className = "sep"; nav.appendChild(sep);
       var btn = document.createElement("button");
       btn.type = "button";
+      btn.className = "syncbtn";
       btn.innerHTML = '<span class="dot"></span><b class="lbl">Sync</b>';
       var dot = btn.querySelector(".dot"), lbl = btn.querySelector(".lbl");
-      /* "Synced" is a claim about the past written in the present tense. A
-         token that lapsed on Friday leaves a green dot until something
-         happens to make a request, and a quiet weekend is exactly when two
-         devices drift apart. So the pill reports the age of the last round
-         that actually completed, and goes amber at a day and red at three. */
+      /* v96. It says Sync, whatever the device, so it is always findable.
+         A watching computer: green while rounds complete, amber at a day
+         without one and red at three ("Synced" is a claim about the past,
+         and a quiet weekend is when two devices drift), "Tap to resume"
+         when Chrome wants the folder allowed again. A phone: green once it
+         has sent and nothing has changed since; amber, reading Send, when
+         something has. */
       function paintSync(st, dt) {
         var S = window.SuiteSync;
-        var age = ageOf(S.lastOk);
-        var stale = age !== null && age > 24 * 3600 * 1000;
-        var veryStale = age !== null && age > 72 * 3600 * 1000;
-        var tokenSoon = typeof S.tokenDays === "number" && S.tokenDays !== null && S.tokenDays <= 14;
-        var baseGone = S.baseDurable === false;
-
-        var cls = st === "connected" ? (veryStale ? "err" : (stale || tokenSoon || baseGone) ? "warn" : "ok")
-          : st === "needsPermission" || st === "syncing" ? "warn"
-          : st === "error" ? "err" : "";
-        /* v77: a device that moves its data by hand has no round to report,
-           but it does know whether it has changed since the last file it
-           saved. Only a device that has saved one is ever told. */
+        var cls = "", text = "Sync", t;
         var ex = S.lastExport;
-        var unsent = !S.backend && st !== "error" && st !== "syncing" && ex && ex.dirty;
-        if (unsent) cls = "warn";
-        dot.className = "dot " + cls;
-
-        lbl.textContent = st === "connected" ? (stale ? "Synced " + agoShort(age) : "Synced")
-          : st === "needsPermission" ? "Sign in"
-          : st === "syncing" ? "Syncing" : st === "error" ? "Sync error"
-          : st === "unsupported" ? "Local only" : "Sync";
-        if (unsent) lbl.textContent = "Unsent";
-
-        var t;
-        if (st === "connected") {
-          t = "Synced with " + dt + (age === null ? "" : "\nLast completed " + agoLong(age));
-          if (tokenSoon) {
-            t += S.tokenDays <= 0 ? "\nThe GitHub token has expired."
-              : "\nThe GitHub token expires in " + S.tokenDays + " day" + (S.tokenDays === 1 ? "" : "s") + ".";
+        if (S.backend === "folder") {
+          var age = ageOf(S.lastOk);
+          var stale = age !== null && age > 24 * 3600 * 1000;
+          var veryStale = age !== null && age > 72 * 3600 * 1000;
+          var baseGone = S.baseDurable === false;
+          if (st === "needsPermission") {
+            cls = "warn"; text = "Tap to resume";
+            t = "Chrome needs you to allow the sync folder again. Tap to allow it.";
+          } else if (st === "error") {
+            cls = "err"; text = "Sync error"; t = dt;
+          } else if (st === "syncing") {
+            cls = "warn"; t = "Checking the sync folder";
+          } else {
+            cls = veryStale ? "err" : (stale || baseGone) ? "warn" : "ok";
+            if (stale) text = "Synced " + agoShort(age);
+            t = "Watching " + S.folderName + (age === null ? "" : "\nLast completed " + agoLong(age));
+            if (baseGone) t += "\nThe merge base cannot be saved on this device; edits made elsewhere may be overwritten.";
           }
-          if (baseGone) t += "\nThe merge base cannot be saved on this device; edits made elsewhere may be overwritten.";
+        } else if (ex && ex.dirty) {
+          cls = "warn";
+          if (!S.folderSupported) text = "Send";
+          t = "Changed since you last sent this device\u2019s data " + agoLong(ageOf(ex.at)) + ". Tap to send it.";
+        } else if (ex && ex.at && !S.folderSupported) {
+          cls = "ok";
+          t = "Sent " + agoLong(ageOf(ex.at)) + "; nothing has changed here since.";
         } else {
-          t = st === "needsPermission" ? "Click to allow access again"
-            : st === "syncing" ? "Talking to the other side"
-            : st === "unsupported" ? "Nothing is syncing on this device"
-            : st === "error" ? dt : "Click to set syncing up";
+          t = S.folderSupported ? "Tap to choose the folder your phone saves to" : "Tap to send to your computer, or get its latest";
         }
-        if (unsent) t = "Changed since the sync file you saved " + agoLong(ageOf(ex.at)) + ". Click to save another.";
+        dot.className = "dot " + cls;
+        lbl.textContent = text;
         btn.title = t;
-        btn.setAttribute("aria-label", "Syncing: " + lbl.textContent);
+        btn.setAttribute("aria-label", "Sync: " + (text === "Sync" ? (cls === "ok" ? "up to date" : "menu") : text));
       }
       window.SuiteSync.onState(paintSync);
       /* the age moves on its own even when nothing else does */
@@ -290,19 +299,6 @@
     }, 0);
   }
 
-  /* v77: after a download on a computer, the next step is Drive in the
-     browser. One button that opens it, from the same real tap. */
-  var DRIVE_URL = "https://drive.google.com/drive/my-drive";
-  function afterExport(r) {
-    if (r.how === "cancelled") return;
-    if (r.how === "share") { say("Shared " + r.name + "."); return; }
-    sheet("Saved to Downloads",
-      "<b>" + r.name + "</b> is in your Downloads. Drag it into Google Drive (or email it to yourself). " +
-      "On the other computer, download it and drop it on any page of the suite.",
-      [{ label: "Open Google Drive", hint: "in a new tab", run: function () {
-        window.open(DRIVE_URL, "_blank", "noopener");
-      } }]);
-  }
   function afterImport(changed) {
     var S = window.SuiteSync;
     say(S.describeImport ? S.describeImport(changed) : (changed.length ? "Loaded." : "Nothing in that file was new."));
@@ -311,16 +307,67 @@
   function importFailed(e) {
     if (e && e.message !== "AbortError") say("Could not load that file: " + (e.message || e));
   }
-  function whenSent() {
-    var e = window.SuiteSync.lastExport;
-    if (!e || !e.at) return "";
-    return (e.dirty ? "changed since you last saved one, " : "nothing changed since you saved one ") + agoLong(ageOf(e.at));
-  }
 
-  function backupMenu() {
+  /* ---------- v96: the menus ----------
+     Everything that is not the sync folder, Send, Get or Email is gone:
+     the repository, the Google sign-in, the single connected file, and
+     the separate Save-a-file-and-drag-it-to-Drive flow. */
+
+  /* The computer a phone sends to, named the way that computer names itself
+     on the files it writes ("Mac"), once the phone has brought one in. */
+  function homeName() {
+    var g = window.SuiteSync.lastGet;
+    var n = g && g.fromName ? String(g.fromName) : "";
+    return n && !/^(computer|a device)$/i.test(n) ? n : "";
+  }
+  function sendLabel() { var n = homeName(); return "Send to " + (n || "my computer"); }
+  function getLabel() { var n = homeName(); return "Get the latest from " + (n || "my computer"); }
+
+  function emailOption(S) {
+    return { label: "Email the sync file",
+      hint: S.mailAddress && S.mailAddress() ? "to " + S.mailAddress() : "pick Mail and send it to yourself", run: function () {
+        S.emailFile().then(function (r) {
+          if (r.how === "cancelled") return;
+          say(r.how === "share" ? "Ready. On the other computer, download the attachment and the suite takes it from there."
+            : "Saved " + r.name + ". Attach it to the email that just opened, then send.");
+        }).catch(function (e) { say("Could not email: " + (e.message || e)); });
+      } };
+  }
+  function undoOption(S) {
+    return { label: "Undo the last load", hint: "puts this device back as it was", run: function () {
+      S.undoImport().then(function (changed) {
+        say("Undone. Reloading.");
+        if (changed.length) setTimeout(function () { location.reload(); }, 1000);
+      }).catch(function (e) { say("Could not undo: " + (e.message || e)); });
+    } };
+  }
+  function chooseFolder() {
+    var S = window.SuiteSync;
+    S.connectFolder().then(function (changed) {
+      say("Watching " + S.folderName + ". Anything your phone saves there is merged within seconds.");
+      if (changed && changed.length) setTimeout(function () { location.reload(); }, 1400);
+    }).catch(function (e) { if (e && e.message !== "AbortError") say("Could not use that folder: " + (e.message || e)); });
+  }
+  /* a phone's Send: the share sheet, from this tap. Nothing is awaited
+     before it, or Safari refuses to open it. */
+  function sendNow() {
+    var S = window.SuiteSync;
+    S.exportFile().then(function (r) {
+      if (r.how === "cancelled") return;
+      say(r.how === "share" ? "Sent. Once it is in the sync folder, your computer merges it on its own."
+        : "Saved " + r.name + ". Put it in the sync folder.");
+    }).catch(function (e) { say("Could not send: " + (e.message || e)); });
+  }
+  function getNow() {
+    var S = window.SuiteSync;
+    try { sessionStorage.setItem(GET_ASKED, "1"); } catch (e) { }
+    S.importFile().then(afterImport).catch(importFailed);
+  }
+  function agoOf(iso) { var a = ageOf(iso); return a === null ? "" : agoLong(a); }
+
+  function computerMenu() {
     var S = window.SuiteSync;
     var opts = [];
-
     if (S.backend === "folder") {
       opts.push({ label: "Check the folder now", hint: S.folderName, run: function () {
         S.syncNow().then(function (changed) {
@@ -328,71 +375,81 @@
           if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
         }).catch(function (e) { say("Could not read the folder: " + (e.message || e)); });
       } });
-    } else if (!S.folderSupported && !S.backend) {
-      /* the phone's whole job: hand the file to the desktop's watched folder */
-      opts.push({ label: "Send to my desktop", hint: "share it into the handoff folder", run: function () {
-        S.exportFile().then(function (r) {
-          if (r.how === "cancelled") return;
-          say(r.how === "share" ? "Sent. Drop it in the handoff folder and the desktop takes it from there."
-            : "Saved " + r.name + ". Put it in the handoff folder.");
-        }).catch(function (e) { say("Could not send: " + (e.message || e)); });
-      } });
+    } else {
+      opts.push({ label: "Choose the sync folder", hint: "the folder in iCloud Drive or Google Drive that your phone saves to", run: chooseFolder });
     }
-    if (S.backend === "drive" || S.backend === "github") {
-      var where = S.backend === "drive"
-        ? (S.drive.email || S.drive.fileName + " in your Drive")
-        : S.github.owner + "/" + S.github.repo;
-      opts.push({ label: "Sync now", hint: where, run: function () {
-        S.syncNow().then(function (changed) {
-          var m = S.lastMerge;
-          if (m && m.conflicts) say("Synced. " + m.conflicts + " edited in two places; this device kept.");
-          else say(changed && changed.length ? "Synced \u2014 picked up changes. Reloading." : "Synced \u2014 already up to date.");
-          if (changed && changed.length) setTimeout(function () { location.reload(); }, 1200);
-        }).catch(function (e) { say("Sync failed: " + (e.message || e)); });
-      } });
-    }
-
-    /* A computer with nothing live: moving a file by hand is the sync, so it
-       comes first and says where the file goes next. */
-    var byHand = S.folderSupported && !S.backend;
-    if (!(!S.folderSupported && !S.backend)) opts.push({
-      label: byHand ? "Save a sync file" : "Save a backup",
-      hint: byHand ? (whenSent() || "to Downloads, then drag it into Google Drive") : "share it to Drive, Files or another device",
-      run: function () {
-        S.exportFile().then(afterExport).catch(function (e) { say("Could not save: " + (e.message || e)); });
-      } });
-    /* v95: the file, attached to an email, for a computer with no live sync */
-    if (S.emailFile) opts.push({ label: "Email the sync file",
-      hint: S.mailAddress && S.mailAddress() ? "to " + S.mailAddress() : "pick Mail and send it to yourself", run: function () {
-        S.emailFile().then(function (r) {
-          if (r.how === "cancelled") return;
-          say(r.how === "share" ? "Ready. On the other computer, download the attachment and the suite takes it from there."
-            : "Saved " + r.name + ". Attach it to the email that just opened, then send.");
-        }).catch(function (e) { say("Could not email: " + (e.message || e)); });
-      } });
-    opts.push({ label: "Load a backup", hint: "merges it in; nothing here is lost" + (S.folderSupported ? " (or drop the file on any page)" : ""), run: function () {
+    opts.push(emailOption(S));
+    opts.push({ label: "Load a sync file", hint: "merges it in; nothing here is lost (or drop it on any page)", run: function () {
       S.importFile().then(afterImport).catch(importFailed);
     } });
-    if (S.canUndoImport) opts.push({ label: "Undo the last load", hint: "puts this device back as it was", run: function () {
-      S.undoImport().then(function (changed) {
-        say("Undone. Reloading.");
-        if (changed.length) setTimeout(function () { location.reload(); }, 1000);
-      }).catch(function (e) { say("Could not undo: " + (e.message || e)); });
-    } });
-    if (!S.backend && S.folderSupported) {
-      opts.push({ label: "Set up syncing", hint: "watch a handoff folder", run: function () {
-        /* the form lives in the gradebook's Setup tab; all three tools share
-           one origin, so setting it up there sets it up for all of them */
-        location.href = base() + "gradebook/#setup";
-      } });
-    }
-
-    sheet(S.backend ? "Syncing" : "Move data between devices",
-      S.backend === "drive" ? "Every device signed in to the same Google account stays in step."
-        : S.backend === "github" ? "Every device set up with the repository stays in step."
-        : byHand ? "Nothing live here, so a file carries it: save one, put it in Drive, load it on the other computer."
-        : "Nothing is syncing on this device yet.",
+    if (S.canUndoImport) opts.push(undoOption(S));
+    sheet("Sync",
+      S.backend === "folder" ? "Watching <b>" + S.folderName + "</b>. Anything your phone saves there is merged within seconds, and the folder always holds a current classroom.json for it."
+        : "Choose the folder your phone saves to, and this computer keeps it in step on its own while any tool is open.",
       opts);
+  }
+
+  function phoneMenu() {
+    var S = window.SuiteSync;
+    var ex = S.lastExport, g = S.lastGet;
+    var opts = [];
+    opts.push({ label: sendLabel(),
+      hint: ex && ex.at ? (ex.dirty ? "changed since you last sent, " : "nothing new since you sent, ") + agoOf(ex.at)
+        : "Save to Files, into the sync folder",
+      run: sendNow });
+    opts.push({ label: getLabel(),
+      hint: g && g.at ? "last brought in " + agoOf(g.at) + "; pick classroom.json" : "pick classroom.json in the sync folder; it merges",
+      run: getNow });
+    opts.push(emailOption(S));
+    if (S.canUndoImport) opts.push(undoOption(S));
+    sheet("Sync", "Send after you change something here. Get when you start, to bring in what your computer has.", opts);
+  }
+
+  /* ---------- v96: a phone, opened, is offered the computer's latest ----------
+     A page on iOS cannot open the file picker on its own, only from a tap,
+     so this is the nearest thing to syncing on opening: one tap, offered
+     once per time the app is opened, and only on a phone that has brought
+     in a computer's file before and has not done so for a while. */
+  var GET_ASKED = "suite:getAsked";
+  var GET_AFTER_MS = 8 * 3600 * 1000;
+  function offerGet() {
+    var S = window.SuiteSync;
+    if (!S || S.folderSupported || document.getElementById("suiteget")) return;
+    var g = S.lastGet;
+    if (!g || !g.at) return;                       /* never synced this way: nothing to remind */
+    var age = ageOf(g.at);
+    if (age !== null && age < GET_AFTER_MS) return;
+    try { if (sessionStorage.getItem(GET_ASKED)) return; sessionStorage.setItem(GET_ASKED, "1"); } catch (e) { }
+    var box = document.createElement("div");
+    box.id = "suiteget";
+    box.setAttribute("role", "status");
+    var t = document.createElement("span");
+    t.textContent = "Bring in the latest from " + (homeName() || "your computer") + "?";
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "go"; go.textContent = "Get it";
+    go.onclick = function () { box.remove(); getNow(); };
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "x"; x.textContent = "\u00d7"; x.setAttribute("aria-label", "Not now");
+    x.onclick = function () { box.remove(); };
+    box.appendChild(t); box.appendChild(go); box.appendChild(x);
+    document.body.appendChild(box);
+  }
+
+  /* ---------- v96: told once that the old route has gone ---------- */
+  var ROUTE_NAMES = { github: "the GitHub repository", drive: "the Google Drive sign-in", file: "a connected file" };
+  function tellRetired() {
+    var S = window.SuiteSync;
+    var r = S && S.retired;
+    if (!r || !r.length) return false;
+    S.retiredTold();
+    var names = r.map(function (k) { return ROUTE_NAMES[k] || k; }).join(" and ");
+    sheet("Sync is simpler now",
+      "This device was syncing through " + names + ". That way of syncing has been removed, and everything on this device is still here. " +
+      (S.folderSupported ? "To keep it in step, choose the folder your phone saves to."
+        : "To keep it in step, use Send and Get on the Sync button."),
+      S.folderSupported ? [{ label: "Choose the sync folder", hint: "in iCloud Drive or Google Drive", run: chooseFolder }]
+        : [{ label: "Open the Sync menu", run: phoneMenu }]);
+    return true;
   }
 
   /* ---------- drop a sync file anywhere (v77) ----------
@@ -531,17 +588,8 @@
   function syncMenu() {
     var S = window.SuiteSync;
     if (!S) return;
-    if (S.backend === "drive" && S.state === "needsPermission") {
-      S.signInDrive().then(function () { say("Signed in \u2014 syncing again."); })
-        .catch(function (e) { say("Could not sign in: " + (e.message || e)); });
-      return;
-    }
-    /* v77: up to v76 only a browser without the file API (Safari, a phone)
-       reached the menu below. Desktop Chrome with nothing connected got the
-       old fixed-file chooser instead, and with a watched folder connected it
-       got the fixed file's sheet: its "Stop syncing" disconnected a file that
-       was not connected, and allowing the folder again did nothing. Only the
-       fixed file itself still uses the sheet further down. */
+    /* Chrome asks again for the folder in a new session; the tap on the
+       pill is the permission prompt's user gesture */
     if (S.backend === "folder" && S.state === "needsPermission") {
       S.allowFolder().then(function (changed) {
         say(S.state === "connected" ? "Folder allowed \u2014 watching it again." : "The folder was not allowed.");
@@ -549,39 +597,7 @@
       }).catch(function (e) { say("Could not allow the folder: " + (e.message || e)); });
       return;
     }
-    if (!S.supported || S.backend !== "file") { backupMenu(); return; }
-    if (S.state === "needsPermission") {
-      S.ensurePermission().then(function (ok) {
-        if (ok) S.pull(false).then(function () { say("Reconnected."); });
-      });
-      return;
-    }
-    /* These two were the last confirm() calls left in the switcher, and both
-       had the destructive answer on Cancel: dismissing the first one — or
-       pressing Escape, or clicking away — disconnected the sync, and
-       dismissing the second created a file rather than doing nothing. The
-       sheet already used everywhere else makes each choice a button that
-       says what it does, and leaves Cancel meaning cancel. */
-    if (S.state === "connected") {
-      sheet("Synced with " + S.fileName, "All three tools write to that file.", [
-        { label: "Write now", hint: "save this device's data to the file", run: function () {
-          S.push(true).then(function () { say("Written to " + S.fileName + "."); });
-        } },
-        { label: "Stop syncing this device", hint: "the data stays in this browser", run: function () {
-          S.disconnect().then(function () { say("Disconnected. Still saving in this browser."); });
-        } }
-      ]);
-      return;
-    }
-    sheet("Connect a shared file", "All three tools read and write one file. Put it in your Drive folder and Drive keeps it in step across machines.", [
-      { label: "Open an existing file", hint: "one this suite already wrote", run: function () { doConnect(true); } },
-      { label: "Create a new file", hint: "start one from this device's data", run: function () { doConnect(false); } }
-    ]);
-  }
-  function doConnect(existing) {
-    var S = window.SuiteSync;
-    S.connect(existing).then(function () { say("Connected. Everything is written to that file from now on."); })
-      .catch(function (e) { if (e && e.name !== "AbortError") say("Could not connect: " + (e.message || e)); });
+    if (S.folderSupported) computerMenu(); else phoneMenu();
   }
   /* A tab row that scrolls sideways on a phone gave no sign that there was
      more: the gradebook's showed "F" of Fluency and nothing else, and the
@@ -615,7 +631,12 @@
       update();
     });
   }
-  function start() { build(); watchForUpdate(); tabRows(); tuckOnScroll(); dropToLoad(); }
+  function start() {
+    build(); watchForUpdate(); tabRows(); tuckOnScroll(); dropToLoad();
+    /* after the page's own boot has had a moment: the notice first, if any;
+       otherwise, on a phone, the offer to get the computer's latest */
+    if (window.SuiteSync) setTimeout(function () { if (!tellRetired()) offerGet(); }, 700);
+  }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

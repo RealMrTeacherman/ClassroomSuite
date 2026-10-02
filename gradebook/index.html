@@ -822,7 +822,7 @@ document.querySelectorAll("#subjswitch button").forEach(b => {
 const _sf = document.getElementById("syncflag");
 if (_sf) _sf.addEventListener("click", () => {
   const st = syncState_();
-  if (st === "needsPermission") SuiteSync.ensurePermission().then(ok => { if (ok) SuiteSync.pull(false).then(() => { reloadFromStorage(); render(); }); });
+  if (st === "needsPermission") allowFolder();
   else if (st === "off" || st === "unsupported") gotoTab("setup");
 });
 /* The corner switcher sends every tool here to set syncing up, since the
@@ -2124,12 +2124,6 @@ function paintHealth() {
         : mins < 1440 ? Math.floor(mins / 60) + " hours ago" : Math.floor(mins / 1440) + " days ago";
       rows.push("Last completed sync: " + when + (mins > 1440 ? " \u2014 worth checking" : ""));
     }
-    const days = S_.tokenDays;
-    if (typeof days === "number") {
-      if (days <= 0) rows.push('<b style="color:var(--s1)">The GitHub token has expired.</b> Generate a new fine-grained token and reconnect above.');
-      else if (days <= 14) rows.push('<b style="color:var(--s2)">The GitHub token expires in ' + days + " day" + (days === 1 ? "" : "s") + ".</b> Generate a new one before it does, or syncing simply stops.");
-      else rows.push("GitHub token expires in " + days + " days.");
-    }
   }
 
   if (navigator.storage && navigator.storage.estimate) {
@@ -2390,7 +2384,7 @@ function suiteBackup() {
   if (!window.SuiteSync) return toast("Sync module did not load");
   window.SuiteSync.exportFile().then(r => {
     if (r.how === "cancelled") return;
-    toast(r.how === "share" ? "Shared " + r.name : "Saved " + r.name + " to Downloads");
+    toast(r.how === "share" ? "Sent " + r.name + ". Once it is in the sync folder, your computer merges it." : "Saved " + r.name + " to Downloads");
     if (UI.tab === "setup") renderSetup();
   }).catch(e => toast("Could not save: " + (e.message || e)));
 }
@@ -2422,27 +2416,6 @@ function suiteUndoLoad() {
     reloadFromStorage(); render();
     toast(changed.length ? "Undone: back to how this device was before the load" : "Nothing to undo");
   }).catch(e => toast("Could not undo: " + (e.message || e)));
-}
-function openDrive() { window.open("https://drive.google.com/drive/my-drive", "_blank", "noopener"); }
-/* the by-hand card: save a file, carry it through Drive in the browser, drop
-   it on the other computer. Works with nothing installed. */
-function byHandHTML(heading) {
-  const SS = window.SuiteSync;
-  const ex = SS.lastExport, li = SS.lastImport;
-  let status = "";
-  if (ex && ex.at) status += (ex.dirty ? '<strong style="color:var(--warn)">Changed since</strong> the sync file you saved ' : "Nothing has changed since the sync file you saved ") +
-    esc(new Date(ex.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })) + ". ";
-  if (li && !li.stale && !li.same && li.changed && li.changed.length) status += "Last loaded: a file from " + esc(li.own ? "this device" : li.fromName || "another device") +
-    (li.conflicts ? ", " + li.conflicts + " edited in both places" : "") + ".";
-  return (heading ? '<h3 style="margin-top:14px">' + heading + ' <span class="tag on" style="margin-left:6px">nothing to install</span></h3>' : "") +
-    '<p class="hint">Save a sync file here and drag it into Google Drive in your browser. On the other computer, download it and <strong>drop it on any page of the suite</strong> (or use Load a sync file). ' +
-    "It merges: what either computer added is kept, a mark changed or deleted on one comes across, and a file older than one already loaded is refused. Every load can be undone.</p>" +
-    (status ? '<p class="hint">' + status + "</p>" : "") +
-    '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Save a sync file</button>' +
-    '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
-    '<button class="btn" onclick="openDrive()">Open Google Drive</button>' +
-    (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
-    '<span style="flex:1"></span><button class="btn" onclick="suiteReplace()" title="Restore a backup: the file replaces what is here">Replace with a file\u2026</button></div>';
 }
 function wipe() {
   if (!confirm("This erases the roster, every mark, and all imported data. Continue?")) return;
@@ -4082,7 +4055,7 @@ function paintSyncFlag(st, dt) {
     off: "Saved on this device",
     syncing: "Syncing\u2026",
     connected: "Synced \u00b7 " + (dt || "connected"),
-    needsPermission: "Tap to reconnect the file",
+    needsPermission: "Tap to allow the sync folder",
     error: "Sync problem \u00b7 " + dt,
     unsupported: "Saved on this device"
   }[st] || "";
@@ -4094,24 +4067,11 @@ function paintSyncFlag(st, dt) {
   el.style.cursor = (st === "needsPermission" || st === "off") ? "pointer" : "default";
 }
 
-function connectSyncFile(openExisting) {
-  if (!window.SuiteSync || !window.SuiteSync.supported) {
-    toast("This browser cannot connect to a file \u2014 use Chrome or Edge on a computer"); return;
-  }
-  window.SuiteSync.connect(openExisting).then(changed => {
-    if (changed && changed.indexOf("gb2_standards_v1") >= 0) reloadFromStorage();
-    renderSetup();
-    toast(openExisting ? "Connected \u2014 data loaded from the file" : "Connected \u2014 data written to the file");
-  }).catch(e => { if (e && e.name !== "AbortError") { renderSetup(); toast("Could not connect"); } });
-}
-function disconnectSyncFile() {
-  window.SuiteSync.disconnect().then(() => { renderSetup(); toast("Disconnected \u2014 still saving in this browser"); });
-}
 function connectFolder() {
   window.SuiteSync.connectFolder().then(changed => {
     if (changed && changed.indexOf(KEY) >= 0) { reloadFromStorage(); render(); }
     renderSetup();
-    toast("Watching that folder \u2014 drops from your phone land here on their own");
+    toast("Watching that folder \u2014 what your phone saves there lands here on its own");
   }).catch(e => {
     if (e && e.message === "AbortError") return;
     renderSetup(); alert("Could not watch that folder: " + (e.message || e));
@@ -4125,55 +4085,6 @@ function allowFolder() {
     if (changed && changed.indexOf(KEY) >= 0) { reloadFromStorage(); render(); }
     renderSetup(); toast("Folder allowed");
   });
-}
-function connectDrive() {
-  const v = id => (document.getElementById(id) || {}).value || "";
-  const clientId = v("gd-client").trim();
-  if (!clientId) { toast("The OAuth client ID is needed"); return; }
-  toast("Opening Google sign-in\u2026");
-  window.SuiteSync.connectDrive({ clientId: clientId, fileName: v("gd-file") || "classroom.json" })
-    .then(changed => {
-      if (changed && changed.indexOf(KEY) >= 0) { reloadFromStorage(); render(); }
-      renderSetup();
-      toast("Connected \u2014 this device is now in step with your Drive");
-    }).catch(e => { renderSetup(); alert("Could not connect: " + (e.message || e)); });
-}
-function signInDrive() {
-  toast("Opening Google sign-in\u2026");
-  window.SuiteSync.signInDrive().then(changed => {
-    if (changed && changed.indexOf(KEY) >= 0) { reloadFromStorage(); render(); }
-    renderSetup();
-    toast("Signed in \u2014 syncing again");
-  }).catch(e => { renderSetup(); toast("Could not sign in: " + (e.message || e)); });
-}
-function disconnectDrive() {
-  if (!confirm("Stop syncing with Google Drive on this device?\n\nThe file in your Drive is left alone, and everything stays saved on this device.")) return;
-  window.SuiteSync.disconnectDrive().then(() => { renderSetup(); toast("Disconnected \u2014 still saving on this device"); });
-}
-function connectGitHub() {
-  const v = id => (document.getElementById(id) || {}).value || "";
-  const cfg = {
-    owner: v("gh-owner"), repo: v("gh-repo"),
-    path: v("gh-path") || "classroom.json", branch: v("gh-branch") || "main",
-    token: v("gh-token")
-  };
-  if (!cfg.owner || !cfg.repo || !cfg.token) { toast("Owner, repository and token are all needed"); return; }
-  const dev = v("gh-device");
-  if (dev) window.SuiteSync.setDevice(dev);
-  toast("Connecting\u2026");
-  window.SuiteSync.connectGitHub(cfg).then(changed => {
-    if (changed && changed.indexOf(KEY) >= 0) { reloadFromStorage(); render(); }
-    renderSetup();
-    toast("Connected \u2014 this device is now in step with the repository");
-  }).catch(e => {
-    renderSetup();
-    /* alert rather than a toast: these need reading, not glancing at */
-    alert("Could not connect: " + (e.message || e));
-  });
-}
-function disconnectGitHub() {
-  if (!confirm("Stop syncing with the repository on this device?\n\nNothing already in the repo is touched, and everything stays saved on this device.")) return;
-  window.SuiteSync.disconnectGitHub().then(() => { renderSetup(); toast("Disconnected \u2014 still saving on this device"); });
 }
 function syncNow() {
   toast("Syncing\u2026");
@@ -4245,172 +4156,72 @@ function syncCardHTML() {
   const SS = window.SuiteSync;
   let h = '<div class="card pad"><h2>Sync</h2>';
   if (!SS) return h + '<p class="hint">The sync module did not load.</p></div>';
-  const counts = 'One file covers all three tools: this gradebook, ' + plannerDayCount() +
+  const counts = 'One sync covers every tool: this gradebook, ' + plannerDayCount() +
     " saved lesson-plan days and " + orfReadingCount() + " running records.";
+  /* v96: the routes are the sync folder (a computer), Send and Get (a
+     phone) and Email (v95, its own card below). Restore stays, quietly:
+     it is a backup's way back, not a sync. */
+  const loadBtns = '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
+    (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
+    '<span style="flex:1"></span><button class="btn" onclick="suiteReplace()" title="Restore a backup: the file replaces what is here">Replace with a file\u2026</button>';
 
-  /* ---- a watched folder: the phone drops a file in, this picks it up ---- */
+  /* ---- a computer watching the sync folder ---- */
   if (SS.backend === "folder") {
     if (SS.state === "needsPermission") {
-      h += '<p class="small" style="margin-top:4px;color:var(--warn)">Chrome needs you to allow the handoff folder again. It asks once per session.</p>' +
+      h += '<p class="small" style="margin-top:4px;color:var(--warn)">Chrome needs you to allow the sync folder again. It asks once per session; recent versions offer to allow it on every visit.</p>' +
         '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="allowFolder()">Allow the folder</button>' +
         '<span style="flex:1"></span><button class="btn danger" onclick="disconnectFolder()">Stop watching</button></div>';
       return h + "</div>";
     }
     const p = SS.lastPickup;
-    h += '<p class="small" style="margin-top:4px">Watching <strong>' + esc(SS.folderName) + '</strong> for anything your phone drops in. Checked every few seconds; nothing to press here.</p>' +
-      '<p class="hint">On the phone: tap the sync button, <strong>Send to my desktop</strong>, then share it into this folder. It is merged and the dropped file is tidied away.</p>' +
-      '<p class="hint">Another computer can watch this same folder too (a school PC through Google Drive for Desktop, say). Each computer writes a file only it writes, so neither can overwrite the other\u2019s work. ' +
-      (SS.otherComputers ? "Other computers seen here: <strong>" + SS.otherComputers + "</strong>. " : "") +
-      'This one writes <code class="std">' + esc(SS.folderFile) + '</code>; <code class="std">classroom.json</code> is the up-to-date copy a phone loads.</p>' +
+    h += '<p class="small" style="margin-top:4px">Watching <strong>' + esc(SS.folderName) + '</strong>. Anything your phone saves there is merged within a few seconds while any tool is open; nothing to press here.</p>' +
+      '<p class="hint">On the phone: <strong>Sync \u2192 Send</strong>, then Save to Files, into this folder. To take this computer\u2019s work to the phone: <strong>Sync \u2192 Get the latest</strong>, and pick <code class="std">classroom.json</code>, which this computer keeps current here.</p>' +
+      (SS.otherComputers ? '<p class="hint">Other computers watching this folder: <strong>' + SS.otherComputers + "</strong>. Each writes a file only it writes, so neither can overwrite the other\u2019s work.</p>" : "") +
       '<p class="hint">' + counts + '</p>' +
       (p ? '<p class="hint">Last pickup: ' + p.count + " file" + (p.count === 1 ? "" : "s") + " at " + esc(new Date(p.at).toLocaleTimeString()) + ".</p>" : "") +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Check now</button>' +
-      '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
-      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
-      '<span style="flex:1"></span><button class="btn danger" onclick="disconnectFolder()">Stop watching</button></div>';
+      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Check now</button>' + loadBtns +
+      '<button class="btn danger" onclick="disconnectFolder()">Stop watching</button></div>';
     if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">' + esc(SS.detail) + "</p>";
     return h + "</div>";
   }
 
-  /* ---- Google Drive: the file sits in the teacher's own Drive ---- */
-  if (SS.backend === "drive") {
-    const d = SS.drive;
-    if (SS.state === "needsPermission") {
-      h += '<p class="small" style="margin-top:4px">Google needs you to sign in again on this device. Nothing is lost \u2014 everything is still saved here, and it will catch up as soon as you do.</p>' +
-        '<p class="hint">Safari drops the Google session on its own schedule, so expect this now and then. It is one tap.</p>' +
-        '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="signInDrive()">Sign in to Google</button>' +
-        '<span style="flex:1"></span><button class="btn danger" onclick="disconnectDrive()">Disconnect</button></div>';
-      return h + "</div>";
-    }
-    h += '<p class="small" style="margin-top:4px">Syncing with <strong>' + esc(d.fileName) + '</strong> in your Google Drive.</p>' +
-      (d.email
-        ? '<p class="small">Signed in as <strong>' + esc(d.email) + "</strong>. " +
-          (/\.(k12\.[a-z]{2}|edu)\.?/.test(d.email) || /\.k12\./.test(d.email)
-            ? "That looks like a district account, which is the one to use."
-            : "If that is a personal account rather than your district one, disconnect and sign in again with the district account \u2014 that is the whole point of choosing Drive.") + "</p>"
-        : "") +
-      '<p class="hint">Every device signed in to the same Google account stays in step, phones included. The file is an ordinary one in your Drive \u2014 you can see it, download it, and Drive keeps its own version history. This app can only see that one file, not the rest of your Drive.</p>' +
-      '<p class="hint">' + counts + '</p>' +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Sync now</button>' +
-      '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
-      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
-      '<span style="flex:1"></span><button class="btn danger" onclick="disconnectDrive()">Disconnect</button></div>';
-    if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">Last attempt failed \u2014 ' + esc(SS.detail) + "</p>";
-    return h + "</div>";
-  }
-
-  /* ---- a private GitHub repo ---- */
-  if (SS.backend === "github") {
-    const g = SS.github;
-    h += '<p class="small" style="margin-top:4px">Syncing with <strong>' + esc(g.owner + "/" + g.repo) +
-      '</strong> \u00b7 <code class="std">' + esc(g.path) + "</code></p>" +
-      '<p class="hint">Every device set up with this repo stays in step, phones included. Each write is a commit, so the repository\u2019s history is a running backup you can recover from. Commits from here are labelled <strong>' + esc(SS.device) + "</strong>.</p>" +
-      '<p class="hint">' + counts + "</p>" +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="syncNow()">Sync now</button>' +
-      '<button class="btn" onclick="suiteBackup()">Save a backup file</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a sync file</button>' +
-      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
-      '<span style="flex:1"></span><button class="btn danger" onclick="disconnectGitHub()">Disconnect</button></div>';
-    if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">Last attempt failed \u2014 ' + esc(SS.detail) + "</p>";
-    return h + "</div>";
-  }
-
-  /* ---- a connected file: desktop Chrome and Edge only ---- */
-  if (SS.backend === "file") {
-    h += '<p class="small" style="margin-top:4px">Connected to <strong>' + esc(SS.fileName) + "</strong>. Changes are written there, and changes made on another machine are picked up within about twenty seconds.</p>" +
-      '<p class="hint">' + counts + " Whichever tool is open keeps the file current.</p>" +
-      '<div class="row" style="margin-top:10px"><button class="btn" onclick="syncNow()">Sync now</button>' +
-      '<span style="flex:1"></span><button class="btn danger" onclick="disconnectSyncFile()">Disconnect</button></div>';
-    return h + "</div>";
-  }
-
-  if (SS.state === "needsPermission") {
-    h += '<p class="small" style="margin-top:4px;color:var(--warn)">The file is remembered but this browser needs you to allow access again.</p>' +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="SuiteSync.ensurePermission().then(ok=>{if(ok)SuiteSync.pull(false).then(()=>{reloadFromStorage();render();toast(\'Reconnected\')})})">Reconnect</button>' +
-      '<button class="btn" onclick="disconnectSyncFile()">Forget it</button></div>';
-    return h + "</div>";
-  }
-
-  /* ---- nothing connected: offer the repo first, since it works everywhere ---- */
-  h += '<p class="hint">Nothing is syncing. Everything saves on this device as you work.</p>';
-
+  /* ---- a computer not watching yet ---- */
   if (SS.folderSupported) {
-    h += '<h3 style="margin-top:14px">Watch a handoff folder <span class="tag on" style="margin-left:6px">recommended</span></h3>' +
-      '<p class="hint">Pick a folder inside your Google Drive folder on this computer. This watches it, and anything your phone drops in gets merged within a few seconds. Nothing to press at this end.</p>' +
-      '<p class="hint" style="margin-top:6px">No API, no sign-in and no OAuth client, so there is nothing for an administrator to block. Drive is only moving a file, which is what it already does.</p>' +
-      '<details style="margin-top:8px"><summary class="small" style="cursor:pointer">The picker is not showing my Google Drive</summary>' +
-      '<p class="hint" style="margin-top:6px">The picker shows folders on this computer. Drive appears among them only if <strong>Google Drive for Desktop</strong> is installed and signed in \u2014 that is the thing that makes Drive look like an ordinary folder. Where to find it:</p>' +
+    h += '<p class="hint">Nothing is syncing yet. Everything saves on this computer as you work.</p>' +
+      '<h3 style="margin-top:14px">Watch a sync folder</h3>' +
+      '<p class="hint">Choose a folder this computer and your phone can both reach: one in <strong>iCloud Drive</strong>, or in <strong>Google Drive</strong> with Google Drive for desktop installed. While any tool is open, this computer merges whatever your phone saves there within seconds, and keeps a current <code class="std">classroom.json</code> there for your phone to get.</p>' +
+      '<details style="margin-top:8px"><summary class="small" style="cursor:pointer">Finding the folder, and keeping it reliable</summary>' +
       '<ul class="hint" style="margin:6px 0 0 18px">' +
-      '<li><strong>Windows:</strong> a drive letter under This PC, usually <code class="std">G:\\My Drive</code>.</li>' +
-      '<li><strong>Mac:</strong> <em>Google Drive</em> in the Finder sidebar of the picker. Its real path is inside <code class="std">~/Library</code>, which Finder hides by default \u2014 use the sidebar shortcut, or press \u2318 \u21e7 . to unhide it.</li>' +
-      '<li><strong>Chromebook:</strong> Google Drive is in the picker\u2019s sidebar already, with nothing to install.</li>' +
-      "</ul>" +
-      '<p class="hint" style="margin-top:8px">If Drive for Desktop is not installed and you cannot install it, <strong>use your Downloads folder instead</strong>. Send from the phone to Drive as usual, then open Drive in a browser here and download the file: it lands in Downloads, and this picks it up and tidies it away within seconds. One click rather than none, and nothing to install.</p>' +
-      '<p class="hint" style="margin-top:6px">Any folder both machines can reach works the same way \u2014 OneDrive, Dropbox, a network share, a USB stick. Nothing here is specific to Drive.</p></details>' +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectFolder()">Choose a folder</button>' +
-      '<span class="hint">Chrome or Edge on a computer. Your phone does not need this \u2014 it just shares a file in.</span></div>' +
-      '<div class="divider"></div>';
-    /* v77: where Drive for Desktop is not allowed, this is the sync */
-    h += byHandHTML("Or move a file by hand") + '<div class="divider"></div>';
-  } else {
-    h += '<h3 style="margin-top:14px">Send to your desktop <span class="tag on" style="margin-left:6px">recommended</span></h3>' +
-      '<p class="hint">If your computer is watching a handoff folder, this is the whole job: tap below, then share it into that folder. It is merged at the other end on its own, usually before you sit down.</p>' +
-      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Send to my desktop</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a backup</button>' +
-      (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") + '</div>' +
-      '<p class="hint" style="margin-top:6px">Loading merges the file in; nothing on this device is lost, and it can be undone.</p>' +
-      '<div class="divider"></div>';
+      '<li><strong>iCloud Drive on a Mac:</strong> in the picker\u2019s sidebar. On the phone it is iCloud Drive in Files.</li>' +
+      '<li><strong>Google Drive for desktop:</strong> <em>Google Drive</em> in the sidebar on a Mac, a drive letter such as <code class="std">G:\\My Drive</code> on Windows. On the phone, the Google Drive app adds it to Files.</li>' +
+      '<li><strong>Keep the folder downloaded.</strong> With \u201coptimize storage\u201d on, the computer may keep only a placeholder of a file until it is opened. In Finder, right-click the folder and choose Keep Downloaded (or turn off Optimize Mac Storage for iCloud Drive).</li>' +
+      '<li><strong>A computer that receives the emailed file</strong> can watch its Downloads folder: a downloaded attachment is merged on its own.</li>' +
+      "</ul></details>" +
+      '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectFolder()">Choose a folder</button>' + loadBtns + '</div>' +
+      '<p class="hint" style="margin-top:6px">Chrome or Edge on a computer. Safari cannot watch a folder.</p>';
+    if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">' + esc(SS.detail) + "</p>";
+    return h + "</div>";
   }
 
-  h += '<h3>Your Google Drive <span class="tag" style="margin-left:6px">needs an admin to allow it</span></h3>' +
-    '<p class="hint">Works on every device including an iPhone or iPad. If you sign in with your <strong>district Google account</strong>, the file sits in the same Drive the district already manages, rather than with a company the district has no agreement with. That is the reason to prefer this one.</p>' +
-    '<p class="hint" style="margin-top:6px">It needs an OAuth client ID, made once at <strong>console.cloud.google.com</strong>: new project \u2192 APIs and services \u2192 Enable the Google Drive API \u2192 Credentials \u2192 Create credentials \u2192 OAuth client ID \u2192 Web application. Add <code class="std">' + esc(location.origin) + '</code> under Authorised JavaScript origins. Paste the client ID below. It is not a secret and is safe in a public repo.</p>' +
-    '<div class="row" style="margin-top:10px">' +
-    '<label class="fld" style="flex:1;min-width:250px">OAuth client ID<input type="text" id="gd-client" placeholder="1234567890-abc.apps.googleusercontent.com" autocapitalize="off" autocorrect="off" spellcheck="false"></label>' +
-    '<label class="fld">File name<input type="text" id="gd-file" value="classroom.json" autocapitalize="off" autocorrect="off" spellcheck="false" style="min-width:150px"></label>' +
-    "</div>" +
-    '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectDrive()">Connect Google Drive</button>' +
-    '<span class="hint">Asks only for access to the one file it creates. Nothing else in your Drive is visible to it.</span></div>' +
-    '<div class="divider"></div>' +
-    '<h3>A private GitHub repository</h3>' +
-    '<p class="hint">Also works everywhere, and gives you a commit history you can recover from. Worth knowing before you pick it: student data would sit with GitHub, who have no agreement with your district, where Drive under your district account is already covered. Ask whoever handles student privacy if you are unsure. The repository <strong>must be private</strong> either way \u2014 this refuses a public one.</p>' +
-    '<p class="hint" style="margin-top:6px">Make a token at <strong>github.com \u2192 Settings \u2192 Developer settings \u2192 Personal access tokens \u2192 Fine-grained tokens</strong>. Give it that one repository, and the single permission <strong>Contents: Read and write</strong>. Nothing else.</p>' +
-    '<div class="row" style="margin-top:10px">' +
-    '<label class="fld">Owner<input type="text" id="gh-owner" placeholder="your-username" autocapitalize="off" autocorrect="off" spellcheck="false" style="min-width:170px"></label>' +
-    '<label class="fld">Repository<input type="text" id="gh-repo" placeholder="classroom-data" autocapitalize="off" autocorrect="off" spellcheck="false" style="min-width:160px"></label>' +
-    '<label class="fld">File<input type="text" id="gh-path" value="classroom.json" autocapitalize="off" autocorrect="off" spellcheck="false" style="min-width:140px"></label>' +
-    '<label class="fld">Branch<input type="text" id="gh-branch" value="main" autocapitalize="off" autocorrect="off" spellcheck="false" style="min-width:90px"></label>' +
-    "</div>" +
-    '<div class="row" style="margin-top:8px">' +
-    '<label class="fld" style="flex:1;min-width:230px">Token<input type="password" id="gh-token" placeholder="github_pat_..." autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>' +
-    '<label class="fld">Name this device<input type="text" id="gh-device" value="' + esc(SS.device) + '" style="min-width:150px"></label>' +
-    "</div>" +
-    '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="connectGitHub()">Connect</button>' +
-    '<span class="hint">The token stays on this device. It is never written into the synced file.</span></div>';
-
-  if (SS.supported) {
-    h += '<div class="divider"></div><h3>Or one fixed file</h3>' +
-      '<p class="hint">The older way: point at a single JSON file rather than a folder. Works the same across computers, but a phone cannot drop into it \u2014 prefer the folder above.</p>' +
-      '<div class="row" style="margin-top:10px"><button class="btn" onclick="connectSyncFile(false)">Create a new file</button>' +
-      '<button class="btn" onclick="connectSyncFile(true)">Open an existing one</button></div>';
-  } else {
-    h += '<div class="divider"></div><h3>Or move a backup by hand</h3>' +
-      '<p class="hint">This browser cannot hold a live link to a file. Safari has no way to do it, and on an iPhone or iPad no browser does, because they all run Safari\u2019s engine underneath.</p>' +
-      '<div class="row" style="margin-top:10px"><button class="btn" onclick="suiteBackup()">Save a backup of all three tools</button>' +
-      '<button class="btn" onclick="suiteRestore()">Load a backup</button></div>';
-  }
-  if (SS.state === "error") h += '<p class="hint" style="color:var(--s1);margin-top:8px">' + esc(SS.detail) + "</p>";
+  /* ---- a phone or iPad ---- */
+  const ex = SS.lastExport, g = SS.lastGet;
+  const when = iso => esc(new Date(iso).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }));
+  let status = "";
+  if (ex && ex.at) status += (ex.dirty ? '<strong style="color:var(--warn)">Changed since</strong> you last sent, ' : "Nothing has changed since you last sent, ") + when(ex.at) + ". ";
+  if (g && g.at) status += "Last brought in the latest from " + esc(g.fromName || "your computer") + " " + when(g.at) + ".";
+  h += '<p class="hint">A phone or iPad cannot watch a folder: every browser on it is Safari underneath, and Safari gives a page a one-time copy of a picked file and nothing more. So here it is a tap each way.</p>' +
+    '<p class="hint"><strong>Send</strong> after you change something: Save to Files, into the sync folder your computer watches, and it is merged there on its own. <strong>Get the latest</strong> when you start: pick <code class="std">classroom.json</code> in that folder. Getting merges, so nothing here is lost, and it can be undone.</p>' +
+    (status ? '<p class="hint">' + status + "</p>" : "") +
+    '<p class="hint">' + counts + '</p>' +
+    '<div class="row" style="margin-top:10px"><button class="btn primary" onclick="suiteBackup()">Send</button>' +
+    '<button class="btn" onclick="suiteRestore()">Get the latest</button>' +
+    (SS.canUndoImport ? '<button class="btn" onclick="suiteUndoLoad()">Undo the last load</button>' : "") +
+    '<span style="flex:1"></span><button class="btn" onclick="suiteReplace()" title="Restore a backup: the file replaces what is here">Replace with a file\u2026</button></div>';
   return h + "</div>";
 }
 
 function initSync() {
   if (!window.SuiteSync) return;
-  /* the account is fetched lazily; repaint Setup once it is known */
-  if (window.SuiteSync.driveAccount) {
-    window.SuiteSync.driveAccount().then(e => { if (e && UI.tab === "setup") renderSetup(); });
-  }
   window.SuiteSync.onState((st, dt) => { paintSyncFlag(st, dt); if (UI.tab === "setup") renderSetup(); });
   /* v81: another tab of the suite (the planner, say) can run the sync round
      that brings in marks from the other computer. This tab hears it only as

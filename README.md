@@ -47,7 +47,7 @@ Check `chrome://policy` and search for `URLBlocklist`. That is the actual list, 
 
 Because the suite is path-independent, moving hosts means re-uploading the same folder. Nothing inside changes.
 
-**Last resort that always works:** open `index.html` from a folder on disk. All three tools run, they share one origin so the roster and fluency links still work, and Chrome treats `file://` as a secure context so the synced-file button still works too. You lose only installation and the service worker — and offline was never a question for files already on your machine. Keep the folder in Google Drive and both the tools and `classroom.json` follow you between computers.
+**Last resort that always works:** open `index.html` from a folder on disk. All three tools run, they share one origin so the roster and fluency links still work, and Chrome treats `file://` as a secure context so watching the sync folder still works too. You lose only installation and the service worker — and offline was never a question for files already on your machine. Keep the folder in Google Drive and both the tools and `classroom.json` follow you between computers.
 
 ---
 
@@ -81,7 +81,7 @@ Often the one that survives a school filter. The repository has to be public on 
 
 Your site is at `/<repo>/`, not the domain root. That is fine — every path in these files is relative. If you would rather have the root, rename the repository to `<username>.github.io`; you get one of those per account.
 
-**Do not run two hosts at once.** `username.github.io` and `project.pages.dev` are different origins, so each has its own copy of everything: roster, marks, plans, and the permission for your synced file. Work on one, and export a backup from the other before you stop using it. Deleting the Cloudflare Pages project, or at least your bookmark to it, is the reliable way to avoid entering marks into the wrong one for a week.
+**Do not run two hosts at once.** `username.github.io` and `project.pages.dev` are different origins, so each has its own copy of everything: roster, marks, plans, and the permission for your sync folder. Work on one, and export a backup from the other before you stop using it. Deleting the Cloudflare Pages project, or at least your bookmark to it, is the reliable way to avoid entering marks into the wrong one for a week.
 
 The `_headers` file is Cloudflare-specific and simply ignored by GitHub Pages. Nothing depends on it.
 
@@ -101,7 +101,7 @@ An earlier version of this file said a private repository would work on GitHub P
 
 ### Installing it
 
-**Three installable apps.** Open `/gradebook/`, `/planner/` or `/fluency/` and install each one you want. Each has its own manifest, scope, icon and start page, so they sit side by side in your dock or on your home screen. They are the same cached files underneath, the corner switcher moves between them, and any of them can connect the sync file.
+**Three installable apps.** Open `/gradebook/`, `/planner/` or `/fluency/` and install each one you want. Each has its own manifest, scope, icon and start page, so they sit side by side in your dock or on your home screen. They are the same cached files underneath, the corner switcher moves between them, and any of them can set up sync.
 
 If an app offers **Open in Gradebook** rather than **Install**, its start page is inside another app's scope — check that each manifest's `scope` matches its own directory.
 
@@ -198,19 +198,15 @@ That block is free text in the planner rather than a lesson number, because "Les
 
 ## Syncing your data
 
-Connect once, from **any** of the three tools — the sync pill in the corner switcher, or Gradebook → Setup → Sync. Create the file inside your Google Drive folder (with Drive for Desktop installed), for example `Google Drive/Classroom/classroom.json`.
+One route, set up once per device (v96).
 
-**One file holds all three tools.** `suite-sync.js` is shared, so the gradebook, the planner and the running-records tool all read and write the same JSON. Connecting from the planner is exactly as good as connecting from the gradebook, and whichever one is open keeps the file current. Nothing has to be open for the others to be covered, because on any one machine all three already share the same browser storage — the file is only the transport between machines.
+**On a computer (Chrome or Edge):** tap **Sync** in the corner switcher → **Choose the sync folder**, or Gradebook → Setup → Sync. Pick a folder your phone can also reach: one in iCloud Drive, or in Google Drive with Google Drive for desktop installed. While any tool is open, the computer merges whatever lands in that folder within seconds and keeps a current `classroom.json` there. Set the folder to stay downloaded, or the cloud app may leave only a placeholder the browser cannot read. A second computer can watch the same folder; each writes a file of its own, so neither overwrites the other.
 
-Files written by the earlier gradebook-only version are read correctly, so there is nothing to migrate.
+**On a phone or iPad:** no iOS browser can watch a folder (they are all Safari underneath), so it is a tap each way. **Sync → Send** after you change something: Save to Files, into that folder. **Sync → Get the latest** when you start: pick `classroom.json`. Getting merges, so nothing on the phone is lost, and it can be undone. Opened after a while away, the app offers the Get as one tap.
 
-From then on every change is written to that file, Drive syncs it, and each tool checks roughly every twenty seconds for changes made on another machine.
+**For a computer that can reach neither:** **Email the sync file**, from any device. If the suite there watches its Downloads folder, the downloaded attachment merges on its own; otherwise drop the file on any page.
 
-The gradebook redraws itself when its own data arrives. The planner and the running-records tool read their data once at startup and never again, so when newer data arrives there they offer a **Reload** button rather than swapping it out underneath you — there may be an unsaved day on the screen. Newer always wins, so the machine you used last is the one that counts. On a second computer, choose **Open an existing one** and point at the same file.
-
-No Google sign-in, no API, no server. It is an ordinary file that Drive happens to keep in step.
-
-**Limits worth knowing.** This uses the File System Access API: Chrome and Edge on a computer only. Safari and iPads do not have it, and there the app still works but saves only in that browser, with the backup buttons to move data by hand. If you need the iPad, that is the point where the real Google Drive API and OAuth become worth the trouble.
+Every tool shares one origin, so on any one device the gradebook, the planner and the running-records tool already share storage; the folder and the files are only the transport between devices, and they merge rather than overwrite. Files written by earlier versions are read correctly.
 
 **Back up anyway.** Setup → *Save a backup file*, once a week. Sync is not a backup: a mistake syncs too.
 
@@ -220,7 +216,7 @@ No Google sign-in, no API, no server. It is an ordinary file that Drive happens 
 
 The apps used to sit at the root. Their scopes changed when they moved into directories, so an app installed from the old layout should be uninstalled and installed again from `/gradebook/` or `/planner/`. Update your bookmarks to the directory URLs too.
 
-**Your data is untouched.** Local storage, the IndexedDB handle for the synced file and the sync file itself are all tied to the origin, not the path, and the origin has not changed.
+**Your data is untouched.** Local storage, the IndexedDB handle for the sync folder and the files in it are all tied to the origin, not the path, and the origin has not changed.
 
 ---
 
