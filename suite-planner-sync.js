@@ -30,6 +30,22 @@
    - A word marked "Not a student here" is passed for that one note only,
      and only until the note's text changes. That mark stays on this device.
 
+   v101 adds the projected boards, by id only. boards.json carries the math
+   board (suite:groups:v1) and the reading cards (suite:readgroups:v1),
+   where a child is a random gradebook id, never a name. Each board's
+   `guests` (visiting children, typed by name) is taken out before it
+   leaves the device, and every piece of typed text gets the same name
+   check, holding boards.json on its own. A device that receives boards
+   keeps its own guests and lays the placements around them. Names come
+   from each device's own gradebook; the Walk to WIN lists, which store
+   names, stay on the folder route.
+
+   A device can be set up as a DISPLAY (the school computer that projects):
+   read-only, it never writes either file, takes the repository's copy as
+   it is, and checks every 25 seconds while on screen, so the projector
+   follows the Mac and the phone with no tap. Board changes go out 3
+   seconds after they are made.
+
    Nothing waits on GitHub: every request has a timeout and the first round
    starts after the page is up (v95 hung on a GitHub call at startup).
    Every request skips the browser cache, because GitHub lets a browser keep
@@ -47,6 +63,11 @@
   var CONF_KEY = "suite:plannerHub:v1", OK_KEY = "suite:plannerHubOk:v1", BASE_IDB = "plannerHubBase";
   var API = "https://api.github.com", FILE = "planner.json";
   var PUSH_AFTER = 10000, TIMEOUT = 15000, PULL_GAP = 30000, TRIES = 3;
+  /* v101: the projected boards, by id */
+  var BOARD_KEYS = ["suite:groups:v1", "suite:readgroups:v1"];
+  var BOARDS_FILE = "boards.json", BBASE_IDB = "boardsHubBase";
+  var BOARD_PUSH_AFTER = 3000, DISPLAY_POLL = 25000;
+  var onGroups = /\/groups(\/|\/index\.html)?$/.test(location.pathname);
   var REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
   var onPlanner = /\/planner(\/|\/index\.html)?$/.test(location.pathname);
 
@@ -57,6 +78,8 @@
   }
   function saveConf(c) { try { localStorage.setItem(CONF_KEY, JSON.stringify(c)); } catch (e) { } }
   function configured() { var c = conf(); return !!(c && c.repo && c.token); }
+  function display() { var c = conf(); return !!(c && c.readonly); }
+  function boardsOn() { var c = conf(); return !!(c && c.repo && c.token && c.boards); }
   function noteConf(patch) { var c = conf(); if (!c) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); saveConf(c); }
 
   /* "owner/name", or the repository's address pasted whole */
@@ -144,16 +167,20 @@
       });
     }
   }
-  function scan(keys) {
+  function scan(keys, list) {
+    list = list || PLANNER_KEYS;
     var known = knownNames();
     if (!known.roster) return { reason: "roster", hits: [] };
     var ok = okMap(), hits = [], live = {};
     var settings = null;
     try { settings = JSON.parse(keys["lp:settings:v2"] || "null"); } catch (e) { }
-    PLANNER_KEYS.forEach(function (k) {
+    list.forEach(function (k) {
       if (typeof keys[k] !== "string") return;
       var v; try { v = JSON.parse(keys[k]); } catch (e) { return; }
       eachText(v, [], function (path, text, isKey) {
+        /* v101: a board's `place` maps random gradebook ids ("x7ada3k") to
+           groups; split into words, an id can contain "ada" by chance */
+        if (path.length >= 2 && path[path.length - 2] === "place") return;
         var found = namesIn(text, known.words);
         if (!found.length) return;
         var id = fieldId(k, path) + (isKey ? "#key" : "");
@@ -212,6 +239,22 @@
       return "Settings";
     }
     if (key === "lp:me:v1") return "the planner\u2019s name for you";
+    /* v101: the boards */
+    if (key === "suite:groups:v1") {
+      var gi = p[1] === "groups" && p[2] != null ? " \u00b7 group " + (+p[2] + 1) : "";
+      if (p[1] === "title") return "Math board \u00b7 title";
+      if (p[1] === "stations") return "Math board \u00b7 station " + (+p[2] + 1);
+      if (gi && p[3] === "pages") return "Math board" + gi + " \u00b7 page note";
+      if (gi) return "Math board" + gi + " name";
+      return "Math board";
+    }
+    if (key === "suite:readgroups:v1") {
+      var un = p[0] === "units" && /^u(\d+)$/.test(p[1] || "") ? " \u00b7 Unit " + p[1].slice(1) : "";
+      if (un && p[2] === "name") return "Reading cards" + un + " name";
+      if (un && p[2] === "weeks") return "Reading cards" + un + " \u00b7 week label";
+      if (un && p[2] === "subs") return "Reading cards" + un + " \u00b7 " + p[3] + " group label";
+      return "Reading cards" + un;
+    }
     return "planner housekeeping";
   }
   function notAStudent(hit) {
@@ -273,10 +316,11 @@
       });
     });
   }
-  function readRemote() {
+  /* one file in the repository: { sha, text }, or { sha: null, text: null } if it is not there yet */
+  function fetchFile(name) {
     var repo = conf().repo;
-    return gh("GET", "/repos/" + repo + "/contents/" + FILE).then(function (r) {
-      if (r.status === 404) return { sha: null, keys: {} };      /* the repository is there (checkRepo); the file is not yet */
+    return gh("GET", "/repos/" + repo + "/contents/" + name).then(function (r) {
+      if (r.status === 404) return { sha: null, text: null };   /* the repository is there (checkRepo); the file is not yet */
       if (!r.ok) throw failFor(r);
       return r.json().then(function (j) {
         if (j && j.encoding === "base64" && j.content) return { sha: j.sha, text: b64ToUtf8(j.content) };
@@ -285,22 +329,68 @@
           if (!r2.ok) throw failFor(r2);
           return r2.text().then(function (t) { return { sha: j.sha, text: t }; });
         });
-      }).then(function (got) {
-        var p; try { p = JSON.parse(got.text); } catch (e) { p = null; }
-        if (!p || p.kind !== "planner" || !p.keys || typeof p.keys !== "object") throw err("badfile");
-        return { sha: got.sha, keys: onlyPlanner(p.keys) };
       });
     });
   }
-  function writeRemote(keys, sha) {
-    var payload = { suite: 1, kind: "planner", updatedAt: new Date().toISOString(), fromName: SS.device, keys: keys };
-    var body = { message: "Planner from " + SS.device, content: utf8ToB64(JSON.stringify(payload)) };
+  function putFile(name, text, sha, message) {
+    /* v101: a display never writes, whatever asks it to */
+    if (display()) return Promise.reject(err("display"));
+    var body = { message: message, content: utf8ToB64(text) };
     if (sha) body.sha = sha;
-    return gh("PUT", "/repos/" + conf().repo + "/contents/" + FILE, body).then(function (r) {
+    return gh("PUT", "/repos/" + conf().repo + "/contents/" + name, body).then(function (r) {
       if (r.status === 409 || r.status === 422) throw err("moved");
       if (!r.ok) throw r.status === 403 || r.status === 404 ? err("nowrite") : failFor(r);
       return r.json().then(function (j) { return j && j.content && j.content.sha; });
     });
+  }
+  function readRemote() {
+    return fetchFile(FILE).then(function (got) {
+      if (got.text == null) return { sha: null, keys: {} };
+      var p; try { p = JSON.parse(got.text); } catch (e) { p = null; }
+      if (!p || p.kind !== "planner" || !p.keys || typeof p.keys !== "object") throw err("badfile");
+      return { sha: got.sha, keys: onlyPlanner(p.keys) };
+    });
+  }
+  function writeRemote(keys, sha) {
+    var payload = { suite: 1, kind: "planner", updatedAt: new Date().toISOString(), fromName: SS.device, keys: keys };
+    return putFile(FILE, JSON.stringify(payload), sha, "Planner from " + SS.device);
+  }
+
+  /* ---------- v101: the boards, without their guests ----------
+     A guest is a visiting child, typed by name: suite:groups:v1 keeps them
+     at math.guests, suite:readgroups:v1 at units.<u>.guests. They never
+     leave the device. Everything else on a board is a random id or typed
+     text, and the typed text is name-checked. */
+  function parse(json) { try { var v = JSON.parse(json); return v && typeof v === "object" ? v : null; } catch (e) { return null; } }
+  function stripGuests(key, json) {
+    var v = parse(json);
+    if (!v) return null;
+    if (key === "suite:groups:v1" && v.math && typeof v.math === "object") delete v.math.guests;
+    if (key === "suite:readgroups:v1" && v.units && typeof v.units === "object")
+      Object.keys(v.units).forEach(function (u) { if (v.units[u] && typeof v.units[u] === "object") delete v.units[u].guests; });
+    return JSON.stringify(v);
+  }
+  /* the incoming board, with this device's own guests put back in */
+  function withGuests(key, json, mineJson) {
+    var v = parse(json), mine = parse(mineJson);
+    if (!v) return json;
+    /* whatever guests arrived are dropped first: only this device's own are kept */
+    if (key === "suite:groups:v1" && v.math && typeof v.math === "object") {
+      delete v.math.guests;
+      var g = mine && mine.math && mine.math.guests;
+      if (g && typeof g === "object" && Object.keys(g).length) v.math.guests = g;
+    }
+    if (key === "suite:readgroups:v1" && v.units && typeof v.units === "object")
+      Object.keys(v.units).forEach(function (u) { if (v.units[u] && typeof v.units[u] === "object") delete v.units[u].guests; });
+    if (key === "suite:readgroups:v1" && v.units && typeof v.units === "object" && mine && mine.units && typeof mine.units === "object") {
+      Object.keys(mine.units).forEach(function (u) {
+        var mg = mine.units[u] && mine.units[u].guests;
+        if (!mg || typeof mg !== "object" || !Object.keys(mg).length) return;
+        if (!v.units[u] || typeof v.units[u] !== "object") v.units[u] = {};
+        v.units[u].guests = mg;
+      });
+    }
+    return JSON.stringify(v);
   }
 
   /* ---------- the round ---------- */
@@ -322,7 +412,21 @@
   }
   function saveBase(keys) { base = onlyPlanner(keys); L.idbSet(BASE_IDB, base); }
 
-  var busy = false, again = false, applying = false, lastRound = 0, pushTimer = null;
+  /* ---------- v101: the boards' base and state ---------- */
+  var bbase = null, bstate = "off", bdetail = "", bhold = null;
+  function loadBBase() {
+    if (bbase) return Promise.resolve(bbase);
+    return L.idbGet(BBASE_IDB).then(function (b) { bbase = b && typeof b === "object" ? b : {}; return bbase; },
+      function () { bbase = {}; return bbase; });
+  }
+  function onlyBoards(keys) {
+    var out = {};
+    BOARD_KEYS.forEach(function (k) { if (keys && typeof keys[k] === "string") out[k] = keys[k]; });
+    return out;
+  }
+  function saveBBase(keys) { bbase = onlyBoards(keys); L.idbSet(BBASE_IDB, bbase); }
+
+  var busy = false, again = false, applying = false, lastRound = 0, pushTimer = null, boardTimer = null;
   L.setBusy(function () { return busy; });
 
   function round() {
@@ -331,11 +435,24 @@
     if (L.folderBusy()) { setTimeout(round, 1500); return Promise.resolve([]); }
     busy = true; lastRound = Date.now();
     clearTimeout(pushTimer); pushTimer = null;
+    clearTimeout(boardTimer); boardTimer = null;
     if (state !== "held") setState("syncing");
     var changed = [];
     function attempt(n) {
       return readRemote().then(function (remote) {
         var mine = localKeys();
+        if (display()) {
+          /* v101: a display shows what the repository has, and sends nothing */
+          var take = {};
+          PLANNER_KEYS.forEach(function (k) { if (remote.keys[k] !== undefined && remote.keys[k] !== mine[k]) take[k] = remote.keys[k]; });
+          if (Object.keys(take).length) {
+            applying = true;
+            try { changed = changed.concat(L.apply({ keys: take, updatedAt: new Date().toISOString() })); }
+            finally { applying = false; }
+          }
+          saveBase(remote.keys); hold = null;
+          return "ok";
+        }
         var m = L.mergeKeys(base, mine, remote.keys, false, false);
         var merged = onlyPlanner(m.keys);
         var toApply = {};
@@ -356,6 +473,63 @@
         });
       });
     }
+    /* v101: the boards, after the planner */
+    var boardChanged = [];
+    function boardAttempt(n) {
+      return fetchFile(BOARDS_FILE).then(function (got) {
+        var remote = {};
+        if (got.text != null) {
+          var p = parse(got.text);
+          if (!p || p.kind !== "boards" || !p.keys || typeof p.keys !== "object") throw err("badboards");
+          remote = onlyBoards(p.keys);
+          /* a file someone else wrote is still never let put a guest here */
+          Object.keys(remote).forEach(function (k) { remote[k] = stripGuests(k, remote[k]) || remote[k]; });
+        }
+        var raw = {}, mine = {};
+        BOARD_KEYS.forEach(function (k) {
+          var v = localStorage.getItem(k);
+          if (v == null) return;
+          raw[k] = v;
+          var st = stripGuests(k, v);
+          if (st != null) mine[k] = st;
+        });
+        var merged = display() ? remote : onlyBoards(L.mergeKeys(bbase, mine, remote, false, false).keys);
+        var put = {};
+        BOARD_KEYS.forEach(function (k) {
+          if (merged[k] === undefined) return;
+          var next = withGuests(k, merged[k], raw[k]);
+          if (next !== raw[k]) put[k] = next;
+        });
+        if (Object.keys(put).length) {
+          applying = true;
+          try { boardChanged = boardChanged.concat(L.apply({ keys: put, updatedAt: new Date().toISOString() })); }
+          finally { applying = false; }
+        }
+        if (display()) { saveBBase(remote); bhold = null; return "ok"; }
+        var need = BOARD_KEYS.some(function (k) { return merged[k] !== undefined && merged[k] !== remote[k]; });
+        if (!need) { saveBBase(merged); bhold = null; return "ok"; }
+        var check = scan(merged, BOARD_KEYS);
+        if (check) { saveBBase(remote); bhold = check; return "held"; }
+        bhold = null;
+        var payload = { suite: 1, kind: "boards", updatedAt: new Date().toISOString(), fromName: SS.device, keys: merged };
+        return putFile(BOARDS_FILE, JSON.stringify(payload), got.sha, "Boards from " + SS.device).then(function () {
+          saveBBase(merged); return "ok";
+        }, function (e) {
+          if (e.code === "moved" && n < TRIES) return boardAttempt(n + 1);
+          throw e;
+        });
+      });
+    }
+    function boardRound() {
+      if (!boardsOn()) { bstate = "off"; bhold = null; return Promise.resolve(); }
+      if (state === "auth" || state === "access" || state === "public") { bstate = state; return Promise.resolve(); }   /* the planner step said why */
+      return loadBBase().then(function () { return boardAttempt(1); }).then(function (how) {
+        bstate = how === "held" ? "held" : "idle"; bdetail = "";
+      }, function (e) {
+        var code = e && e.code || "net";
+        bstate = code === "moved" ? "net" : code; bdetail = e && e.message || "";
+      });
+    }
     return loadBase().then(checkRepo).then(function () { return attempt(1); }).then(function (how) {
       if (how === "ok") { noteConf({ lastOk: new Date().toISOString() }); setState("idle"); }
       else setState("held", hold.reason);
@@ -363,11 +537,14 @@
       var code = e && e.code || "net";
       if (code === "auth" || code === "access") repoChecked = false;
       setState(code === "moved" ? "net" : code, e && e.message);
-    }).then(function () {
+    }).then(boardRound).then(function () {
       busy = false;
+      setState(state, detail);
       /* only the planner page shows planner data from memory; everywhere
          else reads it from storage when it is needed */
       if (changed.length && onPlanner) L.notify(changed);
+      /* v101: and the Small Groups page holds the boards */
+      if (boardChanged.length && onGroups) L.notify(boardChanged);
       L.drain();
       if (again) { again = false; setTimeout(round, 0); }
       return changed;
@@ -375,9 +552,15 @@
   }
 
   function schedule() {
-    if (!configured()) return;
+    if (!configured() || display()) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(round, PUSH_AFTER);
+  }
+  /* v101: a change to a board reaches the projector in seconds */
+  function scheduleBoards() {
+    if (!boardsOn() || display()) return;
+    clearTimeout(boardTimer);
+    boardTimer = setTimeout(round, BOARD_PUSH_AFTER);
   }
   /* a planner write, from the planner or from the folder route, goes out */
   try {
@@ -386,7 +569,10 @@
       var prev = proto.setItem;
       proto.setItem = function (k, v) {
         var r = prev.apply(this, arguments);
-        if (this === window.localStorage && !applying && PLANNER_KEYS.indexOf(k) >= 0) schedule();
+        if (this === window.localStorage && !applying) {
+          if (PLANNER_KEYS.indexOf(k) >= 0) schedule();
+          else if (BOARD_KEYS.indexOf(k) >= 0) scheduleBoards();
+        }
         return r;
       };
       proto.__plannerHubPatched = true;
@@ -394,24 +580,28 @@
   } catch (e) { }
   document.addEventListener("visibilitychange", function () {
     if (!configured()) return;
-    if (document.hidden) { if (pushTimer) round(); }
+    if (document.hidden) { if (pushTimer || boardTimer) round(); }
     else if (Date.now() - lastRound > PULL_GAP) round();
   });
-  window.addEventListener("pagehide", function () { if (pushTimer) round(); });
+  window.addEventListener("pagehide", function () { if (pushTimer || boardTimer) round(); });
   window.addEventListener("online", function () { if (configured()) round(); });
 
+  /* v101: a display checks on its own while it is on screen */
+  setInterval(function () {
+    if (configured() && display() && !document.hidden && !busy) round();
+  }, DISPLAY_POLL);
   function start() { if (configured()) setTimeout(round, 1200); }
   if (document.readyState === "complete") start();
   else window.addEventListener("load", start);
 
   /* ---------- connecting, and turning it off ---------- */
-  function connect(repoText, token) {
+  function connect(repoText, token, readonly) {
     var repo = parseRepo(repoText);
     token = String(token || "").trim();
     if (!repo) return Promise.reject(err("repo"));
     if (!token) return Promise.reject(err("token"));
     var was = conf();
-    saveConf({ repo: repo, token: token });
+    saveConf(readonly ? { repo: repo, token: token, readonly: true } : { repo: repo, token: token });
     repoChecked = false;
     if (!was || was.repo !== repo) { base = {}; L.idbSet(BASE_IDB, {}); }
     return checkRepo().then(function () { return round(); }, function (e) {
@@ -424,7 +614,18 @@
     try { localStorage.removeItem(CONF_KEY); } catch (e) { }
     clearTimeout(pushTimer); pushTimer = null; hold = null; repoChecked = false;
     base = {}; L.idbSet(BASE_IDB, {});
+    bbase = {}; L.idbSet(BBASE_IDB, {}); bstate = "off"; bhold = null;
+    clearTimeout(boardTimer); boardTimer = null;
     setState("off");
+  }
+  /* v101: the boards are a choice made on each device */
+  function setBoards(on) {
+    if (!configured()) return Promise.reject(err("off"));
+    noteConf({ boards: !!on });
+    clearTimeout(boardTimer); boardTimer = null;
+    if (!on) { bstate = "off"; bhold = null; bbase = {}; L.idbSet(BBASE_IDB, {}); setState(state, detail); return Promise.resolve([]); }
+    bbase = {}; L.idbSet(BBASE_IDB, {});
+    return round();
   }
 
   /* ---------- words ---------- */
@@ -447,13 +648,27 @@
     "public": "Stopped: that repository is public. Make it private on GitHub, then Sync now.",
     badfile: "planner.json in the repository isn\u2019t a planner file, so nothing was changed.",
     repo: "That doesn\u2019t look like a repository. Use your-name/repository-name.",
-    token: "Paste the token too."
+    token: "Paste the token too.",
+    /* v101 */
+    display: "This computer only displays, so it sends nothing.",
+    badboards: "boards.json in the repository isn\u2019t a boards file, so nothing was changed.",
+    off: "Connect planner sync first."
   };
-  function heldText() {
-    if (!hold) return "";
-    if (hold.reason === "roster") return "Paused: this device has no class list yet, so it can\u2019t check notes for names. Get the latest once.";
-    var n = hold.hits.length;
-    return "Paused: a student\u2019s name is in " + hold.hits[0].where + (n > 1 ? " and " + (n - 1) + " more" : "") + ".";
+  function boardsStatus() {
+    if (!boardsOn()) return "Off on this device";
+    if (bstate === "off") return "On";
+    if (bstate === "idle") return display()
+      ? "On \u00b7 this computer shows them and checks every 25 seconds"
+      : "On \u00b7 changes go out in seconds";
+    if (bstate === "held") return heldText(bhold, "board");
+    return MESSAGES[bstate] || "Couldn\u2019t reach GitHub (" + (bdetail || bstate) + "). It tries again shortly.";
+  }
+  function heldText(h) {
+    h = h || hold;
+    if (!h) return "";
+    if (h.reason === "roster") return "Paused: this device has no class list yet, so it can\u2019t check for names. Get the latest once.";
+    var n = h.hits.length;
+    return "Paused: a student\u2019s name is in " + h.hits[0].where + (n > 1 ? " and " + (n - 1) + " more" : "") + ".";
   }
   function status() {
     if (state === "off") return "Off on this device";
@@ -471,7 +686,8 @@
   /* ---------- the panel ---------- */
   var css = document.createElement("style");
   css.textContent =
-    '#suitesheet.hub{width:min(340px,calc(100vw - 40px))}' +
+    /* v101: two lists of held places can outgrow a phone; the panel scrolls rather than run off it */
+    '#suitesheet.hub{width:min(340px,calc(100vw - 40px));max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px);overflow-y:auto}' +
     '#suitesheet.hub label{display:block;font-size:12.5px;color:#55636E;padding:4px 6px 0}' +
     '#suitesheet.hub input{display:block;box-sizing:border-box;width:100%;min-height:36px;margin-top:3px;padding:0 10px;' +
     'border:1px solid rgba(16,24,32,.18);border-radius:8px;background:#fff;color:#14202A;font:inherit}' +
@@ -481,6 +697,9 @@
     '#suitesheet.hub .hubhit{display:flex;gap:8px;align-items:center;padding:6px;border-top:1px solid rgba(16,24,32,.07)}' +
     '#suitesheet.hub .hubhit span{flex:1 1 auto;font-size:12.5px}' +
     '#suitesheet.hub .hubhit button{width:auto;flex:0 0 auto;padding:6px 8px;font-size:12px;color:#10655C}' +
+    '#suitesheet.hub .hubhead{padding:10px 6px 0;margin-top:6px;border-top:1px solid rgba(16,24,32,.09);font-weight:600;font-size:13.5px}' +
+    '#suitesheet.hub label.hubcheck{display:flex;gap:8px;align-items:center;padding:8px 6px 2px;color:#14202A;font-size:13px}' +
+    '#suitesheet.hub label.hubcheck input{width:auto;min-height:0;margin:0}' +
     '#suitesheet.hub .hubmsg{color:#B4472F;font-size:12.5px;padding:2px 6px}' +
     '#suitesheet.hub .hubgo{background:#10655C;color:#fff;text-align:center;font-weight:600;margin-top:6px}' +
     '#suitesheet.hub .hubgo:hover{background:#0D554D}' +
@@ -519,39 +738,57 @@
     function close() { box.remove(); }
 
     if (!configured()) {
-      box.appendChild(el("i", "", "Keeps the planner in step on its own through a private GitHub repository. Only the planner goes there, never the gradebook, reading checks, groups or sub plans, and nothing is sent while a note names a student."));
+      box.appendChild(el("i", "", "Keeps the planner in step on its own through a private GitHub repository, and the math board and reading cards too if you choose, by student id only. Never the gradebook, reading checks, Walk to WIN lists or sub plans, and nothing is sent while a note names a student."));
       var l1 = el("label", "", "Repository"), i1 = el("input");
       i1.id = "hubrepo"; i1.placeholder = "your-name/planner-sync"; i1.autocomplete = "off"; i1.spellcheck = false;
       i1.setAttribute("autocapitalize", "off"); l1.appendChild(i1);
       var l2 = el("label", "", "Token"), i2 = el("input");
       i2.id = "hubtoken"; i2.type = "password"; i2.autocomplete = "off"; i2.placeholder = "github_pat_\u2026"; l2.appendChild(i2);
       box.appendChild(l1); box.appendChild(l2);
-      box.appendChild(el("i", "", "A fine-grained token for that one repository, with Contents: Read and write. Paste both once on each device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
+      var l3 = el("label", "hubcheck"), i3 = el("input");
+      i3.type = "checkbox"; i3.id = "hubdisplay";
+      l3.appendChild(i3); l3.appendChild(document.createTextNode("This computer only displays (it never changes anything)"));
+      box.appendChild(l3);
+      box.appendChild(el("i", "", "A fine-grained token for that one repository, with Contents: Read and write (Read only, for a computer that only displays). Paste both once on each device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
       box.appendChild(button("Connect", function () {
         var go = this; go.disabled = true;
-        connect(i1.value, i2.value).then(function () { open(); }, function (e) {
+        connect(i1.value, i2.value, i3.checked).then(function () { open(); }, function (e) {
           open(MESSAGES[e && e.code] || "Couldn\u2019t connect: " + (e && e.message || e));
           var r = document.getElementById("hubrepo"); if (r) r.value = i1.value;
         });
       }, "hubgo"));
     } else {
       var c = conf();
-      box.appendChild(el("i", "", "Through " + c.repo + ". Only the planner goes there, and nothing is sent while a note names a student."));
+      box.appendChild(el("i", "", display()
+        ? "Through " + c.repo + ". This computer only displays: it shows what is there and never changes anything."
+        : "Through " + c.repo + ". " + (boardsOn() ? "The planner and the boards go there, the boards by student id only," : "Only the planner goes there,") + " and nothing is sent while typed text names a student."));
       box.appendChild(el("div", "hubstatus", status()));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
-      if (state === "held" && hold && hold.reason === "names") {
-        hold.hits.slice(0, 12).forEach(function (h) {
+      function hits(h) {
+        h.hits.slice(0, 12).forEach(function (x) {
           var row = el("div", "hubhit");
-          row.appendChild(el("span", "", "\u201c" + h.typed + "\u201d in " + h.where));
+          row.appendChild(el("span", "", "\u201c" + x.typed + "\u201d in " + x.where));
           var b = el("button", "", "Not a student here"); b.type = "button";
-          b.onclick = function () { notAStudent(h); round().then(function () { open(); }); };
+          b.onclick = function () { notAStudent(x); round().then(function () { open(); }); };
           row.appendChild(b);
           box.appendChild(row);
         });
-        if (hold.hits.length > 12) box.appendChild(el("div", "hubstatus", "\u2026and " + (hold.hits.length - 12) + " more. Edit those notes in the planner, then Sync now."));
+        if (h.hits.length > 12) box.appendChild(el("div", "hubstatus", "\u2026and " + (h.hits.length - 12) + " more. Edit those, then Sync now."));
       }
+      if (state === "held" && hold && hold.reason === "names") hits(hold);
       box.appendChild(button("Sync now", function () { round().then(function () { open(); }); }));
+
+      /* v101: the projected boards */
+      box.appendChild(el("div", "hubhead", "Math board and reading cards"));
+      box.appendChild(el("i", "", display()
+        ? "Shows them as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
+        : "Keeps them in step too, by student id only: names, visiting children and the Walk to WIN lists stay off GitHub, and nothing goes while typed text names a student."));
+      box.appendChild(el("div", "hubstatus", boardsStatus()));
+      if (bstate === "held" && bhold && bhold.reason === "names") hits(bhold);
+      box.appendChild(button(boardsOn() ? "Stop keeping the boards in step here" : "Keep the boards in step", function () {
+        setBoards(!boardsOn()).then(function () { open(); }, function (e) { open(MESSAGES[e && e.code] || String(e && e.message || e)); });
+      }));
       box.appendChild(button("Turn off on this device", function () { disconnect(); open(); }));
     }
     var cancel = el("button", "cancel", "Close"); cancel.type = "button"; cancel.onclick = close;
@@ -564,9 +801,12 @@
      projected, and a banner is on screen for anyone in the room. */
   var bannerShut = false;
   function paintBanner() {
-    if (!onPlanner || !document.body) return;
+    if (!(onPlanner || onGroups) || !document.body) return;
     var b = document.getElementById("suitehubheld");
-    if (state !== "held" || bannerShut) { if (b) b.remove(); return; }
+    /* v101: the Small Groups page is projected too; it shows the boards' hold */
+    var h = onPlanner ? (state === "held" ? hold : null) : (bstate === "held" ? bhold : null);
+    var what = onPlanner ? "Planner sync" : "Board sync";
+    if (!h || bannerShut) { if (b) b.remove(); return; }
     if (!b) {
       b = el("div"); b.id = "suitehubheld"; b.setAttribute("role", "status");
       b.appendChild(el("span"));
@@ -577,10 +817,11 @@
       b.appendChild(go); b.appendChild(x);
       document.body.appendChild(b);
     }
-    b.firstChild.textContent = hold && hold.reason === "roster"
-      ? "Planner sync is paused: this device has no class list to check notes against."
-      : "Planner sync is paused: " + (hold && hold.hits.length > 1 ? hold.hits.length + " notes name" : "a note names") +
-        " a student" + (hold && hold.hits[0] ? " (" + hold.hits[0].where + ")" : "") + ".";
+    b.firstChild.textContent = h.reason === "roster"
+      ? what + " is paused: this device has no class list to check against."
+      : what + " is paused: " + (onPlanner ? (h.hits.length > 1 ? h.hits.length + " notes name" : "a note names")
+        : (h.hits.length > 1 ? h.hits.length + " places on the boards name" : "a board names")) +
+        " a student" + (h.hits[0] ? " (" + h.hits[0].where + ")" : "") + ".";
     lift();
   }
   /* The phone's Get offer, the update notice and the planner's reload
@@ -616,10 +857,18 @@
     disconnect: disconnect,
     syncNow: round,
     scan: function () { return scan(localKeys()); },
+    /* v101 */
+    boardKeys: BOARD_KEYS.slice(),
+    get display() { return display(); },
+    get boardsOn() { return boardsOn(); },
+    get boardState() { return boardsOn() ? bstate : "off"; },
+    get boardHeld() { return bhold ? { reason: bhold.reason, hits: bhold.hits.map(function (h) { return { where: h.where, word: h.word }; }) } : null; },
+    boardsStatus: boardsStatus,
+    setBoards: setBoards,
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
     menuOption: function () {
-      return { label: "Planner sync", hint: configured() ? status() : "keep the planner in step on its own, through GitHub", run: function () { open(); } };
+      return { label: "Planner sync", hint: configured() ? status() + (boardsOn() ? " \u00b7 boards too" : "") : "keep the planner in step on its own, through GitHub", run: function () { open(); } };
     }
   };
 })();

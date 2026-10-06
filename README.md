@@ -210,6 +210,8 @@ Every tool shares one origin, so on any one device the gradebook, the planner an
 
 **The planner on its own (optional, v99):** Sync → **Planner sync** keeps just the planner in step through a **private** GitHub repository, with no tapping on any device. Make a private repository, then a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) for that one repository with **Contents: Read and write**, and paste both into Planner sync once on each device. Only the planner travels this way; everything else stays on the folder and the files. Before every push it checks the planner's text against the names on that device (roster, Also called, the ORF roster, the Walk to WIN lists) and holds the push if any appears, saying where. It refuses a repository that is not private.
 
+**The boards on the projector (v101):** in the same panel, **Keep the boards in step** sends the math board and the reading cards too, by student id only: names, visiting children and the Walk to WIN lists stay off GitHub, and typed text is name-checked the same way. On the school computer, connect with a **read-only** token (Contents: Read only) and tick **This computer only displays**, then press Keep the boards in step there too. It never changes anything, checks every 25 seconds while on screen, and names the children from its own emailed gradebook, so a new child appears there after the next emailed sync file.
+
 **Back up anyway.** Setup → *Save a backup file*, once a week. Sync is not a backup: a mistake syncs too.
 
 ---
