@@ -349,6 +349,9 @@
     Object.keys(W.teachers).forEach(function (k) { var t = W.teachers[k] || {}; teachers[k] = { call: t.call || "", room: t.room || "" }; });
     return { me: W.me || "", teachers: teachers, lists: lists };
   }
+  /* v103: a failure here used to be swallowed, so a summary that could not
+     be made on real lists was simply never sent, and nothing said why */
+  var liveErr = "";
   function summarise() {
     if (isDisplay() || !W) return;
     var roster = readRoster();
@@ -358,10 +361,22 @@
     /* A device's first summary is stamped oldest (""): an out-of-date phone
        opening this page after an update must not outrank the Mac. Only a
        change made on this device after that makes its summary the newest. */
+    var body;
+    try { body = summary(roster); }
+    catch (e) { liveErr = "could not summarise the lists: " + (e && e.message || e); return; }
     try {
-      localStorage.setItem(LIVE_KEY, JSON.stringify({ v: 1, at: mine == null ? "" : new Date().toISOString(), live: summary(roster) }));
+      localStorage.setItem(LIVE_KEY, JSON.stringify({ v: 1, at: mine == null ? "" : new Date().toISOString(),
+        from: (window.SuiteSync && window.SuiteSync.device) || "", live: body }));
       localStorage.setItem(MINE_KEY, src);
-    } catch (e) { }
+      liveErr = "";
+    } catch (e) { liveErr = "could not save the summary: " + (e && e.message || e); }
+  }
+  /* v103: what the Planner sync panel says about WIN on this device */
+  function liveStatus() {
+    var o; try { o = JSON.parse(localStorage.getItem(LIVE_KEY) || "null"); } catch (e) { o = null; }
+    var lists = o && o.live && o.live.lists ? Object.keys(o.live.lists).length : 0;
+    return { level: 1, display: isDisplay(), error: liveErr, at: o ? o.at : null, from: o ? o.from || "" : "",
+      lists: lists, drawing: isDisplay() && liveView() ? "summary" : "own lists" };
   }
   /* the summary, shaped as lists the slide already knows how to draw: each
      child placed by a fix, with no list lines to match */
@@ -1026,6 +1041,7 @@
   load();
   window.SuiteWin = {
     KEY: KEY, parse: parse, matchSubject: matchSubject, readRoster: readRoster,
+    liveStatus: function () { load(); return liveStatus(); },   /* v103 */
     forDay: function (iso) { load(); return forDay(iso, readRoster()); },
     state: function () { load(); return W; },
     addList: function (text, start, name) { load(); var p = typeof text === "string" ? parse(text) : text; return addList(p, start || defaultStart(), name); },

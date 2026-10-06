@@ -432,6 +432,7 @@
 
   /* ---------- v101: the boards' base and state ---------- */
   var bbase = null, bstate = "off", bdetail = "", bhold = null, bempty = false;
+  var winRemote = null;   /* v103: { at, from } of the WIN summary GitHub holds, as of the last round */
   function loadBBase() {
     if (bbase) return Promise.resolve(bbase);
     return L.idbGet(BBASE_IDB).then(function (b) { bbase = b && typeof b === "object" ? b : {}; return bbase; },
@@ -533,11 +534,15 @@
             applying = true;
             try { localStorage.setItem(LIVE_KEY, remoteLive); boardChanged.push(LIVE_KEY); } finally { applying = false; }
           }
+          var rl = parse(remoteLive || "null");
+          winRemote = rl ? { at: rl.at, from: rl.from || "" } : null;
           saveBBase(remote); bhold = null; return "ok";
         }
         var mineOk = myLive != null && !!parse(myLive);
         /* sent when there is none there yet, or when this one is newer */
         var sendLive = mineOk && (remoteLive === undefined || when(myLive) > when(remoteLive)) ? myLive : remoteLive;
+        var held = parse(sendLive || remoteLive || "null");
+        winRemote = held ? { at: held.at, from: held.from || "" } : null;
         if (sendLive !== undefined) merged[LIVE_KEY] = sendLive;
         var need = BOARD_KEYS.concat([LIVE_KEY]).some(function (k) { return merged[k] !== undefined && merged[k] !== (k === LIVE_KEY ? remoteLive : remote[k]); });
         if (!need) { saveBBase(merged); bhold = null; return "ok"; }
@@ -687,6 +692,32 @@
     badboards: "boards.json in the repository isn\u2019t a boards file, so nothing was changed.",
     off: "Connect planner sync first."
   };
+  /* v103: Walk to WIN, said plainly, so a stalled slide says where it stalled */
+  function clock(at) {
+    if (at === "") return "before any change on that device";
+    var t = Date.parse(at || ""); if (!t) return "at an unknown time";
+    var d = new Date(t), now = new Date();
+    var h = d.getHours(), m = d.getMinutes(), hm = ((h + 11) % 12 + 1) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " am" : " pm");
+    return d.toDateString() === now.toDateString() ? hm : (d.getMonth() + 1) + "/" + d.getDate() + " " + hm;
+  }
+  function winLines() {
+    var SW = window.SuiteWin;
+    if (!SW) return ["Walk to WIN: open Small groups to see its status here."];
+    if (typeof SW.liveStatus !== "function")
+      return ["Walk to WIN: this page is running an older Walk to WIN file. Reload the page, wait a few seconds, and reload again."];
+    var st = SW.liveStatus(), out = [];
+    if (st.error) out.push("Walk to WIN: " + st.error + ".");
+    if (display()) {
+      if (!winRemote) out.push("Walk to WIN: GitHub has no WIN slides yet. Open Small groups \u2192 Walk to WIN on your Mac once.");
+      else out.push("Walk to WIN slides as of " + clock(winRemote.at) + (winRemote.from ? ", from " + winRemote.from : "") + ".");
+      if (winRemote && st.drawing !== "summary") out.push("But this page is drawing this computer\u2019s own lists. Reload the page, wait a few seconds, and reload again.");
+    } else if (!st.error) {
+      if (!st.lists) out.push("Walk to WIN: no summary on this device yet. Open Small groups \u2192 Walk to WIN once.");
+      else out.push("Walk to WIN changed here " + clock(st.at) + "; GitHub has " +
+        (winRemote ? "the version from " + clock(winRemote.at) + (winRemote.from ? " (" + winRemote.from + ")" : "") : "none yet") + ".");
+    }
+    return out;
+  }
   function boardsStatus() {
     if (!boardsOn()) return "Off on this device";
     if (bstate === "off") return "On";
@@ -820,6 +851,7 @@
         ? "Shows the math board, reading cards and Walk to WIN slides as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
         : "Keeps the math board, reading cards and Walk to WIN slides in step too, by student id only. Children\u2019s names, visiting children and the pasted WIN lists stay off GitHub; the WIN cards\u2019 teacher names and rooms go. Nothing goes while typed text names a student."));
       box.appendChild(el("div", "hubstatus", boardsStatus()));
+      if (boardsOn()) winLines().forEach(function (t) { box.appendChild(el("div", "hubstatus", t)); });   /* v103 */
       if (bstate === "held" && bhold && bhold.reason === "names") hits(bhold);
       box.appendChild(button(boardsOn() ? "Stop keeping the boards in step here" : "Keep the boards in step", function () {
         setBoards(!boardsOn()).then(function () { open(); }, function (e) { open(MESSAGES[e && e.code] || String(e && e.message || e)); });
@@ -899,6 +931,7 @@
     get boardState() { return boardsOn() ? bstate : "off"; },
     get boardHeld() { return bhold ? { reason: bhold.reason, hits: bhold.hits.map(function (h) { return { where: h.where, word: h.word }; }) } : null; },
     boardsStatus: boardsStatus,
+    winLines: function () { return boardsOn() ? winLines() : []; },   /* v103 */
     setBoards: setBoards,
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
