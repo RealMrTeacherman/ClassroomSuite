@@ -26,6 +26,13 @@
   if (window.SuiteWin) return;
 
   var KEY = "suite:win:v1", ROSTER_KEY = "gb2_standards_v1";
+  /* v102: what the projected slide needs, for the school computer.
+     LIVE_KEY is a summary of this class's matches (by gradebook id), made
+     here on the Mac or phone and sent with the boards (suite-planner-
+     sync.js); it holds no pasted list text and none of the other rooms'
+     children. MINE_KEY is this device's note of what it last summarised,
+     so a device re-summarises only when its own lists or roster changed. */
+  var LIVE_KEY = "suite:winLive:v1", MINE_KEY = "suite:winLiveMine:v1", HUB_KEY = "suite:plannerHub:v1";
   var SUBJECTS = [
     { id: "read", label: "Walk to Read", word: "Reading", days: ["mon", "thu"] },
     { id: "math", label: "Walk to Math", word: "Math", days: ["tue", "fri"] }
@@ -296,10 +303,96 @@
       if (!L || !L.subjects) { delete W.lists[id]; return; }
       L.fix = L.fix || {}; L.fix.read = L.fix.read || {}; L.fix.math = L.fix.math || {};
     });
+    summarise();   /* v102: a roster change, or lists arriving by sync, update the summary */
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(W)); }
     catch (e) { note("Could not save \u2014 browser storage may be full.", true); }
+    summarise();
+  }
+
+  /* ================= v102: the slide, live on a display ================= */
+  function isDisplay() {
+    try { var c = JSON.parse(localStorage.getItem(HUB_KEY) || "null"); return !!(c && c.readonly); } catch (e) { return false; }
+  }
+  function strHash(t) {
+    var h = 5381;
+    for (var i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36) + ":" + t.length;
+  }
+  /* for each list and subject: where each child of this class goes (by
+     gradebook id), the note on their line, the teachers' cards in list
+     order. Nothing else from the pasted list. */
+  function summary(roster) {
+    var lists = {};
+    Object.keys(W.lists).forEach(function (id) {
+      var L = W.lists[id], a = assignments(L, roster), subs = {};
+      SUBJECTS.forEach(function (S) {
+        var sub = L.subjects[S.id];
+        if (!sub) return;
+        var place = {}, notes = {};
+        roster.forEach(function (s) {
+          var p = a[S.id].place[s.id];
+          if (p.how === "list" || p.how === "fix") {
+            place[s.id] = "t:" + p.key;
+            var ln = p.line ? lineById(sub, p.line) : null;
+            if (ln && ln.note) notes[s.id] = ln.note;
+          } else place[s.id] = p.how === "none" ? "none" : "unsure";
+        });
+        subs[S.id] = { title: sub.title || "", days: (sub.days || S.days).slice(),
+          groups: sub.groups.map(function (g) { return { id: g.id, teacher: g.teacher, key: g.key, desc: g.desc || "" }; }),
+          place: place, notes: notes };
+      });
+      lists[id] = { id: L.id, start: L.start, added: L.added, name: L.name || "", subjects: subs };
+    });
+    var teachers = {};
+    Object.keys(W.teachers).forEach(function (k) { var t = W.teachers[k] || {}; teachers[k] = { call: t.call || "", room: t.room || "" }; });
+    return { me: W.me || "", teachers: teachers, lists: lists };
+  }
+  function summarise() {
+    if (isDisplay() || !W) return;
+    var roster = readRoster();
+    var src = strHash((localStorage.getItem(KEY) || "") + "\u0001" + JSON.stringify(roster.map(function (r) { return [r.id, r.first, r.last, r.aka]; })));
+    var mine = localStorage.getItem(MINE_KEY);
+    if (mine === src) return;
+    /* A device's first summary is stamped oldest (""): an out-of-date phone
+       opening this page after an update must not outrank the Mac. Only a
+       change made on this device after that makes its summary the newest. */
+    try {
+      localStorage.setItem(LIVE_KEY, JSON.stringify({ v: 1, at: mine == null ? "" : new Date().toISOString(), live: summary(roster) }));
+      localStorage.setItem(MINE_KEY, src);
+    } catch (e) { }
+  }
+  /* the summary, shaped as lists the slide already knows how to draw: each
+     child placed by a fix, with no list lines to match */
+  function liveView() {
+    if (!isDisplay()) return null;
+    var o; try { o = JSON.parse(localStorage.getItem(LIVE_KEY) || "null"); } catch (e) { o = null; }
+    if (!o || !o.live || !o.live.lists || typeof o.live.lists !== "object") return null;
+    var v = { v: 1, me: o.live.me || "", teachers: o.live.teachers || {}, lists: {} };
+    Object.keys(o.live.lists).forEach(function (id) {
+      var x = o.live.lists[id];
+      if (!x || !x.subjects) return;
+      var L = { id: x.id, start: x.start, added: x.added, name: x.name, subjects: {}, fix: { read: {}, math: {} }, notes: { read: {}, math: {} } };
+      SUBJECTS.forEach(function (S) {
+        var s = x.subjects[S.id];
+        if (!s) return;
+        L.subjects[S.id] = { title: s.title, days: s.days || S.days,
+          groups: (s.groups || []).map(function (g) { return { id: g.id, teacher: g.teacher, key: g.key, desc: g.desc, lines: [] }; }) };
+        Object.keys(s.place || {}).forEach(function (sid) { L.fix[S.id][sid] = s.place[sid]; });
+        L.notes[S.id] = s.notes || {};
+      });
+      v.lists[id] = L;
+    });
+    return v;
+  }
+  /* draw with the summary in place of this computer's own (emailed) lists */
+  function withLive(fn) {
+    var lv = liveView();
+    if (!lv) return fn();
+    var keepW = W, keepId = viewId;
+    W = lv; viewId = "";
+    try { return fn(); } finally { W = keepW; viewId = keepId; }
   }
   function sortedLists() {
     return Object.keys(W.lists).map(function (k) { return W.lists[k]; })
@@ -406,7 +499,8 @@
       roster.forEach(function (s) {
         var p = a[S.id].place[s.id];
         if (p.how === "list" || p.how === "fix") {
-          (cards[p.key] = cards[p.key] || []).push({ s: s, note: p.line ? (lineById(sub, p.line) || {}).note : "" });
+          (cards[p.key] = cards[p.key] || []).push({ s: s, note: p.line ? (lineById(sub, p.line) || {}).note
+            : ((L.notes && L.notes[S.id] && L.notes[S.id][s.id]) || "") });   /* v102: a display's notes come with the summary */
         } else if (p.how === "unsure") {
           unsure.push({ s: s, sub: S });
         }
@@ -712,11 +806,16 @@
       var st = document.getElementById("w-stage");
       if (!st || (document.fullscreenElement || document.webkitFullscreenElement) !== st) return;
       if (["ArrowLeft", "ArrowRight", "PageUp", "PageDown"].indexOf(e.key) < 0) return;
-      var L = current(); if (!L) return;
-      var ids = SUBJECTS.map(function (S) { return S.id; }).filter(function (id) { return L.subjects[id]; });
+      /* v102: on a display, the list on screen is the summary's */
+      var on = withLive(function () {
+        var L = current();
+        return L ? { ids: SUBJECTS.map(function (S) { return S.id; }).filter(function (id) { return L.subjects[id]; }), sub: slideSubject(L) } : null;
+      });
+      if (!on) return;
+      var ids = on.ids;
       if (ids.length < 2) return;
       e.preventDefault();
-      var i = ids.indexOf(slideSubject(L)), step = e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1;
+      var i = ids.indexOf(on.sub), step = e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 1;
       slideSub = ids[(i + step + ids.length) % ids.length];
       renderSlide();
     });
@@ -777,7 +876,8 @@
     var cur = SUBJECTS.filter(function (S) { return S.id === on; })[0];
     if (pres) pres.textContent = cur ? "Present " + cur.label : "Present";
   }
-  function renderSlide() {
+  function renderSlide() { return withLive(renderSlide_); }
+  function renderSlide_() {
     var st = document.getElementById("w-stage"), L = current(), roster = readRoster();
     renderPick(L);
     if (!L) {
@@ -916,10 +1016,10 @@
     renderRail(); renderAdd(); renderSlide(); renderChanges(); renderReview(); renderSetup();
   }
 
-  window.addEventListener("storage", function (e) { if ((e.key === KEY || e.key === ROSTER_KEY) && document.body.classList.contains("tab-win")) render(); });
+  window.addEventListener("storage", function (e) { if ((e.key === KEY || e.key === ROSTER_KEY || e.key === LIVE_KEY) && document.body.classList.contains("tab-win")) render(); });
   if (window.SuiteSync && window.SuiteSync.onChanged) {
     window.SuiteSync.onChanged(function (changed) {
-      if ((changed.indexOf(KEY) >= 0 || changed.indexOf(ROSTER_KEY) >= 0) && document.body.classList.contains("tab-win")) render();
+      if ((changed.indexOf(KEY) >= 0 || changed.indexOf(ROSTER_KEY) >= 0 || changed.indexOf(LIVE_KEY) >= 0) && document.body.classList.contains("tab-win")) render();
     });
   }
 

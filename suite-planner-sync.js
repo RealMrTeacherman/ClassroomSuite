@@ -40,6 +40,12 @@
    from each device's own gradebook; the Walk to WIN lists, which store
    names, stay on the folder route.
 
+   v102 adds the Walk to WIN slides (LIVE_KEY): not the pasted lists, which
+   name the whole grade, but win.js's summary of this class's matches by
+   gradebook id, with the teachers' names and rooms on the cards (his call),
+   the line notes and the days. The newest summary wins (its `at`); a device
+   re-summarises only when its own lists or roster change.
+
    A device can be set up as a DISPLAY (the school computer that projects):
    read-only, it never writes either file, takes the repository's copy as
    it is, and checks every 25 seconds while on screen, so the projector
@@ -66,6 +72,7 @@
   /* v101: the projected boards, by id */
   var BOARD_KEYS = ["suite:groups:v1", "suite:readgroups:v1"];
   var BOARDS_FILE = "boards.json", BBASE_IDB = "boardsHubBase";
+  var LIVE_KEY = "suite:winLive:v1";   /* v102: not a folder-route key, so handled beside the merge */
   var BOARD_PUSH_AFTER = 3000, DISPLAY_POLL = 25000;
   var onGroups = /\/groups(\/|\/index\.html)?$/.test(location.pathname);
   var REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
@@ -181,6 +188,8 @@
         /* v101: a board's `place` maps random gradebook ids ("x7ada3k") to
            groups; split into words, an id can contain "ada" by chance */
         if (path.length >= 2 && path[path.length - 2] === "place") return;
+        /* v102: the WIN summary's notes are keyed by gradebook id too */
+        if (isKey && path.length >= 2 && path[path.length - 2] === "notes") return;
         var found = namesIn(text, known.words);
         if (!found.length) return;
         var id = fieldId(k, path) + (isKey ? "#key" : "");
@@ -247,6 +256,15 @@
       if (gi && p[3] === "pages") return "Math board" + gi + " \u00b7 page note";
       if (gi) return "Math board" + gi + " name";
       return "Math board";
+    }
+    if (key === LIVE_KEY) {
+      var subj = p.indexOf("subjects") >= 0 ? p[p.indexOf("subjects") + 1] : "";
+      var wl = "Walk to WIN" + (subj === "read" ? " \u00b7 Reading" : subj === "math" ? " \u00b7 Math" : "");
+      if (p.indexOf("notes") >= 0) return wl + " \u00b7 a line note";
+      if (p.indexOf("groups") >= 0) return wl + " \u00b7 a group";
+      if (p[1] === "teachers") return "Walk to WIN \u00b7 a teacher\u2019s name or room";
+      if (p[p.length - 1] === "name") return "Walk to WIN \u00b7 list name";
+      return wl;
     }
     if (key === "suite:readgroups:v1") {
       var un = p[0] === "units" && /^u(\d+)$/.test(p[1] || "") ? " \u00b7 Unit " + p[1].slice(1) : "";
@@ -413,7 +431,7 @@
   function saveBase(keys) { base = onlyPlanner(keys); L.idbSet(BASE_IDB, base); }
 
   /* ---------- v101: the boards' base and state ---------- */
-  var bbase = null, bstate = "off", bdetail = "", bhold = null;
+  var bbase = null, bstate = "off", bdetail = "", bhold = null, bempty = false;
   function loadBBase() {
     if (bbase) return Promise.resolve(bbase);
     return L.idbGet(BBASE_IDB).then(function (b) { bbase = b && typeof b === "object" ? b : {}; return bbase; },
@@ -477,11 +495,13 @@
     var boardChanged = [];
     function boardAttempt(n) {
       return fetchFile(BOARDS_FILE).then(function (got) {
-        var remote = {};
+        var remote = {}, remoteLive;
+        bempty = got.text == null;
         if (got.text != null) {
           var p = parse(got.text);
           if (!p || p.kind !== "boards" || !p.keys || typeof p.keys !== "object") throw err("badboards");
           remote = onlyBoards(p.keys);
+          if (typeof p.keys[LIVE_KEY] === "string" && parse(p.keys[LIVE_KEY])) remoteLive = p.keys[LIVE_KEY];
           /* a file someone else wrote is still never let put a guest here */
           Object.keys(remote).forEach(function (k) { remote[k] = stripGuests(k, remote[k]) || remote[k]; });
         }
@@ -505,10 +525,23 @@
           try { boardChanged = boardChanged.concat(L.apply({ keys: put, updatedAt: new Date().toISOString() })); }
           finally { applying = false; }
         }
-        if (display()) { saveBBase(remote); bhold = null; return "ok"; }
-        var need = BOARD_KEYS.some(function (k) { return merged[k] !== undefined && merged[k] !== remote[k]; });
+        /* v102: the WIN summary. A display shows the repository's; an editing
+           device sends its own when it is the newer one. */
+        var myLive = localStorage.getItem(LIVE_KEY), when = function (j) { var o = parse(j); return o && typeof o.at === "string" ? o.at : ""; };
+        if (display()) {
+          if (remoteLive !== undefined && remoteLive !== myLive) {
+            applying = true;
+            try { localStorage.setItem(LIVE_KEY, remoteLive); boardChanged.push(LIVE_KEY); } finally { applying = false; }
+          }
+          saveBBase(remote); bhold = null; return "ok";
+        }
+        var mineOk = myLive != null && !!parse(myLive);
+        /* sent when there is none there yet, or when this one is newer */
+        var sendLive = mineOk && (remoteLive === undefined || when(myLive) > when(remoteLive)) ? myLive : remoteLive;
+        if (sendLive !== undefined) merged[LIVE_KEY] = sendLive;
+        var need = BOARD_KEYS.concat([LIVE_KEY]).some(function (k) { return merged[k] !== undefined && merged[k] !== (k === LIVE_KEY ? remoteLive : remote[k]); });
         if (!need) { saveBBase(merged); bhold = null; return "ok"; }
-        var check = scan(merged, BOARD_KEYS);
+        var check = scan(merged, BOARD_KEYS.concat([LIVE_KEY]));
         if (check) { saveBBase(remote); bhold = check; return "held"; }
         bhold = null;
         var payload = { suite: 1, kind: "boards", updatedAt: new Date().toISOString(), fromName: SS.device, keys: merged };
@@ -571,7 +604,7 @@
         var r = prev.apply(this, arguments);
         if (this === window.localStorage && !applying) {
           if (PLANNER_KEYS.indexOf(k) >= 0) schedule();
-          else if (BOARD_KEYS.indexOf(k) >= 0) scheduleBoards();
+          else if (BOARD_KEYS.indexOf(k) >= 0 || k === LIVE_KEY) scheduleBoards();
         }
         return r;
       };
@@ -657,6 +690,8 @@
   function boardsStatus() {
     if (!boardsOn()) return "Off on this device";
     if (bstate === "off") return "On";
+    /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
+    if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Press Keep the boards in step on the Mac or phone you change them on.";
     if (bstate === "idle") return display()
       ? "On \u00b7 this computer shows them and checks every 25 seconds"
       : "On \u00b7 changes go out in seconds";
@@ -780,10 +815,10 @@
       box.appendChild(button("Sync now", function () { round().then(function () { open(); }); }));
 
       /* v101: the projected boards */
-      box.appendChild(el("div", "hubhead", "Math board and reading cards"));
+      box.appendChild(el("div", "hubhead", "Boards and Walk to WIN slides"));
       box.appendChild(el("i", "", display()
-        ? "Shows them as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
-        : "Keeps them in step too, by student id only: names, visiting children and the Walk to WIN lists stay off GitHub, and nothing goes while typed text names a student."));
+        ? "Shows the math board, reading cards and Walk to WIN slides as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
+        : "Keeps the math board, reading cards and Walk to WIN slides in step too, by student id only. Children\u2019s names, visiting children and the pasted WIN lists stay off GitHub; the WIN cards\u2019 teacher names and rooms go. Nothing goes while typed text names a student."));
       box.appendChild(el("div", "hubstatus", boardsStatus()));
       if (bstate === "held" && bhold && bhold.reason === "names") hits(bhold);
       box.appendChild(button(boardsOn() ? "Stop keeping the boards in step here" : "Keep the boards in step", function () {

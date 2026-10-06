@@ -81,7 +81,11 @@
        (suite-planner-sync.js). The token is this device's alone, and a
        "Not a student here" is a judgment made on this device's notes. */
     "suite:plannerHub:v1": "v99: this device's planner-sync repository, token and last round; never travels",
-    "suite:plannerHubOk:v1": "v99: words this device was told are not a student's name, per note"
+    "suite:plannerHubOk:v1": "v99: words this device was told are not a student's name, per note",
+    /* v102: the Walk to WIN slide's summary travels only through GitHub,
+       with the boards; the folder route carries the lists themselves */
+    "suite:winLive:v1": "v102: the WIN slide summary by gradebook id; travels only in boards.json",
+    "suite:winLiveMine:v1": "v102: what this device last summarised, so it re-summarises only on its own change"
   };
   var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   /* one IndexedDB store for everything here; "handle" is the retired
