@@ -208,6 +208,8 @@ One route, set up once per device (v96).
 
 Every tool shares one origin, so on any one device the gradebook, the planner and the running-records tool already share storage; the folder and the files are only the transport between devices, and they merge rather than overwrite. Files written by earlier versions are read correctly.
 
+**The planner on its own (optional, v99):** Sync → **Planner sync** keeps just the planner in step through a **private** GitHub repository, with no tapping on any device. Make a private repository, then a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) for that one repository with **Contents: Read and write**, and paste both into Planner sync once on each device. Only the planner travels this way; everything else stays on the folder and the files. Before every push it checks the planner's text against the names on that device (roster, Also called, the ORF roster, the Walk to WIN lists) and holds the push if any appears, saying where. It refuses a repository that is not private.
+
 **Back up anyway.** Setup → *Save a backup file*, once a week. Sync is not a backup: a mistake syncs too.
 
 ---

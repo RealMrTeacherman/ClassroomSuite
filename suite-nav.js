@@ -379,6 +379,7 @@
       opts.push({ label: "Choose the sync folder", hint: "the folder in iCloud Drive or Google Drive that your phone saves to", run: chooseFolder });
     }
     opts.push(emailOption(S));
+    if (window.SuitePlannerSync) opts.push(window.SuitePlannerSync.menuOption());   /* v99 */
     opts.push({ label: "Load a sync file", hint: "merges it in; nothing here is lost (or drop it on any page)", run: function () {
       S.importFile().then(afterImport).catch(importFailed);
     } });
@@ -401,6 +402,7 @@
       hint: g && g.at ? "last brought in " + agoOf(g.at) + "; pick classroom.json" : "pick classroom.json in the sync folder; it merges",
       run: getNow });
     opts.push(emailOption(S));
+    if (window.SuitePlannerSync) opts.push(window.SuitePlannerSync.menuOption());   /* v99 */
     if (S.canUndoImport) opts.push(undoOption(S));
     sheet("Sync", "Send after you change something here. Get when you start, to bring in what your computer has.", opts);
   }

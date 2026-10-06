@@ -76,7 +76,12 @@
     "gb2_standards_v1_premerge": "this device's undo copy from before its last gradebook merge",
     "gb2:preRestore:v1": "this device's undo copy from before its last gradebook restore",
     /* v83: the same, for the running-records tool's Restore from backup */
-    "suite:orfPreRestore:v1": "this device's undo copy from before its last ORF tool restore"
+    "suite:orfPreRestore:v1": "this device's undo copy from before its last ORF tool restore",
+    /* v99: planner sync through a private GitHub repository
+       (suite-planner-sync.js). The token is this device's alone, and a
+       "Not a student here" is a judgment made on this device's notes. */
+    "suite:plannerHub:v1": "v99: this device's planner-sync repository, token and last round; never travels",
+    "suite:plannerHubOk:v1": "v99: words this device was told are not a student's name, per note"
   };
   var KEY_PREFIXES = /^(gb2_|lp:|running-records|suite:)/;
   /* one IndexedDB store for everything here; "handle" is the retired
@@ -794,8 +799,14 @@
     pushTimer = setTimeout(flushPush, 4000);
   }
   function busyNow() {
-    return !!(folder && folderBusy);
+    return !!(folder && folderBusy) || laneBusy();
   }
+  /* v99: the planner's GitHub round (suite-planner-sync.js) reads and
+     writes the same keys. Two rounds interleaved would each apply what it
+     read before the other wrote, and put the older copy back, so only one
+     runs at a time: each checks the other before starting. */
+  var otherLane = null;
+  function laneBusy() { try { return !!(otherLane && otherLane()); } catch (e) { return false; } }
   function flushPush() {
     clearTimeout(pushTimer); pushTimer = null;
     if (busyNow()) { pushPending = true; return; }
@@ -991,6 +1002,8 @@
     opts = opts || {};
     if (!folder) return Promise.resolve([]);
     if (folderBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
+    /* v99: the planner's GitHub round is running; go once it is done */
+    if (laneBusy()) { pushPending = true; return Promise.resolve([]); }
     folderBusy = true;
     if (!opts.quiet) set("syncing", "");
 
@@ -1222,6 +1235,32 @@
     get guardReport() { return { merged: guardReport.merged, conflicts: guardReport.conflicts }; },
     merge: function (base, local, remote) {
       return merge3(base, local, remote, { conflicts: 0, kept: 0, additive: false, remoteWins: false, changedLocally: [], changedRemotely: [] });
+    },
+    /* v99: what suite-planner-sync.js needs to run its own round with this
+       file's merge, so there is one merge and one way of applying it */
+    lane: {
+      mergeKeys: mergeKeys,
+      apply: apply,
+      notify: notifyChanged,
+      idbGet: idbGet,
+      idbSet: idbSet,
+      folderBusy: function () { return !!folderBusy; },
+      setBusy: function (f) { otherLane = f; },
+      drain: drainPending
     }
   };
+})();
+
+/* v99: the planner's own route, in its own file so it can be read (and
+   removed) on its own. Loaded from here so every page that syncs gets it,
+   and neither of the teacher's own files needs a new tag. */
+(function () {
+  try {
+    var cs = document.currentScript;
+    if (!cs || !cs.src || window.SuitePlannerSync) return;
+    var s = document.createElement("script");
+    s.src = cs.src.replace(/suite-sync\.js(\?[^#]*)?(#.*)?$/, "suite-planner-sync.js");
+    if (s.src === cs.src) return;
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) { }
 })();

@@ -647,6 +647,53 @@
     if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { } }
   }
 
+  /* v100: Phonics is part of the Reading block, not a subject of its own.
+     ECRI still happens at 8:15, but it is no longer tracked by unit, week
+     and day, and the Reading card runs 8:15-9:30 (8:15-9:00 on Wednesday).
+
+     Flagged, once: Phonics is switched off (`on:false`), not deleted, so the
+     days that recorded an ECRI position keep it, and Settings → Show brings
+     the card back if he ever wants it.
+
+     Converging, every load, but only while Phonics is off: a block still
+     linked to Phonics is linked to Reading instead. The planner's own "Reset
+     to sub-plan schedule" rebuilds the old Phonics block from its protected
+     defaults, and a device on an older build can sync one back; this puts
+     either right on the next load. The block keeps its time, its label
+     ("Phonics") and its note, so a sub plan's standing note for "8:15|Phonics"
+     still lands on it. If Phonics is switched back on, nothing here moves. */
+  function phonicsOff(st) {
+    return st.subjects.some(function (x) { return x && x.id === "phonics" && x.on === false; });
+  }
+  function phonicsIntoReading() {
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !Array.isArray(st.subjects) || !st.templates || typeof st.templates !== "object") return;
+    var touched = false;
+    if (!done()["phonics-in-reading-2026"]) {
+      st.subjects.forEach(function (x) { if (x && x.id === "phonics" && x.on !== false) { x.on = false; touched = true; } });
+    }
+    if (phonicsOff(st) && st.subjects.some(function (x) { return x && x.id === "reading"; })) {
+      Object.keys(st.templates).forEach(function (d) {
+        var tpl = st.templates[d];
+        if (!Array.isArray(tpl)) return;
+        tpl.forEach(function (b) { if (b && b.s === "phonics") { b.s = "reading"; touched = true; } });
+      });
+    }
+    if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { return; } }
+    if (!done()["phonics-in-reading-2026"]) mark("phonics-in-reading-2026");
+  }
+  /* The sub plan's own block list (its fallback when the planner has no
+     schedule) said the same. Only its untouched default rows change. */
+  function subPlanPhonics() {
+    var st, sp;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); sp = JSON.parse(localStorage.getItem("suite:subplan:v1") || "null"); } catch (e) { return; }
+    if (!st || !Array.isArray(st.subjects) || !phonicsOff(st) || !sp || !Array.isArray(sp.blocks)) return;
+    var hit = false;
+    sp.blocks.forEach(function (b) { if (b && b.subject === "phonics" && b.title === "Phonics") { b.subject = "reading"; hit = true; } });
+    if (hit) { try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { } }
+  }
+
   function runAll() {
     /* Science and Social Studies covers too much variety to be "Lesson 4", and
        Writing runs on its own rhythm rather than the curriculum's unit, week
@@ -664,6 +711,8 @@
     walkToWin();
     subPlanWalkToWin();
     standingNotes2026();                 /* after mondayShoutouts(), which can add the old Shoutouts note */
+    phonicsIntoReading();                /* v100 */
+    subPlanPhonics();
     repairDays();
     skipUnscheduled();
   }
