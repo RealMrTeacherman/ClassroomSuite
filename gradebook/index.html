@@ -160,6 +160,17 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 /* ---------- entry roster ---------- */
 .entryrow{display:flex;align-items:center;gap:13px;padding:0 16px;min-height:52px;border-bottom:1px solid var(--line-2)}
 .entryrow:last-child{border-bottom:0}
+/* v104: a student's name opens their page; it reads as the name it was */
+button.nmlink{all:unset;cursor:pointer;border-radius:4px}
+button.nmlink:hover{text-decoration:underline;text-underline-offset:3px}
+button.nmlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* v104: a student's assignments, gradable in place */
+.asgrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line-2)}
+.asgrow .what{flex:1 1 240px;min-width:0}
+.asgrow .what .when{font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:12.5px;margin-right:6px}
+.orfmiss{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
+.orfmiss span{font-size:12.5px;padding:1px 7px;border-radius:5px;background:var(--s1-bg);color:var(--s1)}
+.orfmiss span.sc{background:var(--s3-bg,#e7f3ec);color:var(--s3)}
 .entryrow .nm{flex:1;min-width:130px;font-weight:600;font-size:15.5px}
 .entryrow .prev{font-size:12.5px;color:var(--ink-3);min-width:104px;text-align:right}
 .entryrow input.note{border:1px solid var(--line);background:transparent;border-radius:6px;width:190px;font-size:13px;padding:5px 8px}
@@ -248,6 +259,7 @@ select.override{padding:3px 6px;font-size:13px}
 /* The report card's column headers are rotated labels set on one line,
    which ran to about 300px on a phone and 175px on a desktop before the
    first student. They wrap within their column now, capped at a few lines. */
+@media (max-width: 700px){#panel-report .card > .row > span[style*="flex:1"]{display:none}}   /* v104: the spacer only right-aligns on a wide screen */
 #panel-report th.c > span{white-space:normal !important;display:inline-block;max-height:10em;line-height:1.2}
 /* disclosure summaries ("choose standards") were 18-20px tall */
 summary.tiny,summary.small{padding:4px 0}
@@ -727,6 +739,9 @@ let UI = {
   groupCount: 4,
   studentSel: "",
   reportTerm: "t1",
+  rcLayout: "standard",
+  studentTerm: "",          /* v104: the term the student page lists assignments for ("" = the current one, "all" = the year) */
+  studentUnmarked: false,   /* v104: only the assignments still without this child's mark */   /* v104: the entry sheet, one column per standard or one block per student */
   subDate: null,
   ireadyRows: null,
   orfCands: null,
@@ -901,6 +916,11 @@ function noStudents(el) {
 /* The layout a phone gets: the same test as the stylesheet's own breakpoint. */
 function phoneLayout() { try { return window.matchMedia("(max-width: 760px)").matches; } catch (e) { return false; } }
 function gotoTab(t) { document.querySelector('nav.tabs button[data-tab="' + t + '"]').click(); }
+/* v104: a student's name, wherever the gradebook lists one, opens their page */
+function nameLink(st, text) {
+  return '<button type="button" class="nmlink" title="Open ' + esc(fullName(st)) + '\u2019s page" onclick="openStudent(\'' + esc(st.id) + '\')">' + esc(text) + "</button>";
+}
+function openStudent(sid) { UI.studentSel = sid; gotoTab("students"); }
 
 /* ============================================================
    TAB 1 — ENTER SCORES
@@ -974,7 +994,7 @@ function renderEnter() {
       const prev = prior.length ? prior[prior.length - 1] : null;
       const miss = missingFor(st.id, UI.enterStd, UI.enterDate);
       html += '<div class="entryrow"' + (miss ? ' style="background:var(--s1-bg)"' : "") + ">" +
-        '<span class="nm">' + esc(fullName(st)) + (st.eld ? ' <span class="chip eld">ELD</span>' : "") + "</span>" +
+        '<span class="nm">' + nameLink(st, fullName(st)) + (st.eld ? ' <span class="chip eld">ELD</span>' : "") + "</span>" +
         '<span class="prev">' + (prev ? "was " + markHTML(prev.v) + ' <span class="tiny">' + esc(prev.date.slice(5)) + "</span>" : '<span class="tiny muted">no prior</span>') + "</span>" +
         '<span class="scale">' + [1, 2, 3, 4].map(v =>
           '<button data-v="' + v + '" data-sid="' + st.id + '" aria-pressed="' + (todayScore && todayScore.v === v ? "true" : "false") + '" title="Mark ' + v + '">' + v + "</button>").join("") + "</span>" +
@@ -1543,7 +1563,7 @@ function renderGroups() {
       '<th class="c">Avg</th></tr></thead><tbody>';
     sortedStudents().forEach(st => {
       const vals = [];
-      html += "<tr><td>" + esc(fullName(st)) + (st.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + "</td>";
+      html += "<tr><td>" + nameLink(st, fullName(st)) + (st.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + "</td>";
       codes.forEach(c => {
         const a = scoresFor(st.id, c).filter(scoreAllowed);
         const l = a.length ? a[a.length - 1] : null;
@@ -1578,6 +1598,7 @@ function renderStudents() {
   let html = '<div class="stack">' + duplicateNoticeHTML() + '<div class="card pad"><div class="row">' +
     '<label class="fld">Student<select id="st-sel">' + roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.studentSel ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
     '<span style="flex:1"></span><button class="btn sm" onclick="printStudent()">Print this student</button></div></div>';
+  html += studentAssignmentsHTML(st);
 
   const ms = missingSummary(st.id);
   if (ms.total) {
@@ -1604,6 +1625,8 @@ function renderStudents() {
         '</td><td class="c">' + markHTML(wcpmToMark(r.wcpm, s2)) + "</td></tr>"; }).join("") +
       "</tbody></table></div>";
   }
+
+  html += studentReadingHTML(st);
 
   const ir = S.iready.filter(r => r.sid === st.id).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   if (ir.length) {
@@ -1641,6 +1664,118 @@ function renderStudents() {
   html += "</div>";
   el.innerHTML = html;
   document.getElementById("st-sel").onchange = e => { UI.studentSel = e.target.value; renderStudents(); };
+  const ts = document.getElementById("sa-term");
+  if (ts) ts.onchange = e => { UI.studentTerm = e.target.value; renderStudents(); };
+  const un = document.getElementById("sa-unmarked");
+  if (un) un.onchange = e => { UI.studentUnmarked = e.target.checked; renderStudents(); };
+  el.querySelectorAll(".asgrow .scale button").forEach(b => {
+    b.onclick = () => gradeFor(b.dataset.sid, b.dataset.std, b.dataset.date, b.dataset.ctx, Number(b.dataset.v));
+  });
+}
+
+/* ---- v104: a student's assignments, and their reading in detail ----
+   Every assignment the class has (as Enter scores lists them: a standard on
+   a date, with what it was), this child's mark on each, and 1-4 to mark it
+   here. A mark is written exactly as Enter scores writes one (matched on
+   student, standard and date), so it clears the chase list the same way. */
+function studentTermNow() {
+  const today = todayISO();
+  const t = S.terms.find(x => today >= x.start && today <= x.end);
+  return t ? t.id : (S.terms.length ? S.terms[S.terms.length - 1].id : "");
+}
+function studentAssignmentsHTML(st) {
+  const tid = UI.studentTerm || studentTermNow();
+  const term = tid === "all" ? null : S.terms.find(t => t.id === tid);
+  /* one row per standard and date: that is what a mark is matched on, and a
+     not-turned-in entry with no "what it was" would otherwise list the same
+     piece of work twice. The described one gives the row its name. */
+  const seen = {};
+  let list = [];
+  visibleAssignments().filter(a => !term || (a.date >= term.start && a.date <= term.end)).forEach(a => {
+    const k = a.std + "|" + a.date;
+    if (!seen[k]) { seen[k] = Object.assign({}, a); list.push(seen[k]); }
+    else if (!seen[k].ctx && a.ctx) seen[k].ctx = a.ctx;
+  });
+  list.sort((a, b) => b.date.localeCompare(a.date) || a.std.localeCompare(b.std));
+  const markOf = a => S.scores.find(x => x.sid === st.id && x.std === a.std && x.date === a.date) || null;
+  const marked = list.filter(a => markOf(a)).length;
+  const missing = list.filter(a => missingFor(st.id, a.std, a.date)).length;
+  const total = list.length;   /* before "only ones without a mark" narrows it */
+  if (UI.studentUnmarked) list = list.filter(a => !markOf(a));
+  let h = '<div class="card pad"><div class="sectionhead"><h3>Assignments</h3><span class="spacer"></span>' +
+    '<label class="fld" style="margin:0">Term<select id="sa-term">' +
+    S.terms.map(t => '<option value="' + t.id + '"' + (t.id === tid ? " selected" : "") + ">" + esc(t.name) + "</option>").join("") +
+    '<option value="all"' + (tid === "all" ? " selected" : "") + ">The whole year</option></select></label></div>" +
+    '<div class="row small" style="margin-top:4px;gap:14px"><span class="muted">' +
+    marked + " of " + total + " marked" +
+    (missing ? ' \u00b7 <strong style="color:var(--s1)">' + missing + " not turned in</strong>" : "") + "</span>" +
+    '<label class="row" style="gap:6px"><input type="checkbox" id="sa-unmarked"' + (UI.studentUnmarked ? " checked" : "") + "> Only ones without a mark</label></div>";
+  if (!list.length) {
+    h += '<p class="hint" style="margin-top:8px">' + (UI.studentUnmarked ? "Every assignment here has a mark." :
+      "No " + esc(subjLabel()) + " assignments " + (term ? "in " + esc(term.name) : "yet") + ". They appear as you mark them in Enter scores.") + "</p></div>";
+    return h;
+  }
+  h += '<div style="margin-top:6px">' + list.map(a => {
+    const m = markOf(a), miss = missingFor(st.id, a.std, a.date);
+    const d = new Date(a.date + "T12:00:00");
+    const when = isNaN(d) ? a.date : d.getDate() + " " + ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()];
+    return '<div class="asgrow"><div class="what"><span class="when">' + esc(when) + "</span>" + codeHTML(a.std) + " " + esc(a.label) +
+      (a.ctx ? ' <span class="muted">\u00b7 ' + esc(a.ctx) + "</span>" : "") +
+      (miss ? ' <span class="pill" style="background:var(--s1-bg);color:var(--s1)">not turned in</span>' : "") + "</div>" +
+      '<span class="scale">' + [1, 2, 3, 4].map(v => '<button data-v="' + v + '" data-sid="' + esc(st.id) + '" data-std="' + esc(a.std) + '" data-date="' + esc(a.date) +
+        '" data-ctx="' + esc(a.ctx || "") + '" aria-pressed="' + (m && m.v === v ? "true" : "false") + '" title="Mark ' + v + (m && m.v === v ? " (tap again to clear)" : "") + '">' + v + "</button>").join("") + "</span></div>";
+  }).join("") + "</div></div>";
+  return h;
+}
+function gradeFor(sid, std, date, ctx, v) {
+  const i = S.scores.findIndex(x => x.sid === sid && x.std === std && x.date === date);
+  if (i >= 0 && S.scores[i].v === v) S.scores.splice(i, 1);
+  else if (i >= 0) S.scores[i].v = v;
+  else S.scores.push({ id: uid(), sid: sid, std: std, v: v, date: date, note: "", ctx: ctx || "" });
+  clearMissingOnScore(sid, std, date);
+  save(); renderStudents();
+}
+/* Each ORF check in detail, read live from the ORF tool's own records (the
+   gradebook's S.orf copies keep only what marks need): the passage, WCPM,
+   accuracy, the words missed and self-corrected, what the child said on
+   missed words (v90 notes), and the patterns across all their checks, from
+   suite-orf.js, the code the ORF page and tab use. */
+function studentReadingHTML(st) {
+  let db = null;
+  try { db = JSON.parse(localStorage.getItem("running-records-v1") || "null"); } catch (e) { db = null; }
+  if (!db || !Array.isArray(db.students) || !Array.isArray(db.records)) return "";
+  const mine = new Set(db.students.filter(o => o && o.id && !o.demo && (orfStudentToLocal(o.id, db) || {}).id === st.id).map(o => o.id));
+  const recs = db.records.filter(r => mine.has(r.studentId)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  if (!recs.length) return "";
+  const notesAll = window.SuiteOrf && window.SuiteOrf.notes ? orfNotesState() : { records: {} };
+  const NT = window.SuiteOrf && window.SuiteOrf.notes;
+  let h = '<div class="card pad"><h3>Reading checks, word by word</h3>' +
+    '<p class="hint" style="margin-top:4px">From the ORF tool: each check\u2019s missed words in red, self-corrections in green.</p>';
+  recs.forEach(r => {
+    const nt = notesAll.records[r.id];
+    const day = String(r.date || "").slice(0, 10);
+    h += '<div class="asgrow" style="display:block"><div><strong class="num">' + esc(day) + "</strong>" +
+      (r.passageTitle ? ' <span class="muted">' + esc(r.passageTitle) + "</span>" : "") +
+      ' \u00b7 <span class="num">' + esc(r.wcpm) + " WCPM</span>" +
+      (r.accuracy != null ? ' \u00b7 <span class="num">' + esc(r.accuracy) + "%</span>" : "") +
+      ' \u00b7 <span class="num">' + esc(r.errors || 0) + " error" + (r.errors === 1 ? "" : "s") + "</span>" +
+      (r.sc ? ' \u00b7 <span class="num">' + esc(r.sc) + " self-corrected</span>" : "") + "</div>";
+    const missed = (r.missed || []).map(w => "<span>" + esc(w) + "</span>").join("");
+    const sc = (r.selfCorr || []).map(w => '<span class="sc">' + esc(w) + "</span>").join("");
+    if (missed || sc) h += '<div class="orfmiss">' + missed + sc + "</div>";
+    else h += '<div class="tiny muted" style="margin-top:2px">No words missed.</div>';
+    if (nt && nt.notes && nt.notes.length && NT) h += '<div class="small" style="margin-top:4px"><span class="muted">What they said:</span> ' + nt.notes.map(x => esc(NT.text(x))).join(" \u00b7 ") + "</div>";
+    h += "</div>";
+  });
+  if (window.SuiteOrf && window.SuiteOrf.miscues) {
+    const pat = window.SuiteOrf.miscues.patterns(recs);
+    if (pat.total) {
+      h += '<div class="divider"></div><h3 class="small" style="margin-top:8px">Across all ' + recs.length + " check" + (recs.length === 1 ? "" : "s") + "</h3>" +
+        '<p class="small" style="margin-top:4px"><span class="muted">Missed most:</span> ' + pat.words.slice(0, 10).map(w => esc(w.display) + (w.count > 1 ? " \u00d7" + w.count : "")).join(", ") + "</p>" +
+        (pat.features.length ? '<p class="small" style="margin-top:4px"><span class="muted">Patterns:</span> ' + pat.features.map(f => esc(f.feature) + " (" + f.n + ")").join(", ") + "</p>" : "");
+    }
+  }
+  return h + "</div>";
 }
 
 /* ============================================================
@@ -1974,20 +2109,41 @@ function ireadyImport() {
 }
 
 /* ============================================================
-   TAB 5 — REPORT CARD
+   TAB 5 — REPORT CARD, BY STANDARD (v104)
+   Synergy's standards-based report card is marked per standard (2.OA.A.1),
+   so this is too: one column per standard, students in last-name order (the
+   order Synergy lists them). It replaced v103's hand-made "report card
+   lines"; those (S.rc) and their overrides are left in storage, unused.
+   A sub-standard's marks (2.RF.3a) count toward its parent (2.RF.3), the
+   row Synergy marks. Codes here are always the stored Oregon codes, which
+   are Synergy's, whatever "Show math codes as" says for the rest of the
+   gradebook.
    ============================================================ */
 function termOf(id) { return S.terms.find(t => t.id === id) || S.terms[0]; }
 function reportable(x) { return x.source !== "iready" || !!S.settings.ireadyInReport; }
-function lineMark(sid, line, term) {
-  const vals = S.scores
-    .filter(x => x.sid === sid && reportable(x) && line.std.includes(x.std) && x.date >= term.start && x.date <= term.end)
+function rcParent(code) {
+  const s = byCode[code];
+  if (!s || s.lvl !== 2) return code;
+  const p = code.replace(/[a-z]$/, "");
+  return byCode[p] ? p : code;
+}
+/* the standards on the report card for this subject: active ones, and the
+   parent of any active sub-standard */
+function rcCodes() {
+  const want = new Set();
+  activeCodes(UI.subject).forEach(c => want.add(rcParent(c)));
+  return CATALOG.filter(s => want.has(s.c)).map(s => s.c);
+}
+function stdScores(sid, code) {
+  return S.scores.filter(x => x.sid === sid && reportable(x) && rcParent(x.std) === code);
+}
+function stdMark(sid, code, term) {
+  const vals = stdScores(sid, code).filter(x => x.date >= term.start && x.date <= term.end)
     .sort((a, b) => a.date.localeCompare(b.date)).map(x => x.v);
   return { raw: computeMark(vals), n: vals.length };
 }
-function carriedMark(sid, line, term) {
-  const vals = S.scores
-    .filter(x => x.sid === sid && reportable(x) && line.std.includes(x.std) && x.date < term.start)
-    .sort((a, b) => a.date.localeCompare(b.date));
+function carriedStd(sid, code, term) {
+  const vals = stdScores(sid, code).filter(x => x.date < term.start).sort((a, b) => a.date.localeCompare(b.date));
   if (!vals.length) return null;
   const earlier = S.terms.filter(t => t.end < term.start).sort((a, b) => b.end.localeCompare(a.end));
   for (const t of earlier) {
@@ -1996,12 +2152,14 @@ function carriedMark(sid, line, term) {
   }
   return { v: roundMark(computeMark(vals.map(x => x.v))), from: "earlier work", n: vals.length };
 }
-function finalMark(sid, line, term) {
-  const k = term.id + "|" + sid + "|" + line.id;
-  const r = lineMark(sid, line, term);
+/* an override is keyed term|student|std:CODE, beside v103's term|student|lineId */
+function stdKey(term, sid, code) { return term.id + "|" + sid + "|std:" + code; }
+function finalStd(sid, code, term) {
+  const k = stdKey(term, sid, code);
+  const r = stdMark(sid, code, term);
   if (S.overrides[k]) return { v: S.overrides[k], over: true, n: r.n };
   if (r.n === 0 && S.settings.carryForward) {
-    const c = carriedMark(sid, line, term);
+    const c = carriedStd(sid, code, term);
     if (c && c.v) return { v: c.v, over: false, n: 0, carried: c.from };
   }
   return { v: roundMark(r.raw), over: false, n: r.n, raw: r.raw };
@@ -2010,8 +2168,9 @@ function renderReport() {
   const el = document.getElementById("panel-report");
   if (!S.students.length) return noStudents(el);
   const term = termOf(UI.reportTerm);
-  const lines = S.rc.filter(l => UI.subject === "All" || l.s === UI.subject);
+  const codes = rcCodes();
   const roster = sortedStudents();
+  const layout = UI.rcLayout === "student" ? "student" : "standard";
 
   let html = '<div class="stack"><div class="card pad"><div class="row">' +
     '<label class="fld">Term<select id="r-term">' + S.terms.map(t => '<option value="' + t.id + '"' + (t.id === UI.reportTerm ? " selected" : "") + ">" + esc(t.name) + "</option>").join("") + "</select></label>" +
@@ -2019,8 +2178,11 @@ function renderReport() {
     '<option value="weighted"' + (S.settings.rule === "weighted" ? " selected" : "") + '>Recent work counts more</option>' +
     '<option value="latest"' + (S.settings.rule === "latest" ? " selected" : "") + '>Most recent mark only</option>' +
     '<option value="mean"' + (S.settings.rule === "mean" ? " selected" : "") + '>Straight average</option></select></label>' +
-    '<label class="row small" style="gap:6px;align-self:flex-end;padding-bottom:7px"><input type="checkbox" id="r-carry"' + (S.settings.carryForward ? " checked" : "") + '> Carry a mark forward when a line has no data this term</label>' +
+    '<label class="row small" style="gap:6px;align-self:flex-end;padding-bottom:7px"><input type="checkbox" id="r-carry"' + (S.settings.carryForward ? " checked" : "") + '> Carry a mark forward when a standard has no data this term</label>' +
     '<span style="flex:1"></span>' +
+    '<label class="fld">Entry sheet<select id="r-layout">' +
+    '<option value="standard"' + (layout === "standard" ? " selected" : "") + '>One column per standard</option>' +
+    '<option value="student"' + (layout === "student" ? " selected" : "") + '>One block per student</option></select></label>' +
     '<button class="btn" onclick="downloadMarks()">Download marks CSV</button>' +
     '<button class="btn" onclick="downloadDetail()">Download all scores CSV</button>' +
     '<button class="btn primary" onclick="printSynergy()">Print entry sheet</button>' +
@@ -2028,33 +2190,39 @@ function renderReport() {
     '<div class="hint" style="margin-top:10px">' +
     (S.scores.some(x => x.source === "iready") && !S.settings.ireadyInReport
       ? 'iReady-derived marks are excluded from these figures \u2014 turn that on in the iReady tab if you want them counted. ' : "") +
-    'Marks shown are suggestions from your data. Change any of them with the dropdown; an overridden mark is marked <span class="pill">set by you</span> and stays put.</div></div>';
+    'One column per standard, as Synergy marks them, in Oregon codes. Marks shown are suggestions from your data; change any of them with the dropdown, and an overridden mark is marked <span class="pill">set by you</span> and stays put. <b>Copy</b> under a standard copies its marks, top to bottom, to paste into Synergy.</div></div>';
 
-  html += '<div class="scroll"><table><thead><tr><th style="min-width:160px">Student</th>' +
-    lines.map(l => '<th class="c" title="' + esc(l.std.join(", ")) + '" style="min-width:74px"><span style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">' + esc(l.n) + "</span></th>").join("") +
+  if (!codes.length) {
+    html += '<div class="card pad"><p class="hint">No standards are switched on for ' + esc(subjLabel()) + '. Choose them in Setup \u2192 Standards.</p></div></div>';
+    el.innerHTML = html; wireReport(el, term); return;
+  }
+  html += '<div class="scroll"><table class="rc"><thead><tr><th style="min-width:160px">Student</th>' +
+    codes.map(c => '<th class="c" title="' + esc(c + " \u2014 " + (byCode[c] ? byCode[c].lbl : "")) + '" style="min-width:58px"><span style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap"><code class="std">' + esc(c) + "</code></span></th>").join("") +
+    '</tr><tr><th class="tiny muted" style="font-weight:400">Copy a column for Synergy</th>' +
+    codes.map(c => '<th class="c"><button class="btn sm" data-copy="' + esc(c) + '" title="Copy ' + esc(c) + ' marks, in this order">Copy</button></th>').join("") +
     "</tr></thead><tbody>";
   roster.forEach(st => {
-    html += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>";
-    lines.forEach(l => {
-      const r = lineMark(st.id, l, term);
-      const f = finalMark(st.id, l, term);
+    html += "<tr><td>" + nameLink(st, st.last + ", " + st.first) + "</td>";
+    codes.forEach(c => {
+      const r = stdMark(st.id, c, term);
+      const f = finalStd(st.id, c, term);
       const sugg = f.carried ? f.v : roundMark(r.raw);
-      html += '<td class="c"><select class="override" title="' + esc(l.n) + '" data-sid="' + st.id + '" data-line="' + l.id + '" style="' + (f.over ? "font-weight:700;border-color:var(--accent);background:var(--accent-soft)" : "") + '">' +
+      html += '<td class="c"><select class="override" title="' + esc(c) + '" data-sid="' + st.id + '" data-std="' + esc(c) + '" style="' + (f.over ? "font-weight:700;border-color:var(--accent);background:var(--accent-soft)" : "") + '">' +
         '<option value="">' + (sugg ? sugg : "\u2013") + "</option>" +
         [1, 2, 3, 4].map(v => '<option value="' + v + '"' + (f.over && f.v === v ? " selected" : "") + ">" + v + "</option>").join("") +
-        '</select><div class="tiny muted num">' + (f.n ? "n=" + f.n : (f.carried ? "carried" : "no data")) + "</div></td>";
+        '</select><div class="tiny muted num">' + (f.over ? "set by you" : f.n ? "n=" + f.n : (f.carried ? "carried" : "no data")) + "</div></td>";
     });
     html += "</tr>";
   });
   html += "</tbody></table></div>";
 
   const gaps = [];
-  lines.forEach(l => {
-    const fresh = roster.filter(st => lineMark(st.id, l, term).n === 0);
-    const carried = fresh.filter(st => finalMark(st.id, l, term).carried).length;
+  codes.forEach(c => {
+    const fresh = roster.filter(st => stdMark(st.id, c, term).n === 0 && !finalStd(st.id, c, term).over);
+    const carried = fresh.filter(st => finalStd(st.id, c, term).carried).length;
     const blank = fresh.length - carried;
-    if (blank) gaps.push(l.n + ": " + blank + " student" + (blank === 1 ? "" : "s") + " with nothing to go on");
-    else if (carried) gaps.push(l.n + ": " + carried + " student" + (carried === 1 ? "" : "s") + " carried from an earlier term");
+    if (blank) gaps.push(c + ": " + blank + " student" + (blank === 1 ? "" : "s") + " with nothing to go on");
+    else if (carried) gaps.push(c + ": " + carried + " student" + (carried === 1 ? "" : "s") + " carried from an earlier term");
   });
   const openNow = missingOpen().filter(m => m.date >= term.start && m.date <= term.end);
   if (openNow.length) gaps.unshift(openNow.length + " piece" + (openNow.length === 1 ? "" : "s") + " of work still not turned in from this term");
@@ -2063,17 +2231,33 @@ function renderReport() {
   }
   html += "</div>";
   el.innerHTML = html;
-
+  wireReport(el, term);
+}
+function wireReport(el, term) {
   document.getElementById("r-term").onchange = e => { UI.reportTerm = e.target.value; renderReport(); };
   document.getElementById("r-rule").onchange = e => { S.settings.rule = e.target.value; save(); renderReport(); };
   document.getElementById("r-carry").onchange = e => { S.settings.carryForward = e.target.checked; save(); renderReport(); };
+  document.getElementById("r-layout").onchange = e => { UI.rcLayout = e.target.value; renderReport(); };
   el.querySelectorAll("select.override").forEach(sel => {
     sel.onchange = () => {
-      const k = term.id + "|" + sel.dataset.sid + "|" + sel.dataset.line;
+      const k = stdKey(term, sel.dataset.sid, sel.dataset.std);
       if (sel.value === "") delete S.overrides[k]; else S.overrides[k] = Number(sel.value);
       save(); renderReport();
     };
   });
+  el.querySelectorAll("button[data-copy]").forEach(b => {
+    b.onclick = () => {
+      const text = copyColumn(b.dataset.copy, term);
+      const done = () => { b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => prompt("Copy these marks:", text));
+      else prompt("Copy these marks:", text);
+    };
+  });
+}
+/* one mark per line, in last-name order: a blank line where there is no mark,
+   so a pasted column never slides up against the wrong child */
+function copyColumn(code, term) {
+  return sortedStudents().map(st => finalStd(st.id, code, term).v || "").join("\n");
 }
 function csvCell(x) { const s = String(x == null ? "" : x); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function download(name, text) {
@@ -2084,14 +2268,14 @@ function download(name, text) {
 }
 function downloadMarks() {
   const term = termOf(UI.reportTerm);
-  const lines = S.rc.filter(l => UI.subject === "All" || l.s === UI.subject);
-  const head = ["Last Name", "First Name", "Student ID"].concat(lines.map(l => l.s + " - " + l.n));
+  const codes = rcCodes();
+  const head = ["Last Name", "First Name", "Student ID"].concat(codes);
   const rows = [head.map(csvCell).join(",")];
   sortedStudents().forEach(st => {
-    const r = [st.last, st.first, st.sid || ""].concat(lines.map(l => finalMark(st.id, l, term).v || ""));
+    const r = [st.last, st.first, st.sid || ""].concat(codes.map(c => finalStd(st.id, c, term).v || ""));
     rows.push(r.map(csvCell).join(","));
   });
-  download("report-card-marks-" + term.name.replace(/\s+/g, "-") + ".csv", rows.join("\n"));
+  download("synergy-marks-" + term.name.replace(/\s+/g, "-") + ".csv", rows.join("\n"));
 }
 function downloadDetail() {
   const rows = [["Last Name", "First Name", "Student ID", "Subject", "Standard", "Standard text", "Mark", "Date", "Context", "Note"].join(",")];
@@ -2102,18 +2286,38 @@ function downloadDetail() {
   });
   download("all-standard-scores.csv", rows.join("\n"));
 }
+/* The entry sheet, either way Synergy turns out to lay its screen out: one
+   column per standard (a page holds RC_PER_PAGE of them), or one block per
+   student. Rows and blocks are in last-name order, Synergy's. */
+const RC_PER_PAGE = 12;
 function printSynergy() {
   const term = termOf(UI.reportTerm);
-  const lines = S.rc.filter(l => UI.subject === "All" || l.s === UI.subject);
-  let h = '<h2 style="margin-bottom:4px">' + esc(S.settings.teacher || "Grade 2") + " \u2014 " + esc(term.name) + " report card marks</h2>" +
-    '<p style="font-size:11px;color:#555;margin-bottom:10px">Rows are in last-name order to match the Synergy entry screen. Printed ' + todayISO() + ".</p>";
-  h += '<table border="1" cellspacing="0" cellpadding="3" style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Student</th>' +
-    lines.map(l => '<th style="font-size:9px;width:34px"><div style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">' + esc(l.n) + "</div></th>").join("") + "</tr></thead><tbody>";
-  sortedStudents().forEach(st => {
-    h += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>" +
-      lines.map(l => '<td align="center" style="font-weight:700">' + (finalMark(st.id, l, term).v || "") + "</td>").join("") + "</tr>";
-  });
-  h += "</tbody></table>";
+  const codes = rcCodes();
+  const roster = sortedStudents();
+  const title = esc(S.settings.teacher || "Grade 2") + " \u2014 " + esc(term.name) + " report card marks";
+  const sub = '<p style="font-size:11px;color:#555;margin-bottom:10px">' + esc(subjLabel()) + ", by standard, in last-name order to match Synergy. Printed " + todayISO() + ".</p>";
+  let h = "";
+  if (UI.rcLayout === "student") {
+    h += '<h2 style="margin-bottom:4px">' + title + "</h2>" + sub + '<div style="columns:2;column-gap:24px">';
+    roster.forEach(st => {
+      h += '<div style="break-inside:avoid;margin:0 0 12px"><b>' + esc(st.last + ", " + st.first) + '</b><table cellspacing="0" cellpadding="2" style="width:100%;border-collapse:collapse;font-size:11px">' +
+        codes.map(c => '<tr><td style="border-bottom:1px solid #ddd">' + esc(c) + '</td><td style="border-bottom:1px solid #ddd;color:#555">' + esc(byCode[c] ? byCode[c].lbl : "") + '</td><td align="center" style="border-bottom:1px solid #ddd;font-weight:700;width:24px">' + (finalStd(st.id, c, term).v || "") + "</td></tr>").join("") +
+        "</table></div>";
+    });
+    h += "</div>";
+  } else {
+    for (let i = 0; i < codes.length; i += RC_PER_PAGE) {
+      const part = codes.slice(i, i + RC_PER_PAGE);
+      h += '<div style="' + (i ? "break-before:page;" : "") + '"><h2 style="margin-bottom:4px">' + title + (codes.length > RC_PER_PAGE ? " (" + (i / RC_PER_PAGE + 1) + " of " + Math.ceil(codes.length / RC_PER_PAGE) + ")" : "") + "</h2>" + sub +
+        '<table border="1" cellspacing="0" cellpadding="3" style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Student</th>' +
+        part.map(c => '<th style="font-size:9px;width:40px"><div style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">' + esc(c) + "</div></th>").join("") + "</tr></thead><tbody>";
+      roster.forEach(st => {
+        h += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>" +
+          part.map(c => '<td align="center" style="font-weight:700">' + (finalStd(st.id, c, term).v || "") + "</td>").join("") + "</tr>";
+      });
+      h += "</tbody></table></div>";
+    }
+  }
   document.getElementById("printsheet").innerHTML = h;
   window.print();
 }
@@ -2264,21 +2468,8 @@ function renderSetup() {
   });
   html += "</div>";
 
-  /* report card lines */
-  html += '<div class="card pad"><div class="sectionhead"><h2>' + esc(subjLabel()) + ' report card lines</h2><span class="spacer"></span><button class="btn sm" onclick="addLine()">Add a line</button></div>' +
-    '<p class="hint">These are the rows you fill in on the Creswell report card. Rename them to match yours exactly, then tick which standards feed each one.</p>';
-  S.rc.filter(l => UI.subject === "All" || l.s === UI.subject).forEach(l => {
-    html += '<div style="border:1px solid var(--rule);border-radius:6px;padding:10px;margin-top:10px">' +
-      '<div class="row"><select data-lf="s" data-id="' + l.id + '"><option' + (l.s === "Math" ? " selected" : "") + ">Math</option><option" + (l.s === "ELA" ? " selected" : "") + "></option></select>" +
-      '<input type="text" data-lf="n" data-id="' + l.id + '" value="' + esc(l.n) + '" style="flex:1;min-width:220px">' +
-      '<button class="btn sm danger" onclick="removeLine(\'' + l.id + '\')">Remove</button></div>' +
-      '<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">' + l.std.length + " standards feed this line</summary><div style=\"columns:2;margin-top:6px\">" +
-      CATALOG.filter(s => s.s === l.s && (S.settings.showSubs || s.lvl === 1)).map(s =>
-        '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-line="' + l.id + '" data-code="' + s.c + '"' + (l.std.includes(s.c) ? " checked" : "") + "><span>" + esc(dispCode(s.c) + " " + s.lbl) + "</span></label>").join("") +
-      "</div></details></div>";
-  });
-  html += "</div>";
-
+  /* v104: the report card is marked by standard (Report card tab); the
+     hand-made report card lines that were here are gone. */
   /* data */
   html += '<div class="card pad"><h2>Your data</h2>' +
     '<p class="hint">Everything lives in this browser only \u2014 nothing is uploaded. Back it up regularly, and move it between computers with these buttons.</p>' +
@@ -2344,17 +2535,6 @@ function renderSetup() {
   document.getElementById("yr-n").value = String(S.terms.length >= 2 && S.terms.length <= 4 ? S.terms.length : 4);
   el.querySelectorAll("[data-std]").forEach(cb => {
     cb.onchange = () => { S.active[cb.dataset.std] = cb.checked; save(); };
-  });
-  el.querySelectorAll("[data-lf]").forEach(inp => {
-    inp.onchange = () => { const l = S.rc.find(x => x.id === inp.dataset.id); l[inp.dataset.lf] = inp.value; save(); renderSetup(); };
-  });
-  el.querySelectorAll("[data-line][data-code]").forEach(cb => {
-    cb.onchange = () => {
-      const l = S.rc.find(x => x.id === cb.dataset.line);
-      if (cb.checked) { if (!l.std.includes(cb.dataset.code)) l.std.push(cb.dataset.code); }
-      else l.std = l.std.filter(c => c !== cb.dataset.code);
-      save();
-    };
   });
   document.getElementById("imp").onchange = e => {
     const f = e.target.files[0]; if (!f) return;
@@ -2425,8 +2605,7 @@ function rebuildTerms() {
   if (!S.terms.find(t => t.id === UI.reportTerm)) UI.reportTerm = S.terms[0].id;
   save(); renderSetup(); toast("Split into " + n + " marking periods");
 }
-function addLine() { S.rc.push({ id: uid(), s: UI.subject === "All" ? "Math" : UI.subject, n: "New report card line", std: [] }); save(); renderSetup(); }
-function removeLine(id) { S.rc = S.rc.filter(l => l.id !== id); save(); renderSetup(); }
+/* v104: addLine()/removeLine() went with the report card lines */
 function exportJSON() {
   const b = new Blob([JSON.stringify(S, null, 1)], { type: "application/json" });
   const a = document.createElement("a");
