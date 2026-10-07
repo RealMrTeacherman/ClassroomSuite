@@ -480,6 +480,19 @@ body {
     border-color: color-mix(in srgb, var(--c) 24%, #fff) !important;
   }
   html:not([data-suite-theme]) .rail > .sub.now { border: 2px solid var(--suite-ink) !important; box-shadow: 0 2px 10px rgba(16,24,32,.12) !important; }
+  /* v114 (F): the cards now sit in the day's columns (.fcol); the same look */
+  html:not([data-suite-theme]) .rail .fcol > .sub { border-radius: 14px; }
+  html:not([data-suite-theme]) .rail .fcol > .sub::before { height: 6px; background: var(--c); }
+  html:not([data-suite-theme]) .rail .fcol > .sub .subname { color: color-mix(in srgb, var(--c) 72%, #14202A); }
+  html:not([data-suite-theme]) .rail .fcol > .sub .subtime {
+    background: color-mix(in srgb, var(--c) 12%, #fff); color: color-mix(in srgb, var(--c) 64%, #14202A);
+    border-radius: 6px; padding: 1px 8px; font-variant-numeric: tabular-nums;
+  }
+  html:not([data-suite-theme]) .rail .fcol > .sub .readout {
+    background: color-mix(in srgb, var(--c) 11%, #fff) !important; color: color-mix(in srgb, var(--c) 58%, #14202A) !important;
+    border-color: color-mix(in srgb, var(--c) 24%, #fff) !important;
+  }
+  html:not([data-suite-theme]) .rail .fcol > .sub.now { border: 2px solid var(--suite-ink) !important; box-shadow: 0 2px 10px rgba(16,24,32,.12) !important; }
   html:not([data-suite-theme]) .nowtag { display: inline-block; vertical-align: 2px; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: var(--suite-ink); color: #fff; font: 600 12px var(--suite-sans); }
   html:not([data-suite-theme]) .savebar .primary {
     font: 600 14px var(--suite-sans) !important; text-transform: none !important; letter-spacing: 0 !important;

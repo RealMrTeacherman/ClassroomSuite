@@ -65,7 +65,7 @@
   window.PlannerDay = { dayPlan: dayPlan, key: bkey,
     spanOf: function (t) { return window.spanOf(t); }, markNow: function () { return window.markNow(); } };
 
-  var CELL_H = 380;
+  var CMID_MAX = 220;   /* v114: how much of a card's middle shows before Show more */
   var STYLE = [
     ".rail.byday .dayrow{grid-column:1/-1;display:flex;gap:12px;align-items:flex-start;padding:7px 4px 7px 2px;border-top:1.5px solid var(--line)}",
     ".rail.byday .dayrow time{font-family:var(--mono);font-size:11px;color:var(--ink-2);flex:0 0 82px;padding-top:3px}",
@@ -83,31 +83,33 @@
     ".sub .cblocks .cbn{display:block;color:var(--ink-3)}",
     "@media (max-width:760px){.rail.byday .dayrow time{flex-basis:70px}.rail.byday .drday{font-size:16px}}",
     "@media print{.rail.byday .dradd{display:none}}",
-    /* v98: on a computer the day is a regular grid. Every cell is the same
-       width and height, in schedule order, left to right: a lesson card, or
-       one lighter cell holding a run of plain blocks. A long cell fades out
-       into Show more, which opens it in place, over the cells below, so the
-       grid never moves. Phones (760px and under) and print keep the v93
-       column: the cells' wrappers become display:contents there. */
+    /* v114 (F): on a computer the day is three columns, Morning, Midday and
+       Afternoon, broken after morning recess and after lunch. Lesson cards
+       keep everything; a long one shows CMID_MAX of its middle, then Show
+       more opens it in place, in its column. Plain blocks are slim dashed
+       rows. The column with the lesson on now says so. On a phone and in
+       print the columns are stacked sections. (v98's even grid, with its
+       fixed 380px cells and over-the-cells opening, is CHANGELOG v98.) */
+    ".rail.byday{display:block}" +
+    ".rail.byday .fcol{min-width:0}" +
+    ".rail.byday .fcolhead{display:flex;align-items:baseline;gap:6px;margin:4px 2px 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}" +
+    ".rail.byday .fcolhead.now{color:var(--suite-accent,#10655C)}" +
+    ".rail.byday .fcolempty{font-size:13px;color:var(--ink-3);padding:4px 2px}" +
+    ".rail.byday .fcol>.sub,.rail.byday .fcol>.blockcell{margin:0 0 10px}" +
     "@media screen and (min-width:761px){" +
-      ".rail.byday{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));align-items:start;gap:12px}" +
-      ".rail.byday>.blockcell{grid-column:auto;background:rgba(255,255,255,.55);border:1.5px dashed var(--line);border-radius:12px;padding:8px 10px}" +
-      ".rail.byday>.blockcell .dayrow{border-top:0;padding:6px 0}" +
-      ".rail.byday>.blockcell .dayrow+.dayrow{border-top:1px solid var(--line)}" +
-      ".rail.byday>.blockcell .dayrow time{flex-basis:66px}" +
-      ".rail.byday>.sub:not(.skip),.rail.byday>.blockcell{height:" + CELL_H + "px;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden}" +
-      ".rail.byday .cmid{flex:1 1 auto;min-height:0;overflow:hidden;position:relative}" +
-      ".rail.byday .over:not(.open)>.cmid::after{content:'';position:absolute;left:0;right:0;bottom:0;height:42px;pointer-events:none;background:linear-gradient(rgba(255,255,255,0),var(--card,#fff))}" +
-      ".rail.byday>.blockcell.over:not(.open)>.cmid::after{background:linear-gradient(rgba(246,247,248,0),rgb(246,247,248))}" +
-      /* as specific as the fixed-height rule above, or that one wins */
-      ".rail.byday>.sub.open:not(.skip),.rail.byday>.blockcell.open{height:auto;position:relative;z-index:30;overflow:visible;box-shadow:0 10px 28px rgba(16,24,32,.18)}" +
-      ".rail.byday>.blockcell.open{background:var(--card,#fff)}" +
-      ".rail.byday>.open>.cmid{overflow:visible}" +
-      ".rail.byday .sub>.subnote{flex:none}" +
+      ".rail.byday{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}" +
+      ".rail.byday .fcol>.blockcell{background:rgba(255,255,255,.55);border:1.5px dashed var(--line);border-radius:12px;padding:4px 10px}" +
+      ".rail.byday .fcol>.blockcell .dayrow{border-top:0;padding:5px 0}" +
+      ".rail.byday .fcol>.blockcell .dayrow+.dayrow{border-top:1px solid var(--line)}" +
+      ".rail.byday .fcol>.blockcell .dayrow time{flex-basis:66px}" +
+      ".rail.byday .fcol>.sub .cmid{max-height:" + CMID_MAX + "px;overflow:hidden;position:relative}" +
+      ".rail.byday .fcol>.blockcell>.cmid{max-height:none}" +
+      ".rail.byday .over:not(.open)>.cmid::after{content:'';position:absolute;left:0;right:0;bottom:0;height:36px;pointer-events:none;background:linear-gradient(rgba(255,255,255,0),var(--card,#fff))}" +
+      ".rail.byday .fcol>.open>.cmid{max-height:none;overflow:visible}" +
       ".rail.byday .more{flex:none;align-self:flex-start;margin:6px 0 4px;background:none;border:0;padding:2px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}" +
       ".rail.byday .more:hover{color:var(--ink)}" +
-      "}",
-    /* on a wide screen the Today view takes more of it: up to five across */
+    "}",
+    /* on a wide screen the Today view takes more of it */
     "@media screen and (min-width:1600px){html:not([data-suite-theme]):has(.rail.byday){--x-w:1560px}}",
     "@media not screen,(max-width:760px){.rail.byday>.blockcell,.rail.byday .cmid{display:contents}.rail.byday .more{display:none}}"
   ].join("\n");
@@ -221,14 +223,97 @@
     [].forEach.call(rail.querySelectorAll(":scope > .sub:not(.skip), :scope > .blockcell"), function (c) {
       if (openCells[cellKey(c)]) c.classList.add("open");
     });
+    dayColumns(rail);                                      /* v114 */
     measure(rail);
     setTimeout(function () { measure(rail); }, 300);      /* after fonts settle */
   }
-  /* which cells need Show more, and keep an open one from moving the grid */
+  /* v114 (F): the day in three columns. Where they break comes from the day's
+     own schedule: after the first recess before noon, and after lunch (10:00
+     and 12:30 if it has neither). A card or block goes by when it starts; a
+     subject on but not scheduled today goes last. */
+  function minutesOf(t) {
+    var m = /(\d{1,2}):(\d{2})/.exec(String(t || ""));
+    if (!m) return null;
+    var h = +m[1]; if (h < 7) h += 12;   /* a school day: 1:00 is after lunch */
+    return h * 60 + (+m[2]);
+  }
+  function breaksOf(blocks) {
+    var rec = null, lun = null;
+    blocks.forEach(function (b, i) {
+      var st = minutesOf(b.t), en = minutesOf(blockEnd(blocks, i));
+      if (rec === null && /recess/i.test(b.l || "") && !/lunch/i.test(b.l || "") && st !== null && st < 720) rec = en;
+      if (lun === null && /lunch/i.test(b.l || "") && st !== null) lun = en;
+    });
+    return [rec || 600, lun || 750];
+  }
+  var COLS = ["Morning", "Midday", "Afternoon"];
+  function dayColumns(rail) {
+    var cut = breaksOf(blocksFor(cursor));
+    var cols = COLS.map(function (name, i) {
+      var c = document.createElement("div"); c.className = "fcol"; c.setAttribute("data-col", String(i));
+      var h = document.createElement("div"); h.className = "fcolhead"; h.textContent = name; c.appendChild(h);
+      return c;
+    });
+    var startOf = function (n) {
+      if (n.classList.contains("sub")) return minutesOf((n.querySelector(".subtime") || {}).textContent);
+      var r = n.querySelector(".dayrow");
+      return r ? minutesOf(r.getAttribute("data-bk") || (r.querySelector("time") || {}).textContent) : null;
+    };
+    var colOf = function (m) { return m === null ? 2 : m < cut[0] ? 0 : m < cut[1] ? 1 : 2; };
+    [].slice.call(rail.children).forEach(function (n) {
+      if (!n.classList || !(n.classList.contains("sub") || n.classList.contains("blockcell") || n.classList.contains("dayrow"))) return;
+      /* a run of plain blocks that crosses a break (recess, then read-aloud
+         after it) is split, each part going to its own column */
+      if (n.classList.contains("blockcell")) {
+        var parts = {};
+        [].slice.call(n.querySelectorAll(".dayrow")).forEach(function (r) {
+          var i = colOf(minutesOf(r.getAttribute("data-bk") || (r.querySelector("time") || {}).textContent));
+          (parts[i] = parts[i] || []).push(r);
+        });
+        var keys = Object.keys(parts);
+        if (keys.length > 1) {
+          keys.forEach(function (i, k) {
+            var cell = k === 0 ? n : (function () {
+              var c = document.createElement("div"); c.className = "blockcell";
+              var m = document.createElement("div"); m.className = "cmid"; c.appendChild(m); return c;
+            })();
+            parts[i].forEach(function (r) { cell.querySelector(".cmid").appendChild(r); });
+            cols[+i].appendChild(cell);
+          });
+          return;
+        }
+      }
+      cols[colOf(startOf(n))].appendChild(n);
+    });
+    cols.forEach(function (c) {
+      if (c.children.length === 1) { var e = document.createElement("div"); e.className = "fcolempty"; e.textContent = "Nothing scheduled"; c.appendChild(e); }
+      rail.appendChild(c);
+    });
+    markNowColumn(rail, cut);
+  }
+  /* the column with the lesson on now, on the day that is today */
+  function markNowColumn(rail, cut) {
+    var now = window.PlannerDay && window.PlannerDay.__now ? window.PlannerDay.__now() : new Date();
+    [].forEach.call(rail.querySelectorAll(".fcolhead"), function (h, i) {
+      var on = typeof key === "function" && key(cursor) === key(now) && (function () {
+        var m = now.getHours() * 60 + now.getMinutes();
+        return (m < cut[0] ? 0 : m < cut[1] ? 1 : 2) === i;
+      })();
+      h.classList.toggle("now", !!on);
+      h.textContent = COLS[i] + (on ? " \u00b7 now" : "");
+    });
+  }
+
+  setInterval(function () {
+    var r = document.querySelector(".rail.byday");
+    if (r && r.querySelector(".fcolhead")) markNowColumn(r, breaksOf(blocksFor(cursor)));
+  }, 60000);
+
+  /* which cells need Show more */
   function measure(rail) {
     if (!rail || !rail.isConnected) return;
     var on = gridOn();
-    [].forEach.call(rail.querySelectorAll(":scope > .sub:not(.skip), :scope > .blockcell"), function (c) {
+    [].forEach.call(rail.querySelectorAll(".fcol > .sub:not(.skip), .fcol > .blockcell"), function (c) {
       var mid = c.querySelector(":scope > .cmid"), btn = c.querySelector(":scope > .more");
       var open = c.classList.contains("open");
       var over = false;
@@ -248,14 +333,12 @@
         btn.textContent = open ? "Show less" : "Show more";
         btn.setAttribute("aria-expanded", open ? "true" : "false");
       }
-      /* open, it is taller than its cell; a negative margin hands the grid
-         back exactly one cell's height, so nothing after it moves */
-      c.style.marginBottom = open && on ? (CELL_H - c.offsetHeight) + "px" : "";
+      /* v114: opened in place, in its column; nothing to hand back */
     });
   }
   function setOpen(c, open) {
-    var rail = c.parentNode;
-    [].forEach.call(rail.querySelectorAll(":scope > .open"), function (o) {
+    var rail = c.closest(".rail");
+    [].forEach.call(rail.querySelectorAll(".fcol > .open"), function (o) {
       if (o !== c) { o.classList.remove("open"); delete openCells[cellKey(o)]; }
     });
     c.classList.toggle("open", open);
@@ -265,13 +348,13 @@
   function closeAll() {
     var rail = document.querySelector(".rail.byday");
     if (!rail) return;
-    var o = rail.querySelector(":scope > .open");
+    var o = rail.querySelector(".fcol > .open");
     if (o) setOpen(o, false);
   }
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAll(); });
   document.addEventListener("click", function (e) {
     var rail = document.querySelector(".rail.byday");
-    var o = rail && rail.querySelector(":scope > .open");
+    var o = rail && rail.querySelector(".fcol > .open");
     if (o && !o.contains(e.target) && document.contains(e.target)) setOpen(o, false);
   });
   /* typing a note can make a cell outgrow itself; a resize changes columns */

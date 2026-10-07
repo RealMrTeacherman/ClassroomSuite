@@ -1150,7 +1150,7 @@ function markNow(){
   const now = (window.PlannerDay && window.PlannerDay.__now) ? window.PlannerDay.__now() : new Date();
   if(!(cursor instanceof Date) || key(cursor)!==key(now)) return;
   const m = now.getHours()*60 + now.getMinutes();
-  rail.querySelectorAll(':scope > .sub').forEach(c=>{
+  rail.querySelectorAll('.sub').forEach(c=>{   /* v114: in the day's columns, not straight in the rail */
     if(c.classList.contains('skip')) return;
     const r = spanOf((c.querySelector('.subtime')||{}).textContent);
     if(!r || m<r[0] || m>=r[1]) return;
