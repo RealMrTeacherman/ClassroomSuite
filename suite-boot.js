@@ -668,7 +668,7 @@
     S.subjects.forEach(function (s) { if (s && s.on && !seen[s.id]) out.push({ kind: "card", id: s.id }); });
     return out;
   }
-  window.PlannerDay = { dayPlan: dayPlan, key: bkey };
+  window.PlannerDay = { dayPlan: dayPlan, key: bkey, spanOf: spanOf, markNow: markNow, dayNotesBar: dayNotesBar };   /* v108: spanOf, markNow, dayNotesBar */
 
   var CELL_H = 380;
   var STYLE = [
@@ -888,6 +888,47 @@
   document.addEventListener("input", function (e) { if (e.target && e.target.closest && e.target.closest(".rail.byday")) remeasure(); });
   document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest(".rail.byday .dradd")) remeasure(); }, true);
 
+  /* ---- v108: the Today view as A2 ----
+     Day notes move up to a bar under the date bar (moved, not redrawn, so
+     the planner's own handlers stay; suite-theme.css styles it), and the
+     lesson on now, when the day shown is today, is marked. */
+  function dayNotesBar() {
+    var notes = document.getElementById("notes"), panel = notes && notes.closest(".panel"), nav = document.querySelector(".datenav");
+    if (!panel || !nav) return;
+    panel.classList.add("daynotes");
+    var h = panel.querySelector("h2");
+    if (h && h.textContent !== "Day notes") h.textContent = "Day notes";
+    notes.setAttribute("placeholder", "Assemblies, changes, reminders");
+    if (panel.previousElementSibling !== nav) nav.parentNode.insertBefore(panel, nav.nextSibling);
+  }
+  function spanOf(text) {
+    var m = /(\d{1,2}):(\d{2})\s*[\u2013-]\s*(\d{1,2}):(\d{2})/.exec(String(text || ""));
+    if (!m) return null;
+    /* a school day: 1:00 is after lunch, never before breakfast */
+    var at = function (h, mi) { h = +h; if (h < 7) h += 12; return h * 60 + (+mi); };
+    return [at(m[1], m[2]), at(m[3], m[4])];
+  }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function markNow() {
+    var rail = document.querySelector(".rail.byday");
+    if (!rail) return;
+    [].forEach.call(rail.querySelectorAll(".sub.now"), function (c) {
+      c.classList.remove("now");
+      var t = c.querySelector(".nowtag"); if (t) t.parentNode.removeChild(t);
+    });
+    var now = window.PlannerDay && window.PlannerDay.__now ? window.PlannerDay.__now() : new Date();
+    if (typeof cursor === "undefined" || !(cursor instanceof Date) || !sameDay(cursor, now)) return;
+    var m = now.getHours() * 60 + now.getMinutes();
+    [].forEach.call(rail.querySelectorAll(":scope > .sub"), function (c) {
+      if (c.classList.contains("skip")) return;
+      var r = spanOf((c.querySelector(".subtime") || {}).textContent);
+      if (!r || m < r[0] || m >= r[1]) return;
+      c.classList.add("now");
+      var nm = c.querySelector(".subname");
+      if (nm) { var tag = document.createElement("span"); tag.className = "nowtag"; tag.textContent = "Now"; nm.appendChild(tag); }
+    });
+  }
+  setInterval(markNow, 60000);
   function layout() {
     var rail = document.querySelector(".rail");
     if (!rail || typeof cursor === "undefined") return;
@@ -912,6 +953,7 @@
     rail.appendChild(frag);
     rail.classList.add("byday");
     gridCells(rail);                                       /* v98 */
+    dayNotesBar(); markNow();                              /* v108 */
     /* the timeline panel it replaces */
     [].forEach.call(document.querySelectorAll(".panel > h2"), function (h) {
       if (/^The day, block by block$/.test(h.textContent.trim())) h.parentNode.parentNode.removeChild(h.parentNode);

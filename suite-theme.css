@@ -461,6 +461,43 @@ body {
   html:not([data-suite-theme]) .freein { background: var(--suite-paper-hi) !important; color: var(--suite-ink) !important; border: 1px solid var(--suite-line-2) !important; border-radius: var(--x-r) !important; box-shadow: none !important; font: 400 15px var(--suite-sans) !important; }
   html:not([data-suite-theme]) .freein::placeholder { color: var(--suite-ink-3) !important; }
 
+  /* ---- v108: the Today view as A2 on the design canvas ----
+     Each subject in its own planner colour (--c, set on each card): a solid
+     band, and its name, time and lesson code in deeper mixes of it, dark
+     enough for text where gold and rust alone are not. The lesson on now is
+     outlined in ink, since Reading's teal is the accent. Day notes are a bar
+     under the date bar (moved there by suite-boot.js). The save button is
+     the gradebook's primary. */
+  html:not([data-suite-theme]) .rail > .sub { border-radius: 14px; }
+  html:not([data-suite-theme]) .rail > .sub::before { height: 6px; background: var(--c); }
+  html:not([data-suite-theme]) .rail > .sub .subname { color: color-mix(in srgb, var(--c) 72%, #14202A); }
+  html:not([data-suite-theme]) .rail > .sub .subtime {
+    background: color-mix(in srgb, var(--c) 12%, #fff); color: color-mix(in srgb, var(--c) 64%, #14202A);
+    border-radius: 6px; padding: 1px 8px; font-variant-numeric: tabular-nums;
+  }
+  html:not([data-suite-theme]) .rail > .sub .readout {
+    background: color-mix(in srgb, var(--c) 11%, #fff) !important; color: color-mix(in srgb, var(--c) 58%, #14202A) !important;
+    border-color: color-mix(in srgb, var(--c) 24%, #fff) !important;
+  }
+  html:not([data-suite-theme]) .rail > .sub.now { border: 2px solid var(--suite-ink) !important; box-shadow: 0 2px 10px rgba(16,24,32,.12) !important; }
+  html:not([data-suite-theme]) .nowtag { display: inline-block; vertical-align: 2px; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: var(--suite-ink); color: #fff; font: 600 12px var(--suite-sans); }
+  html:not([data-suite-theme]) .savebar .primary {
+    font: 600 14px var(--suite-sans) !important; text-transform: none !important; letter-spacing: 0 !important;
+    background: var(--suite-accent) !important; color: #fff !important; border-radius: var(--x-r) !important;
+    padding: 11px 18px !important; box-shadow: none !important;
+  }
+  html:not([data-suite-theme]) .savebar .primary:hover { background: var(--suite-accent-2, #0B4A43) !important; }
+  html:not([data-suite-theme]) .panel.daynotes {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 14px; padding: 8px 12px 8px 16px;
+    background: #FAF2E2; border: 1px solid #E7D7B4; border-radius: 10px; box-shadow: none;
+  }
+  html:not([data-suite-theme]) .panel.daynotes > h2 { font: 700 12px var(--suite-sans) !important; text-transform: uppercase !important; letter-spacing: .05em !important; color: #8C6411 !important; margin: 0 !important; }
+  html:not([data-suite-theme]) .panel.daynotes > .hint { display: none; }
+  html:not([data-suite-theme]) .panel.daynotes textarea.notes { flex: 1 1 320px; min-height: 38px; margin: 0; background: #fff; border: 1px solid #E7D7B4; border-radius: 8px; padding: 8px 10px; font: 400 14px var(--suite-sans); }
+  html:not([data-suite-theme]) .panel.daynotes .flags { flex-basis: 100%; margin: 0; }
+  /* one line while empty; once written in, the planner's own sizing grows it */
+  html:not([data-suite-theme]) .panel.daynotes textarea.notes:placeholder-shown { height: 40px !important; overflow: hidden; }
+
   /* ---- sub plan panel labels ---- */
   html:not([data-suite-theme]) #subpanel h3,
   html:not([data-suite-theme]) #subpanel label.f { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; color: var(--suite-ink-2) !important; }
@@ -519,4 +556,11 @@ body {
   html:not([data-suite-theme]) body:has(header.top) .wrap { padding-left: 16px; padding-right: 16px; }
   html:not([data-suite-theme]) .brand span { display: none; }
   html:not([data-suite-theme]) #reading { padding: 0 12px 90px !important; }
+}
+
+/* v108: on a phone the day notes bar's flags are one row that scrolls
+   sideways, still full-size to tap (the bar itself: the 2026 look above) */
+@media screen and (max-width: 700px) {
+  html:not([data-suite-theme]) .panel.daynotes .flags { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  html:not([data-suite-theme]) .panel.daynotes .flags .flag { flex: 0 0 auto; }
 }
