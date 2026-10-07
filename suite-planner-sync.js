@@ -52,6 +52,18 @@
    follows the Mac and the phone with no tap. Board changes go out 3
    seconds after they are made.
 
+   v105: FIREBASE can stand in for GitHub as the store. The same two
+   files travel, each as one Firestore document (collection "suite", docs
+   "planner" and "boards": { text, rev, at, from }), so every rule above
+   holds unchanged: the merge, the name check, the guests, the newest WIN
+   summary. `rev` plays the sha (a transaction refuses a stale one). Instead
+   of polling, each page listens to both documents and runs a round the
+   moment another device writes. Sign-in is a Firebase email and password,
+   not a Google account; the security rules (tools/firestore.rules) let the
+   display's account read and only the owner's write. The SDK is vendored
+   (vendor/firebase/, Apache-2.0) and loads only on a device set up for it.
+   Everything Firebase-specific is the FB object below; the rest is shared.
+
    Nothing waits on GitHub: every request has a timeout and the first round
    starts after the page is up (v95 hung on a GitHub call at startup).
    Every request skips the browser cache, because GitHub lets a browser keep
@@ -74,6 +86,8 @@
   var BOARDS_FILE = "boards.json", BBASE_IDB = "boardsHubBase";
   var LIVE_KEY = "suite:winLive:v1";   /* v102: not a folder-route key, so handled beside the merge */
   var BOARD_PUSH_AFTER = 3000, DISPLAY_POLL = 25000;
+  /* v105: where this file was loaded from, to find vendor/firebase/ beside it */
+  var HERE = (document.currentScript && document.currentScript.src) || "";
   var onGroups = /\/groups(\/|\/index\.html)?$/.test(location.pathname);
   var REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
   var onPlanner = /\/planner(\/|\/index\.html)?$/.test(location.pathname);
@@ -84,9 +98,10 @@
     catch (e) { return null; }
   }
   function saveConf(c) { try { localStorage.setItem(CONF_KEY, JSON.stringify(c)); } catch (e) { } }
-  function configured() { var c = conf(); return !!(c && c.repo && c.token); }
+  function viaFirebase() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
+  function configured() { var c = conf(); return !!(c && ((c.repo && c.token) || (c.fb && c.fb.projectId && c.email))); }
   function display() { var c = conf(); return !!(c && c.readonly); }
-  function boardsOn() { var c = conf(); return !!(c && c.repo && c.token && c.boards); }
+  function boardsOn() { var c = conf(); return !!(configured() && c.boards); }
   function noteConf(patch) { var c = conf(); if (!c) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); saveConf(c); }
 
   /* "owner/name", or the repository's address pasted whole */
@@ -284,7 +299,7 @@
   }
 
   /* ---------- GitHub ---------- */
-  function err(code, msg) { var e = new Error(msg || code); e.code = code; return e; }
+  function err(code, msg) { var e = new Error(msg || code); e.code = code; e.suite = true; return e; }
   function gh(method, url, body, accept) {
     var c = conf();
     if (!c || !c.token) return Promise.reject(err("off"));
@@ -325,6 +340,7 @@
   }
   var repoChecked = false;
   function checkRepo() {
+    if (viaFirebase()) return FB.ready();
     if (repoChecked) return Promise.resolve();
     return gh("GET", "/repos/" + conf().repo).then(function (r) {
       if (!r.ok) throw failFor(r);
@@ -336,6 +352,7 @@
   }
   /* one file in the repository: { sha, text }, or { sha: null, text: null } if it is not there yet */
   function fetchFile(name) {
+    if (viaFirebase()) return FB.get(name);
     var repo = conf().repo;
     return gh("GET", "/repos/" + repo + "/contents/" + name).then(function (r) {
       if (r.status === 404) return { sha: null, text: null };   /* the repository is there (checkRepo); the file is not yet */
@@ -353,6 +370,7 @@
   function putFile(name, text, sha, message) {
     /* v101: a display never writes, whatever asks it to */
     if (display()) return Promise.reject(err("display"));
+    if (viaFirebase()) return FB.put(name, text, sha, message);
     var body = { message: message, content: utf8ToB64(text) };
     if (sha) body.sha = sha;
     return gh("PUT", "/repos/" + conf().repo + "/contents/" + name, body).then(function (r) {
@@ -361,6 +379,125 @@
       return r.json().then(function (j) { return j && j.content && j.content.sha; });
     });
   }
+  /* ---------- v105: Firebase, as a store for the same two files ---------- */
+  function withTimeout(p) {
+    var t = null;
+    return Promise.race([p, new Promise(function (res, rej) { t = setTimeout(function () { rej(err("net", "Firebase did not answer")); }, TIMEOUT); })])
+      .then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); throw e; });
+  }
+  function fbError(e) {
+    if (e && e.suite) return e;   /* already one of ours */
+    var c = String(e && e.code || "");
+    if (c === "permission-denied") return err("fbdenied");
+    if (c === "unauthenticated" || /^auth\/(wrong-password|user-not-found|invalid-credential|invalid-email|invalid-login-credentials|user-disabled)$/.test(c)) return err("fbauth");
+    if (c === "auth/too-many-requests") return err("fbslow");
+    if (c === "auth/network-request-failed" || c === "unavailable") return err("fbnet", "Firebase could not be reached");
+    if (c === "auth/invalid-api-key" || c === "auth/api-key-not-valid" || c === "auth/configuration-not-found") return err("fbconfig");
+    return err("net", (e && e.message) || c || "Firebase could not be reached");
+  }
+  var FB = {
+    app: null, auth: null, db: null, user: null, seen: {}, listening: false, liveT: null,
+    /* beside this file; failing that, beside suite-sync.js; failing that, the
+       suite root one folder up, where every tool page lives */
+    base: function () {
+      if (HERE) return HERE.replace(/suite-planner-sync\.js(\?[^#]*)?(#.*)?$/, "") + "vendor/firebase/";
+      var ss = document.querySelector('script[src*="suite-sync.js"]');
+      if (ss && ss.src) return ss.src.replace(/suite-sync\.js(\?[^#]*)?(#.*)?$/, "") + "vendor/firebase/";
+      return "../vendor/firebase/";
+    },
+    load: function () {
+      if (window.firebase && window.firebase.firestore && window.firebase.auth) return Promise.resolve();
+      var files = ["firebase-app-compat.js", "firebase-auth-compat.js", "firebase-firestore-compat.js"], base = FB.base();
+      return files.reduce(function (p, f) {
+        return p.then(function () {
+          return new Promise(function (res, rej) {
+            var sc = document.createElement("script");
+            sc.src = base + f; sc.onload = res; sc.onerror = function () { rej(err("nocode")); };
+            (document.head || document.documentElement).appendChild(sc);
+          });
+        });
+      }, Promise.resolve());
+    },
+    init: function () {
+      return FB.load().then(function () {
+        if (FB.app) return;
+        var c = conf();
+        FB.app = window.firebase.initializeApp(c.fb, "classroom-suite");
+        FB.auth = FB.app.auth();
+        FB.db = FB.app.firestore();
+        /* a school network that blocks Firestore's streaming falls back to long polling by itself */
+        try { FB.db.settings({ experimentalAutoDetectLongPolling: true }); } catch (e) { }
+      });
+    },
+    whoIsIn: function () {
+      return new Promise(function (res) {
+        var off = FB.auth.onAuthStateChanged(function (u) { off(); res(u || null); });
+      });
+    },
+    ready: function () {
+      return withTimeout(FB.init().then(FB.whoIsIn)).then(function (u) {
+        if (!u) throw err("fbsignin");
+        FB.user = u; FB.listen();
+      }, function (e) { throw fbError(e); });
+    },
+    signIn: function (email, password) {
+      return withTimeout(FB.init().then(function () { return FB.auth.signInWithEmailAndPassword(email, password); }))
+        .then(function (cred) { FB.user = cred.user; }, function (e) { throw fbError(e); });
+    },
+    signOut: function () {
+      FB.stop();
+      if (FB.auth) try { FB.auth.signOut(); } catch (e) { }
+      FB.user = null;
+    },
+    doc: function (name) { return FB.db.collection("suite").doc(String(name).replace(/\.json$/, "")); },
+    get: function (name) {
+      return withTimeout(FB.doc(name).get({ source: "server" })).then(function (snap) {
+        if (!snap.exists) return { sha: null, text: null };
+        var d = snap.data() || {};
+        return { sha: String(d.rev), text: typeof d.text === "string" ? d.text : "" };
+      }, function (e) { throw fbError(e); });
+    },
+    put: function (name, text, sha, message) {
+      var ref = FB.doc(name);
+      return withTimeout(FB.db.runTransaction(function (tx) {
+        return tx.get(ref).then(function (snap) {
+          var cur = snap.exists ? String((snap.data() || {}).rev) : null;
+          if (cur !== (sha || null)) throw err("moved");                     /* another device wrote first */
+          var rev = (snap.exists ? Number((snap.data() || {}).rev) || 0 : 0) + 1;
+          tx.set(ref, { text: text, rev: rev, from: SS.device || "", note: message || "",
+            at: window.firebase.firestore.FieldValue.serverTimestamp() });
+          return String(rev);
+        });
+      })).then(function (rev) { FB.seen[String(name).replace(/\.json$/, "")] = rev; return rev; }, function (e) { throw fbError(e); });
+    },
+    /* the moment another device writes either file, a round runs here */
+    listen: function () {
+      if (FB.listening) return;
+      FB.listening = true;
+      FB.unsub = ["planner", "boards"].map(function (n) {
+        return FB.doc(n).onSnapshot(function (snap) {
+          if (snap.metadata && snap.metadata.hasPendingWrites) return;
+          var rev = snap.exists ? String((snap.data() || {}).rev) : null;
+          if (!(n in FB.seen)) { FB.seen[n] = rev; return; }
+          if (rev === FB.seen[n]) return;
+          FB.seen[n] = rev;
+          clearTimeout(FB.liveT);
+          FB.liveT = setTimeout(function () { if (configured()) round(); }, 300);
+        }, function () { FB.listening = false; });
+      });
+    },
+    stop: function () {
+      (FB.unsub || []).forEach(function (u) { try { u(); } catch (e) { } });
+      FB.unsub = []; FB.listening = false; FB.seen = {};
+    }
+  };
+  /* the config Firebase's console shows (a JS snippet or JSON), read without running it */
+  function parseFirebaseConfig(text) {
+    var t = String(text || ""), out = {}, re = /["']?(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId)["']?\s*:\s*["']([^"']+)["']/g, m;
+    while ((m = re.exec(t))) out[m[1]] = m[2];
+    return out.apiKey && out.projectId && out.appId ? out : null;
+  }
+
   function readRemote() {
     return fetchFile(FILE).then(function (got) {
       if (got.text == null) return { sha: null, keys: {} };
@@ -560,7 +697,7 @@
     }
     function boardRound() {
       if (!boardsOn()) { bstate = "off"; bhold = null; return Promise.resolve(); }
-      if (state === "auth" || state === "access" || state === "public") { bstate = state; return Promise.resolve(); }   /* the planner step said why */
+      if (/^(auth|access|public|fbauth|fbdenied|fbsignin|fbconfig|nocode)$/.test(state)) { bstate = state; return Promise.resolve(); }   /* the planner step said why */
       return loadBBase().then(function () { return boardAttempt(1); }).then(function (how) {
         bstate = how === "held" ? "held" : "idle"; bdetail = "";
       }, function (e) {
@@ -626,7 +763,10 @@
 
   /* v101: a display checks on its own while it is on screen */
   setInterval(function () {
-    if (configured() && display() && !document.hidden && !busy) round();
+    if (!configured() || !display() || document.hidden || busy) return;
+    /* v105: with Firebase the display listens; this is only a safety check every few minutes */
+    if (viaFirebase() && Date.now() - lastRound < 180000) return;
+    round();
   }, DISPLAY_POLL);
   function start() { if (configured()) setTimeout(round, 1200); }
   if (document.readyState === "complete") start();
@@ -648,7 +788,29 @@
       throw e;
     });
   }
+  function connectFirebase(configText, email, password, readonly) {
+    var fb = parseFirebaseConfig(configText);
+    email = String(email || "").trim();
+    if (!fb) return Promise.reject(err("fbconfig"));
+    if (!email || !password) return Promise.reject(err("fbcreds"));
+    var was = conf();
+    var c = { fb: fb, email: email };
+    if (readonly) c.readonly = true;
+    if (was && was.boards) c.boards = true;
+    if (FB.app && (!was || !was.fb || was.fb.projectId !== fb.projectId)) { FB.signOut(); try { FB.app.delete(); } catch (e) { } FB.app = null; }
+    saveConf(c);
+    if (!was || !was.fb || was.fb.projectId !== fb.projectId) { base = {}; L.idbSet(BASE_IDB, {}); bbase = {}; L.idbSet(BBASE_IDB, {}); }
+    /* connected only once this account can actually read: a sign-in the
+       security rules don't name would otherwise leave a device half set up */
+    return FB.signIn(email, password).then(FB.ready).then(function () { return FB.get(FILE); }).then(function () { return round(); }, function (e) {
+      FB.signOut();
+      try { localStorage.removeItem(CONF_KEY); } catch (x) { }
+      setState("off");
+      throw e;
+    });
+  }
   function disconnect() {
+    if (viaFirebase()) FB.signOut();
     try { localStorage.removeItem(CONF_KEY); } catch (e) { }
     clearTimeout(pushTimer); pushTimer = null; hold = null; repoChecked = false;
     base = {}; L.idbSet(BASE_IDB, {});
@@ -689,6 +851,15 @@
     token: "Paste the token too.",
     /* v101 */
     display: "This computer only displays, so it sends nothing.",
+    /* v105: Firebase */
+    fbconfig: "That doesn\u2019t look like a Firebase config. Paste the firebaseConfig block from your project\u2019s settings.",
+    fbcreds: "Enter the email and password of a user you made in Firebase.",
+    fbauth: "Firebase turned that email or password down.",
+    fbslow: "Firebase says too many tries. Wait a few minutes, then try again.",
+    fbnet: "Couldn\u2019t reach Firebase. Check this computer is online; on a school computer, the network may block Firebase (see chrome://policy, URLBlocklist).",
+    fbsignin: "Signed out of Firebase on this device. Turn off on this device, then connect again.",
+    fbdenied: "Firebase refused. Check the security rules are published, with this account\u2019s user ID in them.",
+    nocode: "Couldn\u2019t load Firebase\u2019s code. Reload the page.",
     badboards: "boards.json in the repository isn\u2019t a boards file, so nothing was changed.",
     off: "Connect planner sync first."
   };
@@ -724,10 +895,10 @@
     /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
     if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Press Keep the boards in step on the Mac or phone you change them on.";
     if (bstate === "idle") return display()
-      ? "On \u00b7 this computer shows them and checks every 25 seconds"
+      ? (viaFirebase() ? "On \u00b7 live: this computer shows each change as it is made" : "On \u00b7 this computer shows them and checks every 25 seconds")
       : "On \u00b7 changes go out in seconds";
     if (bstate === "held") return heldText(bhold, "board");
-    return MESSAGES[bstate] || "Couldn\u2019t reach GitHub (" + (bdetail || bstate) + "). It tries again shortly.";
+    return MESSAGES[bstate] || "Couldn\u2019t reach " + (viaFirebase() ? "Firebase" : "GitHub") + " (" + (bdetail || bstate) + "). It tries again shortly.";
   }
   function heldText(h) {
     h = h || hold;
@@ -746,9 +917,10 @@
       return "On \u00b7 in step " + (ago(c && c.lastOk) || "") +
         (left !== null && left <= 14 ? " \u00b7 the token runs out " + (left <= 0 ? "today" : "in " + left + (left === 1 ? " day" : " days")) : "");
     }
-    return MESSAGES[state] || "Couldn\u2019t reach GitHub (" + (detail || state) + "). It tries again when you come back to the page.";
+    return MESSAGES[state] || "Couldn\u2019t reach " + (viaFirebase() ? "Firebase" : "GitHub") + " (" + (detail || state) + "). It tries again when you come back to the page.";
   }
 
+  function where() { var c = conf() || {}; return c.fb ? "Firebase (" + c.fb.projectId + ")" : c.repo; }
   /* ---------- the panel ---------- */
   var css = document.createElement("style");
   css.textContent =
@@ -793,6 +965,7 @@
     b.onclick = run;
     return b;
   }
+  var setupVia = "firebase";   /* v105: which setup form the panel shows */
   function open(msg) {
     var old = document.getElementById("suitesheet");
     if (old) old.remove();
@@ -803,7 +976,35 @@
     box.appendChild(el("b", "", "Planner sync"));
     function close() { box.remove(); }
 
-    if (!configured()) {
+    if (!configured() && setupVia !== "github") {
+      /* v105: Firebase, first */
+      box.appendChild(el("i", "", "Keeps the planner, and the boards and Walk to WIN slides if you choose, in step live through your own Firebase project, by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
+      var f1 = el("label", "", "Firebase config"), j1 = el("textarea");
+      j1.id = "fbconfig"; j1.rows = 4; j1.spellcheck = false; j1.placeholder = "const firebaseConfig = { apiKey: \u2026, projectId: \u2026, appId: \u2026 };";
+      j1.style.cssText = "display:block;box-sizing:border-box;width:100%;margin-top:3px;padding:6px 10px;border:1px solid rgba(16,24,32,.18);border-radius:8px;font:12px ui-monospace,Menlo,Consolas,monospace";
+      f1.appendChild(j1);
+      var f2 = el("label", "", "Email"), j2 = el("input");
+      j2.id = "fbemail"; j2.type = "email"; j2.autocomplete = "username"; j2.setAttribute("autocapitalize", "off"); f2.appendChild(j2);
+      var f3 = el("label", "", "Password"), j3 = el("input");
+      j3.id = "fbpass"; j3.type = "password"; j3.autocomplete = "current-password"; f3.appendChild(j3);
+      box.appendChild(f1); box.appendChild(f2); box.appendChild(f3);
+      var f4 = el("label", "hubcheck"), j4 = el("input");
+      j4.type = "checkbox"; j4.id = "fbdisplay";
+      f4.appendChild(j4); f4.appendChild(document.createTextNode("This computer only displays (sign in as the display user)"));
+      box.appendChild(f4);
+      box.appendChild(el("i", "", "The config is in your Firebase project\u2019s settings, under Your apps. Sign in with the user you made for this device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
+      if (msg) box.appendChild(el("div", "hubmsg", msg));
+      box.appendChild(button("Connect", function () {
+        var go = this; go.disabled = true;
+        var keep = { c: j1.value, e: j2.value, d: j4.checked };
+        connectFirebase(j1.value, j2.value, j3.value, j4.checked).then(function () { open(); }, function (e) {
+          open(MESSAGES[e && e.code] || "Couldn\u2019t connect: " + (e && e.message || e));
+          var a1 = document.getElementById("fbconfig"), a2 = document.getElementById("fbemail"), a4 = document.getElementById("fbdisplay");
+          if (a1) a1.value = keep.c; if (a2) a2.value = keep.e; if (a4) a4.checked = keep.d;
+        });
+      }, "hubgo"));
+      box.appendChild(button("Use a GitHub repository instead", function () { setupVia = "github"; open(); }));
+    } else if (!configured()) {
       box.appendChild(el("i", "", "Keeps the planner in step on its own through a private GitHub repository, and the math board and reading cards too if you choose, by student id only. Never the gradebook, reading checks, Walk to WIN lists or sub plans, and nothing is sent while a note names a student."));
       var l1 = el("label", "", "Repository"), i1 = el("input");
       i1.id = "hubrepo"; i1.placeholder = "your-name/planner-sync"; i1.autocomplete = "off"; i1.spellcheck = false;
@@ -824,11 +1025,12 @@
           var r = document.getElementById("hubrepo"); if (r) r.value = i1.value;
         });
       }, "hubgo"));
+      box.appendChild(button("Use Firebase instead", function () { setupVia = "firebase"; open(); }));
     } else {
       var c = conf();
       box.appendChild(el("i", "", display()
-        ? "Through " + c.repo + ". This computer only displays: it shows what is there and never changes anything."
-        : "Through " + c.repo + ". " + (boardsOn() ? "The planner and the boards go there, the boards by student id only," : "Only the planner goes there,") + " and nothing is sent while typed text names a student."));
+        ? "Through " + where() + ". This computer only displays: it shows what is there and never changes anything."
+        : "Through " + where() + ". " + (boardsOn() ? "The planner and the boards go there, the boards by student id only," : "Only the planner goes there,") + " and nothing is sent while typed text names a student."));
       box.appendChild(el("div", "hubstatus", status()));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
       function hits(h) {
@@ -921,6 +1123,9 @@
     status: status,
     open: open,
     connect: connect,
+    connectFirebase: connectFirebase,   /* v105 */
+    parseFirebaseConfig: parseFirebaseConfig,
+    get via() { return configured() ? (viaFirebase() ? "firebase" : "github") : "off"; },
     disconnect: disconnect,
     syncNow: round,
     scan: function () { return scan(localKeys()); },
@@ -936,7 +1141,7 @@
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
     menuOption: function () {
-      return { label: "Planner sync", hint: configured() ? status() + (boardsOn() ? " \u00b7 boards too" : "") : "keep the planner in step on its own, through GitHub", run: function () { open(); } };
+      return { label: "Planner sync", hint: configured() ? status() + (boardsOn() ? " \u00b7 boards too" : "") : "keep the planner in step on its own, through Firebase or GitHub", run: function () { open(); } };
     }
   };
 })();
