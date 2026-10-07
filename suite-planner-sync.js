@@ -64,6 +64,10 @@
    (vendor/firebase/, Apache-2.0) and loads only on a device set up for it.
    Everything Firebase-specific is the FB object below; the rest is shared.
 
+   v113: GitHub is gone. Firebase is the store; a device still set up for
+   GitHub sees a note to sign in with Firebase, and nothing it holds is lost.
+   (The GitHub text above is its history; CHANGELOG v99-v112 has it all.)
+
    Nothing waits on GitHub: every request has a timeout and the first round
    starts after the page is up (v95 hung on a GitHub call at startup).
    Every request skips the browser cache, because GitHub lets a browser keep
@@ -79,7 +83,7 @@
 
   var PLANNER_KEYS = ["lp:settings:v2", "lp:days:v2", "lp:pending:v1", "lp:me:v1", "suite:migrations"];
   var CONF_KEY = "suite:plannerHub:v1", OK_KEY = "suite:plannerHubOk:v1", BASE_IDB = "plannerHubBase";
-  var API = "https://api.github.com", FILE = "planner.json";
+  var FILE = "planner.json";
   var PUSH_AFTER = 10000, TIMEOUT = 15000, PULL_GAP = 30000, TRIES = 3;
   /* v101: the projected boards, by id */
   var BOARD_KEYS = ["suite:groups:v1", "suite:readgroups:v1"];
@@ -89,7 +93,6 @@
   /* v105: where this file was loaded from, to find vendor/firebase/ beside it */
   var HERE = (document.currentScript && document.currentScript.src) || "";
   var onGroups = /\/groups(\/|\/index\.html)?$/.test(location.pathname);
-  var REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
   var onPlanner = /\/planner(\/|\/index\.html)?$/.test(location.pathname);
 
   /* ---------- this device's settings ---------- */
@@ -99,18 +102,16 @@
   }
   function saveConf(c) { try { localStorage.setItem(CONF_KEY, JSON.stringify(c)); } catch (e) { } }
   function viaFirebase() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
-  function configured() { var c = conf(); return !!(c && ((c.repo && c.token) || (c.fb && c.fb.projectId && c.email))); }
+  function configured() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
+  /* v113: set up for GitHub before it was removed */
+  function leftoverGitHub() { var c = conf(); return !!(c && c.repo && c.token && !c.fb); }
   function display() { var c = conf(); return !!(c && c.readonly); }
   /* v107: sync covers everything it can, so a connected device always keeps the
      boards (and the WIN summary) in step; the per-device switch is gone */
   function boardsOn() { return configured(); }
   function noteConf(patch) { var c = conf(); if (!c) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); saveConf(c); }
 
-  /* "owner/name", or the repository's address pasted whole */
-  function parseRepo(v) {
-    var t = String(v || "").trim().replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
-    return REPO_RE.test(t) ? t : "";
-  }
+
 
   /* ---------- state, for the menu and the banner ---------- */
   var state = configured() ? "idle" : "off", detail = "", hold = null;
@@ -300,86 +301,15 @@
     try { localStorage.setItem(OK_KEY, JSON.stringify(ok)); } catch (e) { }
   }
 
-  /* ---------- GitHub ---------- */
+  /* ---------- the store: Firebase (v105; GitHub removed, v113) ---------- */
   function err(code, msg) { var e = new Error(msg || code); e.code = code; e.suite = true; return e; }
-  function gh(method, url, body, accept) {
-    var c = conf();
-    if (!c || !c.token) return Promise.reject(err("off"));
-    if (typeof fetch !== "function") return Promise.reject(err("net", "no network here"));
-    var ctl = typeof AbortController === "function" ? new AbortController() : null;
-    var timer = null;
-    var headers = { "Authorization": "Bearer " + c.token, "Accept": accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
-    if (body) headers["Content-Type"] = "application/json";
-    var req = fetch(API + url, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined,
-      cache: "no-store", signal: ctl ? ctl.signal : undefined });
-    var limit = new Promise(function (res, rej) {
-      timer = setTimeout(function () { if (ctl) ctl.abort(); rej(err("net", "GitHub did not answer")); }, TIMEOUT);
-    });
-    return Promise.race([req, limit]).then(function (r) {
-      clearTimeout(timer);
-      var exp = r.headers && r.headers.get && r.headers.get("github-authentication-token-expiration");
-      if (exp) noteConf({ exp: exp });
-      return r;
-    }, function (e) {
-      clearTimeout(timer);
-      throw e && e.code ? e : err("net", "could not reach GitHub");
-    });
-  }
-  function failFor(r) {
-    if (r.status === 401) return err("auth");
-    if (r.status === 403 || r.status === 404) return err("access", String(r.status));
-    return err("net", "GitHub said " + r.status);
-  }
-  function utf8ToB64(s) {
-    var bytes = new TextEncoder().encode(s), bin = "";
-    for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    return btoa(bin);
-  }
-  function b64ToUtf8(b) {
-    var bin = atob(String(b).replace(/\s+/g, "")), bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
-  }
-  var repoChecked = false;
-  function checkRepo() {
-    if (viaFirebase()) return FB.ready();
-    if (repoChecked) return Promise.resolve();
-    return gh("GET", "/repos/" + conf().repo).then(function (r) {
-      if (!r.ok) throw failFor(r);
-      return r.json().then(function (j) {
-        if (!j || j.private !== true) throw err("public");
-        repoChecked = true;
-      });
-    });
-  }
-  /* one file in the repository: { sha, text }, or { sha: null, text: null } if it is not there yet */
-  function fetchFile(name) {
-    if (viaFirebase()) return FB.get(name);
-    var repo = conf().repo;
-    return gh("GET", "/repos/" + repo + "/contents/" + name).then(function (r) {
-      if (r.status === 404) return { sha: null, text: null };   /* the repository is there (checkRepo); the file is not yet */
-      if (!r.ok) throw failFor(r);
-      return r.json().then(function (j) {
-        if (j && j.encoding === "base64" && j.content) return { sha: j.sha, text: b64ToUtf8(j.content) };
-        /* over a megabyte the contents call leaves the content out */
-        return gh("GET", "/repos/" + repo + "/git/blobs/" + j.sha, null, "application/vnd.github.raw+json").then(function (r2) {
-          if (!r2.ok) throw failFor(r2);
-          return r2.text().then(function (t) { return { sha: j.sha, text: t }; });
-        });
-      });
-    });
-  }
+  function checkRepo() { return FB.ready(); }
+  /* one file: { sha, text }, or { sha: null, text: null } if it is not there yet ("sha" is Firebase's rev) */
+  function fetchFile(name) { return FB.get(name); }
   function putFile(name, text, sha, message) {
     /* v101: a display never writes, whatever asks it to */
     if (display()) return Promise.reject(err("display"));
-    if (viaFirebase()) return FB.put(name, text, sha, message);
-    var body = { message: message, content: utf8ToB64(text) };
-    if (sha) body.sha = sha;
-    return gh("PUT", "/repos/" + conf().repo + "/contents/" + name, body).then(function (r) {
-      if (r.status === 409 || r.status === 422) throw err("moved");
-      if (!r.ok) throw r.status === 403 || r.status === 404 ? err("nowrite") : failFor(r);
-      return r.json().then(function (j) { return j && j.content && j.content.sha; });
-    });
+    return FB.put(name, text, sha, message);
   }
   /* ---------- v105: Firebase, as a store for the same two files ---------- */
   function withTimeout(p) {
@@ -499,6 +429,22 @@
     return e && e.apiKey && e.projectId && e.appId ? e : null;
   }
   var otherProject = false;   /* "Use a different Firebase project" was pressed */
+  /* v113: suite-edition.js is loaded by the Small Groups page only, so on the
+     planner, gradebook or ORF tool the built-in project was unknown and the
+     panel asked for the config (v106's bug). It is loaded here when missing,
+     once, from beside this file; the panel redraws when it arrives. */
+  var editionTried = false;
+  function ensureEdition() {
+    if (window.SuiteEdition || editionTried) return Promise.resolve();
+    editionTried = true;
+    return new Promise(function (res) {
+      var sc = document.createElement("script"), done = false;
+      var fin = function () { if (!done) { done = true; res(); } };
+      sc.src = FB.base().replace(/vendor\/firebase\/$/, "") + "suite-edition.js";
+      sc.onload = fin; sc.onerror = fin; setTimeout(fin, 2000);
+      (document.head || document.documentElement).appendChild(sc);
+    });
+  }
   /* the config Firebase's console shows (a JS snippet or JSON), read without running it */
   function parseFirebaseConfig(text) {
     var t = String(text || ""), out = {}, re = /["']?(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId)["']?\s*:\s*["']([^"']+)["']/g, m;
@@ -705,7 +651,7 @@
     }
     function boardRound() {
       if (!boardsOn()) { bstate = "off"; bhold = null; return Promise.resolve(); }
-      if (/^(auth|access|public|fbauth|fbdenied|fbsignin|fbconfig|nocode)$/.test(state)) { bstate = state; return Promise.resolve(); }   /* the planner step said why */
+      if (/^(fbauth|fbdenied|fbsignin|fbconfig|nocode)$/.test(state)) { bstate = state; return Promise.resolve(); }   /* the planner step said why */
       return loadBBase().then(function () { return boardAttempt(1); }).then(function (how) {
         bstate = how === "held" ? "held" : "idle"; bdetail = "";
       }, function (e) {
@@ -718,7 +664,6 @@
       else setState("held", hold.reason);
     }, function (e) {
       var code = e && e.code || "net";
-      if (code === "auth" || code === "access") repoChecked = false;
       setState(code === "moved" ? "net" : code, e && e.message);
     }).then(boardRound).then(function () {
       busy = false;
@@ -781,21 +726,6 @@
   else window.addEventListener("load", start);
 
   /* ---------- connecting, and turning it off ---------- */
-  function connect(repoText, token, readonly) {
-    var repo = parseRepo(repoText);
-    token = String(token || "").trim();
-    if (!repo) return Promise.reject(err("repo"));
-    if (!token) return Promise.reject(err("token"));
-    var was = conf();
-    saveConf(readonly ? { repo: repo, token: token, readonly: true } : { repo: repo, token: token });
-    repoChecked = false;
-    if (!was || was.repo !== repo) { base = {}; L.idbSet(BASE_IDB, {}); }
-    return checkRepo().then(function () { return round(); }, function (e) {
-      try { localStorage.removeItem(CONF_KEY); } catch (x) { }
-      setState("off");
-      throw e;
-    });
-  }
   function connectFirebase(configText, email, password, readonly) {
     var fb = parseFirebaseConfig(configText);
     email = String(email || "").trim();
@@ -819,7 +749,7 @@
   function disconnect() {
     if (viaFirebase()) FB.signOut();
     try { localStorage.removeItem(CONF_KEY); } catch (e) { }
-    clearTimeout(pushTimer); pushTimer = null; hold = null; repoChecked = false;
+    clearTimeout(pushTimer); pushTimer = null; hold = null;
     base = {}; L.idbSet(BASE_IDB, {});
     bbase = {}; L.idbSet(BBASE_IDB, {}); bstate = "off"; bhold = null;
     clearTimeout(boardTimer); boardTimer = null;
@@ -841,18 +771,9 @@
     var h = Math.round(m / 60); if (h < 24) return h + " h ago";
     var d = Math.round(h / 24); return d + (d === 1 ? " day ago" : " days ago");
   }
-  function daysLeft() {
-    var c = conf(), t = c && c.exp ? Date.parse(String(c.exp).replace(" UTC", "Z").replace(" ", "T")) : NaN;
-    return isNaN(t) ? null : Math.floor((t - Date.now()) / 86400000);
-  }
+
   var MESSAGES = {
-    auth: "GitHub turned the token down. It may have expired: paste a new one.",
-    access: "GitHub can\u2019t find that repository with this token.",
-    nowrite: "This token can read the repository but not write to it. Give it Contents: Read and write.",
-    "public": "Stopped: that repository is public. Make it private on GitHub, then Sync now.",
     badfile: "planner.json in the repository isn\u2019t a planner file, so nothing was changed.",
-    repo: "That doesn\u2019t look like a repository. Use your-name/repository-name.",
-    token: "Paste the token too.",
     /* v101 */
     display: "This computer only displays, so it sends nothing.",
     /* v105: Firebase */
@@ -902,7 +823,7 @@
       ? (viaFirebase() ? "On \u00b7 live: this computer shows each change as it is made" : "On \u00b7 this computer shows them and checks every 25 seconds")
       : "On \u00b7 changes go out in seconds";
     if (bstate === "held") return heldText(bhold, "board");
-    return MESSAGES[bstate] || "Couldn\u2019t reach " + (viaFirebase() ? "Firebase" : "GitHub") + " (" + (bdetail || bstate) + "). It tries again shortly.";
+    return MESSAGES[bstate] || "Couldn\u2019t reach Firebase (" + (bdetail || bstate) + "). It tries again shortly.";
   }
   function heldText(h) {
     h = h || hold;
@@ -916,15 +837,11 @@
     if (state === "syncing") return "Syncing\u2026";
     if (state === "held") return heldText();
     var c = conf();
-    if (state === "idle") {
-      var left = daysLeft();
-      return "On \u00b7 in step " + (ago(c && c.lastOk) || "") +
-        (left !== null && left <= 14 ? " \u00b7 the token runs out " + (left <= 0 ? "today" : "in " + left + (left === 1 ? " day" : " days")) : "");
-    }
-    return MESSAGES[state] || "Couldn\u2019t reach " + (viaFirebase() ? "Firebase" : "GitHub") + " (" + (detail || state) + "). It tries again when you come back to the page.";
+    if (state === "idle") return "On \u00b7 in step " + (ago(c && c.lastOk) || "");
+    return MESSAGES[state] || "Couldn\u2019t reach Firebase (" + (detail || state) + "). It tries again when you come back to the page.";
   }
 
-  function where() { var c = conf() || {}; return c.fb ? "Firebase (" + c.fb.projectId + ")" : c.repo; }
+  function where() { var c = conf() || {}; return "Firebase (" + (c.fb ? c.fb.projectId : "") + ")"; }
   /* ---------- the panel ---------- */
   var css = document.createElement("style");
   css.textContent =
@@ -969,8 +886,13 @@
     b.onclick = run;
     return b;
   }
-  var setupVia = "firebase";   /* v105: which setup form the panel shows */
   function open(msg) {
+    /* drawn at once; if the edition then arrives with a built-in project, drawn
+       again without the config box (only while this setup panel is still up) */
+    if (!configured() && !window.SuiteEdition && !editionTried) ensureEdition().then(function () {
+      var up = document.getElementById("suitesheet");
+      if (up && document.getElementById("fbconfig") && !configured() && editionFirebase()) open(msg);
+    });
     var old = document.getElementById("suitesheet");
     if (old) old.remove();
     var box = el("div", "hub");
@@ -980,7 +902,9 @@
     box.appendChild(el("b", "", "Planner sync"));
     function close() { box.remove(); }
 
-    if (!configured() && setupVia !== "github") {
+    if (!configured()) {
+      /* v113: GitHub is gone; a device set up for it is told so, once, here */
+      if (leftoverGitHub()) box.appendChild(el("div", "hubmsg", "GitHub sync was removed. Sign in with Firebase below; everything on this device is still here."));
       /* v105: Firebase, first */
       box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step live through your own Firebase project, the boards by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
       /* v106: with this copy's project built in, only the sign-in is asked for */
@@ -1014,29 +938,6 @@
         });
       }, "hubgo"));
       if (built) box.appendChild(button("Use a different Firebase project", function () { otherProject = true; open(); }));
-      box.appendChild(button("Use a GitHub repository instead", function () { setupVia = "github"; open(); }));
-    } else if (!configured()) {
-      box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step on their own through a private GitHub repository, the boards by student id only. Never the gradebook, reading checks, Walk to WIN lists or sub plans, and nothing is sent while a note names a student."));
-      var l1 = el("label", "", "Repository"), i1 = el("input");
-      i1.id = "hubrepo"; i1.placeholder = "your-name/planner-sync"; i1.autocomplete = "off"; i1.spellcheck = false;
-      i1.setAttribute("autocapitalize", "off"); l1.appendChild(i1);
-      var l2 = el("label", "", "Token"), i2 = el("input");
-      i2.id = "hubtoken"; i2.type = "password"; i2.autocomplete = "off"; i2.placeholder = "github_pat_\u2026"; l2.appendChild(i2);
-      box.appendChild(l1); box.appendChild(l2);
-      var l3 = el("label", "hubcheck"), i3 = el("input");
-      i3.type = "checkbox"; i3.id = "hubdisplay";
-      l3.appendChild(i3); l3.appendChild(document.createTextNode("This computer only displays (it never changes anything)"));
-      box.appendChild(l3);
-      box.appendChild(el("i", "", "A fine-grained token for that one repository, with Contents: Read and write (Read only, for a computer that only displays). Paste both once on each device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
-      if (msg) box.appendChild(el("div", "hubmsg", msg));
-      box.appendChild(button("Connect", function () {
-        var go = this; go.disabled = true;
-        connect(i1.value, i2.value, i3.checked).then(function () { open(); }, function (e) {
-          open(MESSAGES[e && e.code] || "Couldn\u2019t connect: " + (e && e.message || e));
-          var r = document.getElementById("hubrepo"); if (r) r.value = i1.value;
-        });
-      }, "hubgo"));
-      box.appendChild(button("Use Firebase instead", function () { setupVia = "firebase"; open(); }));
     } else {
       var c = conf();
       box.appendChild(el("i", "", display()
@@ -1130,10 +1031,9 @@
     get configured() { return configured(); },
     status: status,
     open: open,
-    connect: connect,
     connectFirebase: connectFirebase,   /* v105 */
     parseFirebaseConfig: parseFirebaseConfig,
-    get via() { return configured() ? (viaFirebase() ? "firebase" : "github") : "off"; },
+    get via() { return configured() ? "firebase" : "off"; },
     disconnect: disconnect,
     syncNow: round,
     scan: function () { return scan(localKeys()); },
@@ -1149,7 +1049,7 @@
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
     menuOption: function () {
-      return { label: "Planner sync", hint: configured() ? status() : "keep the planner in step on its own, through Firebase or GitHub", run: function () { open(); } };
+      return { label: "Planner sync", hint: configured() ? status() : "keep the planner in step on its own, through Firebase", run: function () { open(); } };
     }
   };
 })();

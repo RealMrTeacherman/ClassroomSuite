@@ -515,10 +515,42 @@ let saveTimer=null;
 function saveDB(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
+    saveTimer = null;
     try{ await store.set(KEY, JSON.stringify(DB)); }
     catch(e){ toast("Couldn't save — your last change is only on screen."); }
   }, 120);
 }
+/* v111: a change made in the last 120ms is saved as the page goes, instead of
+   lost with it. store.set writes before its first await, so this lands even
+   as the page closes. */
+function flushSave(){
+  if(!saveTimer) return;
+  clearTimeout(saveTimer); saveTimer = null;
+  try{ store.set(KEY, JSON.stringify(DB)); }catch(e){}
+}
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushSave(); });
+
+/* v111: checks and students arriving from another device or tab are shown at
+   once, instead of after a reload. Anything typed here is saved first (the
+   suite's write guard merges it with what arrived); then the lists are
+   redrawn from storage, but not the reading in progress: renderSelectors
+   keeps the chosen student and passage, and resetSession is not called. */
+async function refreshFromStore(){
+  flushSave();
+  let r = null;
+  try{ r = await store.get(KEY); }catch(e){ return; }
+  if(!r || !r.value) return;
+  let d; try{ d = JSON.parse(r.value); }catch(e){ return; }
+  DB = Object.assign(DB, d);
+  DB.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings||{});
+  if(!DB.passages.length) DB.passages.push({ id:uid(), title:"Milo and the Mitten (sample)", text:SAMPLE });
+  DB.students.sort(byLastName);
+  $("#gwGoal").value=DB.settings.goalWcpm; $("#gwDate").value=DB.settings.goalDate; $("#gwBench").checked=DB.settings.showBench!==false;
+  renderSelectors(); renderStudents(); renderPassages(); renderReports(); renderGradebook(); renderGrowth();
+  $("#btnSample").textContent = hasSample() ? "Remove the sample class" : "Add a sample class";
+}
+window.FluencyLive = { absorb(changed){ if(!changed || changed.indexOf(KEY) < 0) return false; refreshFromStore(); return true; } };
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
 /* ---------- tiny helpers ---------- */

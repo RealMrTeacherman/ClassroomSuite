@@ -654,7 +654,8 @@ const store = {
 
 /* ============================== defaults ============================== */
 const DEFAULT_SUBJECTS = [
-  {id:'phonics', name:'Phonics',        curriculum:'ECRI',              schema:'uwd', color:'#5E8C3A', start:{unit:1,week:1,day:1}, weeksPerUnit:5,  daysPerWeek:5, on:true},
+  /* v109: ECRI is part of the Reading block (v100), so Phonics starts switched off; Settings → Show brings it back */
+  {id:'phonics', name:'Phonics',        curriculum:'ECRI',              schema:'uwd', color:'#5E8C3A', start:{unit:1,week:1,day:1}, weeksPerUnit:5,  daysPerWeek:5, on:false},
   {id:'reading', name:'Reading',        curriculum:'Benchmark',         schema:'uwd', color:'#16706B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
   {id:'writing', name:'Writing',        curriculum:'Benchmark',         schema:'uwd', color:'#7A4A6B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
   {id:'math',    name:'Math',           curriculum:'Reveal',            schema:'ul',  color:'#D89A1C', start:{unit:1,lesson:1},     lessonsPerUnit:10, on:true},
@@ -673,7 +674,7 @@ function mtrfBlocks(dow){
   return [
     {t:'8:00',  l:'Arrival & blocks',            s:'',        n:'Manipulative tubs at every table spot'},
     {t:'8:05',  l:'Morning Meeting',             s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
-    {t:'8:15',  l:'Phonics',                     s:'phonics', n:'ECRI slides on the carpet'},
+    {t:'8:15',  l:'Phonics',                     s:'reading', n:'ECRI slides on the carpet'},   /* v109: part of Reading */
     {t:'8:30',  l:'Reading small groups',        s:'reading', n:'Blue chart · Build Automaticity packets'},
     {t:'8:50',  l:'Whole-group comprehension',   s:'reading', n:'Benchmark Teacher’s Guide · anchor chart skill'},
     {t:'9:10',  l:'Reading small groups',        s:'reading', n:'Colors shift one slot down'},
@@ -697,7 +698,7 @@ function mtrfBlocks(dow){
 function wedBlocks(){
   return [
     {t:'8:00',  l:'Morning Meeting',               s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
-    {t:'8:15',  l:'Phonics',                       s:'phonics', n:'ECRI — first 15 minutes of the Reading block'},
+    {t:'8:15',  l:'Phonics',                       s:'reading', n:'ECRI — first 15 minutes of the Reading block'},   /* v109: part of Reading */
     {t:'8:30',  l:'Reading',                       s:'reading', n:''},
     {t:'9:00',  l:'Structured Break',              s:'',        n:'Recess'},
     {t:'9:15',  l:'Math',                          s:'math',    n:''},
@@ -1077,6 +1078,13 @@ function renderToday(){
       ${isToday(cursor)?'':'<button class="todaybtn" id="gotoday">Today</button>'}
     </div>
 
+    ${!st.school ? '' : `
+    <div class="panel daynotes">
+      <h2>Day notes</h2>
+      <textarea class="notes" id="notes" placeholder="Assemblies, changes, reminders">${esc(draft.notes)}</textarea>
+      <div class="flags">${FLAGS.map(f=>`<button class="flag" data-flag="${esc(f)}" aria-pressed="${draft.flags.includes(f)}">${esc(f)}</button>`).join('')}</div>
+    </div>`}
+
     ${!st.school ? `
       <div class="panel closed">
         <h2>${esc(st.label)}</h2>
@@ -1110,13 +1118,6 @@ function renderToday(){
 
     ${!st.school ? '' : `
     <div class="panel">
-      <h2>Notes & schedule changes</h2>
-      <p class="hint">Anything that made today different — and anything future-you needs to remember.</p>
-      <textarea class="notes" id="notes" placeholder="Assembly pushed math to after lunch. Finish Lesson 5 tomorrow.">${esc(draft.notes)}</textarea>
-      <div class="flags">${FLAGS.map(f=>`<button class="flag" data-flag="${esc(f)}" aria-pressed="${draft.flags.includes(f)}">${esc(f)}</button>`).join('')}</div>
-    </div>
-
-    <div class="panel">
       <h2>The day, block by block</h2>
       <p class="hint">${hasTemplate?'Straight from your sub plans — edit any block in Settings.':''}</p>
       ${hasTemplate ? `<ul class="tl">${(()=>{const seen=new Set();return blocks.map((b,i)=>blockHTML(b,seen,blockEnd(blocks,i))).join('');})()}</ul>`
@@ -1128,9 +1129,41 @@ function renderToday(){
            </div>`}
     </div>`}`;
   wireToday();
+  markNow();
+  if(window.DayView) window.DayView.afterToday();   /* v112: the day laid out (was suite-boot.js) */
 }
 
-function cardHTML(sb){
+/* v110: the lesson on now (A2). A card whose time holds the clock, on the day
+   shown when that is today and never a skipped one, is outlined with a Now
+   tag (styled in suite-theme.css). Re-marked every minute without a redraw.
+   window.PlannerDay.__now, if set, stands in for the clock (tests). */
+function spanOf(text){
+  const m = /(\d{1,2}):(\d{2})\s*[\u2013-]\s*(\d{1,2}):(\d{2})/.exec(String(text||''));
+  if(!m) return null;
+  const at = (h,mi)=>{ h=+h; if(h<7) h+=12; return h*60+(+mi); };   /* a school day: 1:00 is after lunch */
+  return [at(m[1],m[2]), at(m[3],m[4])];
+}
+function markNow(){
+  const rail = document.querySelector('.rail');
+  if(!rail) return;
+  rail.querySelectorAll('.sub.now').forEach(c=>{ c.classList.remove('now'); const t=c.querySelector('.nowtag'); if(t) t.remove(); });
+  const now = (window.PlannerDay && window.PlannerDay.__now) ? window.PlannerDay.__now() : new Date();
+  if(!(cursor instanceof Date) || key(cursor)!==key(now)) return;
+  const m = now.getHours()*60 + now.getMinutes();
+  rail.querySelectorAll(':scope > .sub').forEach(c=>{
+    if(c.classList.contains('skip')) return;
+    const r = spanOf((c.querySelector('.subtime')||{}).textContent);
+    if(!r || m<r[0] || m>=r[1]) return;
+    c.classList.add('now');
+    const nm = c.querySelector('.subname');
+    if(nm){ const tag=document.createElement('span'); tag.className='nowtag'; tag.textContent='Now'; nm.appendChild(tag); }
+  });
+}
+setInterval(()=>{ if(view==='today') markNow(); }, 60000);
+
+/* v112: the day's block list is added by DayView (below, in its own script) */
+function cardHTML(sb){ const html = cardBase(sb); return window.DayView ? window.DayView.cardBlocks(sb, html) : html; }
+function cardBase(sb){
   const when = subjectSpan(blocksFor(cursor), sb.id);
   const e = draft.entries[sb.id] || (draft.entries[sb.id]={pos:suggest(sb,key(cursor)),taught:true,note:''});
   const cls = ['sub', e.taught?'':'skip', draft.saved?'':'suggested'].join(' ');
@@ -1788,7 +1821,7 @@ function wireSettings(){
 
 /* ---------- sub plan text ---------- */
 function copySubPlan(){
-  const blocks=blocksFor(cursor);
+  const blocks=window.DayView ? window.DayView.withDayNotes(blocksFor(cursor)) : blocksFor(cursor);
   let out=`${DOW[cursor.getDay()]}, ${longDate(cursor)}\n\n`;
   if(draft.flags.length) out+=`Heads up: ${draft.flags.join(' · ')}\n\n`;
   const seen=new Set();
@@ -1864,9 +1897,9 @@ function migrateSchedule(){
   if(S.tv < 5){
     const wed = S.templates[3] || [];
     const i = wed.findIndex(b=>b.t==='8:15' && b.s==='reading' && b.l==='Reading');
-    if(i>=0 && !wed.some(b=>b.s==='phonics')){
+    if(i>=0 && !wed.some(b=>b.t==='8:15' && b.l==='Phonics')){
       wed.splice(i,1,
-        {t:'8:15', l:'Phonics', s:'phonics', n:'ECRI — first 15 minutes of the Reading block'},
+        {t:'8:15', l:'Phonics', s:'reading', n:'ECRI — first 15 minutes of the Reading block'},   /* v109: part of Reading */
         {t:'8:30', l:'Reading', s:'reading', n:''});
     }
   }
@@ -1986,6 +2019,7 @@ function seedFirstDay(){
 <script src="../suite-sync.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
+<script src="day-view.js" defer></script>
 <script src="../sub-plans.js" defer></script>
 <script src="../curriculum.js"></script>
 </body>
