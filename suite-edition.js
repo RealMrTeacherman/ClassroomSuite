@@ -10,5 +10,18 @@
    here, so this only decides what a board starts as.
 
      groupLook  the math board's four groups: "animals" (Fox, Bear,
-                Tiger, Lion) or "colors" (Red, Blue, Yellow, Green) */
-window.SuiteEdition = { name: "own", groupLook: "animals" };
+                Tiger, Lion) or "colors" (Red, Blue, Yellow, Green)
+     firebase   v106: this copy's Firebase project, so Planner sync asks
+                only for an email and password. Firebase's web config is
+                public by design (its security rules, tools/firestore.rules,
+                protect the data); the Creslane copy has none, so no other
+                teacher's suite points at this project. */
+window.SuiteEdition = { name: "own", groupLook: "animals",
+  firebase: {
+    apiKey: "AIzaSyDbYEAJ8Y_FO5FZiILHkQePRFvNDoDUjME",
+    authDomain: "classroomsuite-54865.firebaseapp.com",
+    projectId: "classroomsuite-54865",
+    storageBucket: "classroomsuite-54865.firebasestorage.app",
+    messagingSenderId: "199350231153",
+    appId: "1:199350231153:web:57cd7a8ead59b78acd7bd0"
+  } };

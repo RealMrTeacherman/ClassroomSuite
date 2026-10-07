@@ -101,7 +101,9 @@
   function viaFirebase() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
   function configured() { var c = conf(); return !!(c && ((c.repo && c.token) || (c.fb && c.fb.projectId && c.email))); }
   function display() { var c = conf(); return !!(c && c.readonly); }
-  function boardsOn() { var c = conf(); return !!(configured() && c.boards); }
+  /* v107: sync covers everything it can, so a connected device always keeps the
+     boards (and the WIN summary) in step; the per-device switch is gone */
+  function boardsOn() { return configured(); }
   function noteConf(patch) { var c = conf(); if (!c) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); saveConf(c); }
 
   /* "owner/name", or the repository's address pasted whole */
@@ -491,6 +493,12 @@
       FB.unsub = []; FB.listening = false; FB.seen = {};
     }
   };
+  /* v106: this copy's own project, from suite-edition.js, if it has one */
+  function editionFirebase() {
+    var e = window.SuiteEdition && window.SuiteEdition.firebase;
+    return e && e.apiKey && e.projectId && e.appId ? e : null;
+  }
+  var otherProject = false;   /* "Use a different Firebase project" was pressed */
   /* the config Firebase's console shows (a JS snippet or JSON), read without running it */
   function parseFirebaseConfig(text) {
     var t = String(text || ""), out = {}, re = /["']?(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId)["']?\s*:\s*["']([^"']+)["']/g, m;
@@ -796,7 +804,6 @@
     var was = conf();
     var c = { fb: fb, email: email };
     if (readonly) c.readonly = true;
-    if (was && was.boards) c.boards = true;
     if (FB.app && (!was || !was.fb || was.fb.projectId !== fb.projectId)) { FB.signOut(); try { FB.app.delete(); } catch (e) { } FB.app = null; }
     saveConf(c);
     if (!was || !was.fb || was.fb.projectId !== fb.projectId) { base = {}; L.idbSet(BASE_IDB, {}); bbase = {}; L.idbSet(BBASE_IDB, {}); }
@@ -818,13 +825,10 @@
     clearTimeout(boardTimer); boardTimer = null;
     setState("off");
   }
-  /* v101: the boards are a choice made on each device */
-  function setBoards(on) {
+  /* v107: the boards are no longer a choice; this only runs a round now, for
+     anything that still calls it (v101-v106 tests and pages) */
+  function setBoards() {
     if (!configured()) return Promise.reject(err("off"));
-    noteConf({ boards: !!on });
-    clearTimeout(boardTimer); boardTimer = null;
-    if (!on) { bstate = "off"; bhold = null; bbase = {}; L.idbSet(BBASE_IDB, {}); setState(state, detail); return Promise.resolve([]); }
-    bbase = {}; L.idbSet(BBASE_IDB, {});
     return round();
   }
 
@@ -893,7 +897,7 @@
     if (!boardsOn()) return "Off on this device";
     if (bstate === "off") return "On";
     /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
-    if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Press Keep the boards in step on the Mac or phone you change them on.";
+    if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Connect the Mac or phone you change them on.";
     if (bstate === "idle") return display()
       ? (viaFirebase() ? "On \u00b7 live: this computer shows each change as it is made" : "On \u00b7 this computer shows them and checks every 25 seconds")
       : "On \u00b7 changes go out in seconds";
@@ -978,7 +982,10 @@
 
     if (!configured() && setupVia !== "github") {
       /* v105: Firebase, first */
-      box.appendChild(el("i", "", "Keeps the planner, and the boards and Walk to WIN slides if you choose, in step live through your own Firebase project, by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
+      box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step live through your own Firebase project, the boards by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
+      /* v106: with this copy's project built in, only the sign-in is asked for */
+      var built = otherProject ? null : editionFirebase();
+      if (built) box.appendChild(el("div", "hubstatus", "Your suite\u2019s Firebase project: " + built.projectId));
       var f1 = el("label", "", "Firebase config"), j1 = el("textarea");
       j1.id = "fbconfig"; j1.rows = 4; j1.spellcheck = false; j1.placeholder = "const firebaseConfig = { apiKey: \u2026, projectId: \u2026, appId: \u2026 };";
       j1.style.cssText = "display:block;box-sizing:border-box;width:100%;margin-top:3px;padding:6px 10px;border:1px solid rgba(16,24,32,.18);border-radius:8px;font:12px ui-monospace,Menlo,Consolas,monospace";
@@ -987,12 +994,15 @@
       j2.id = "fbemail"; j2.type = "email"; j2.autocomplete = "username"; j2.setAttribute("autocapitalize", "off"); f2.appendChild(j2);
       var f3 = el("label", "", "Password"), j3 = el("input");
       j3.id = "fbpass"; j3.type = "password"; j3.autocomplete = "current-password"; f3.appendChild(j3);
-      box.appendChild(f1); box.appendChild(f2); box.appendChild(f3);
+      if (built) j1.value = JSON.stringify(built);
+      else box.appendChild(f1);
+      box.appendChild(f2); box.appendChild(f3);
       var f4 = el("label", "hubcheck"), j4 = el("input");
       j4.type = "checkbox"; j4.id = "fbdisplay";
       f4.appendChild(j4); f4.appendChild(document.createTextNode("This computer only displays (sign in as the display user)"));
       box.appendChild(f4);
-      box.appendChild(el("i", "", "The config is in your Firebase project\u2019s settings, under Your apps. Sign in with the user you made for this device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
+      box.appendChild(el("i", "", (built ? "" : "The config is in your Firebase project\u2019s settings, under Your apps. ") +
+        "Sign in with the user you made for this device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
       box.appendChild(button("Connect", function () {
         var go = this; go.disabled = true;
@@ -1000,12 +1010,13 @@
         connectFirebase(j1.value, j2.value, j3.value, j4.checked).then(function () { open(); }, function (e) {
           open(MESSAGES[e && e.code] || "Couldn\u2019t connect: " + (e && e.message || e));
           var a1 = document.getElementById("fbconfig"), a2 = document.getElementById("fbemail"), a4 = document.getElementById("fbdisplay");
-          if (a1) a1.value = keep.c; if (a2) a2.value = keep.e; if (a4) a4.checked = keep.d;
+          if (a1 && otherProject) a1.value = keep.c; if (a2) a2.value = keep.e; if (a4) a4.checked = keep.d;
         });
       }, "hubgo"));
+      if (built) box.appendChild(button("Use a different Firebase project", function () { otherProject = true; open(); }));
       box.appendChild(button("Use a GitHub repository instead", function () { setupVia = "github"; open(); }));
     } else if (!configured()) {
-      box.appendChild(el("i", "", "Keeps the planner in step on its own through a private GitHub repository, and the math board and reading cards too if you choose, by student id only. Never the gradebook, reading checks, Walk to WIN lists or sub plans, and nothing is sent while a note names a student."));
+      box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step on their own through a private GitHub repository, the boards by student id only. Never the gradebook, reading checks, Walk to WIN lists or sub plans, and nothing is sent while a note names a student."));
       var l1 = el("label", "", "Repository"), i1 = el("input");
       i1.id = "hubrepo"; i1.placeholder = "your-name/planner-sync"; i1.autocomplete = "off"; i1.spellcheck = false;
       i1.setAttribute("autocapitalize", "off"); l1.appendChild(i1);
@@ -1030,7 +1041,7 @@
       var c = conf();
       box.appendChild(el("i", "", display()
         ? "Through " + where() + ". This computer only displays: it shows what is there and never changes anything."
-        : "Through " + where() + ". " + (boardsOn() ? "The planner and the boards go there, the boards by student id only," : "Only the planner goes there,") + " and nothing is sent while typed text names a student."));
+        : "Through " + where() + ". " + "The planner and the boards go there, the boards by student id only," + " and nothing is sent while typed text names a student."));
       box.appendChild(el("div", "hubstatus", status()));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
       function hits(h) {
@@ -1055,9 +1066,6 @@
       box.appendChild(el("div", "hubstatus", boardsStatus()));
       if (boardsOn()) winLines().forEach(function (t) { box.appendChild(el("div", "hubstatus", t)); });   /* v103 */
       if (bstate === "held" && bhold && bhold.reason === "names") hits(bhold);
-      box.appendChild(button(boardsOn() ? "Stop keeping the boards in step here" : "Keep the boards in step", function () {
-        setBoards(!boardsOn()).then(function () { open(); }, function (e) { open(MESSAGES[e && e.code] || String(e && e.message || e)); });
-      }));
       box.appendChild(button("Turn off on this device", function () { disconnect(); open(); }));
     }
     var cancel = el("button", "cancel", "Close"); cancel.type = "button"; cancel.onclick = close;
@@ -1141,7 +1149,7 @@
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
     menuOption: function () {
-      return { label: "Planner sync", hint: configured() ? status() + (boardsOn() ? " \u00b7 boards too" : "") : "keep the planner in step on its own, through Firebase or GitHub", run: function () { open(); } };
+      return { label: "Planner sync", hint: configured() ? status() : "keep the planner in step on its own, through Firebase or GitHub", run: function () { open(); } };
     }
   };
 })();
