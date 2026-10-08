@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pocket Chart — Daily Planner</title>
+<title>Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
@@ -427,7 +427,6 @@ textarea.notes:focus{
 [data-theme="fourcolor"] .sub,
 [data-theme="fourcolor"] .panel,
 [data-theme="fourcolor"] .wday,
-[data-theme="fourcolor"] .mate{border-width:2.5px;border-color:#101A33;box-shadow:4px 4px 0 #101A33}
 [data-theme="fourcolor"] header{border-bottom-width:2.5px;border-bottom-color:#101A33}
 [data-theme="fourcolor"] .ghost,
 [data-theme="fourcolor"] .arrow,
@@ -455,27 +454,7 @@ textarea.notes:focus{
 [data-theme="fourcolor"] .daypick button{font-size:12.5px;letter-spacing:.05em}
 [data-theme="fourcolor"] .wday h3{font-size:14px;letter-spacing:.05em}
 [data-theme="fourcolor"] .skipbtn{font-size:11px;letter-spacing:.05em}
-[data-theme="fourcolor"] .mateyou{font-size:11px;letter-spacing:.05em}
 
-/* ---------- team ---------- */
-.mate{
-  background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
-  padding:15px;margin-top:11px;box-shadow:0 2px 0 rgba(0,0,0,.06);position:relative;overflow:hidden;
-}
-.mate::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:var(--c,var(--orange))}
-.mate.self{border-color:var(--line-2)}
-.matetop{display:flex;align-items:baseline;gap:9px;margin:4px 0 11px;flex-wrap:wrap}
-.matename{font-family:var(--body);font-size:16px;font-weight:700}
-.matewhen{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-left:auto}
-.mateyou{font-family:var(--display);font-size:8px;text-transform:uppercase;letter-spacing:.1em;
-  color:var(--ink-3);border:1.5px solid var(--line);border-radius:999px;padding:3px 8px}
-.mrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
-.mrow:first-of-type{border-top:none}
-.mrow em{font-style:normal;flex:1;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mrow b{font-family:var(--mono);font-size:11px;font-weight:700;background:var(--screen);
-  color:var(--screen-txt);border-radius:5px;padding:2px 7px;white-space:nowrap}
-.delta{font-family:var(--mono);font-size:10.5px;font-weight:700;min-width:62px;text-align:right}
-.delta.ahead{color:var(--teal)} .delta.behind{color:var(--orange)} .delta.same{color:var(--ink-3)}
 .themegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;margin-top:4px}
 .themebtn{
   border:1.5px solid var(--line);border-radius:13px;padding:11px;text-align:left;
@@ -560,8 +539,8 @@ dialog.sheet::backdrop{background:rgba(30,20,12,.5)}
           <circle cx="24.5" cy="21.5" r="2.5" fill="#D89A1C"/>
         </svg>
         <div>
-          <h1>Pocket Chart</h1>
-          <span>2nd grade daily planner</span>
+          <h1>Planner</h1>
+          <span>Grade 2 daily and weekly plans</span>
         </div>
       </div>
       <div class="jar" id="jar" title="Days logged toward the next class party"></div>
@@ -569,7 +548,6 @@ dialog.sheet::backdrop{background:rgba(30,20,12,.5)}
     <nav class="tabs" role="tablist" aria-label="Views">
       <button class="tab" role="tab" data-view="today" aria-controls="main" aria-selected="true">Today</button>
       <button class="tab" role="tab" data-view="week" aria-controls="main" aria-selected="false">Week</button>
-      <button class="tab" role="tab" data-view="team" aria-controls="main" aria-selected="false">Team</button>
       <button class="tab" role="tab" data-view="settings" aria-controls="main" aria-selected="false">Settings</button>
     </nav>
   </div>
@@ -600,8 +578,6 @@ const KNOWN_COLOURS = new Set();
 
 let ME = {id:'', name:'', theme:'atomic', share:false, code:''};
 
-function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
-function teamKey(code,id){ return `team:${slug(code)}:${id}`; }
 function newId(){ return 'u'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
 
 function applyTheme(){
@@ -616,39 +592,14 @@ function applyThemePalette(id){
   });
 }
 
-/* Synced storage only works on a PUBLISHED artifact — in an unpublished
-   draft window.storage exists but every operation fails. The old code let
-   set() fall back to localStorage while get() returned null without looking
-   there, so writes landed on the device, reads never found them, and the app
-   came up empty on every reload. One probe at boot decides which backend is
-   actually usable, and both paths then agree. */
-let cloudOK = false;
-async function detectStorage(){
-  cloudOK = false;
-  if (typeof window.storage === 'undefined' || !window.storage) return false;
-  try {
-    /* A probing set, not a get: get() throws on a missing key too, so it
-       can't tell "no storage" from "nothing saved yet". */
-    await window.storage.set('lp:probe:v1', String(Date.now()));
-    cloudOK = true;
-  } catch(e){ cloudOK = false; }
-  return cloudOK;
-}
-
+/* v116: the browser's own storage. (A second path for Claude's artifact
+   storage, used only by the retired team sharing, was removed.) */
 const store = {
   async get(key){
-    if (cloudOK){
-      try { const r = await window.storage.get(key); return r && r.value ? JSON.parse(r.value) : null; }
-      catch(e){ return null; }   // a missing key throws; that just means nothing saved yet
-    }
     try { const v = window.localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e){ return null; }
   },
   async set(key, val){
-    const s = JSON.stringify(val);
-    if (cloudOK){
-      try { await window.storage.set(key, s); return true; } catch(e){ /* fall through to the device */ }
-    }
-    try { window.localStorage.setItem(key, s); return true; } catch(e){ return false; }
+    try { window.localStorage.setItem(key, JSON.stringify(val)); return true; } catch(e){ return false; }
   }
 };
 
@@ -830,8 +781,8 @@ function fmt(sb,p){
 }
 
 /* Walk backwards to the most recent day this subject was actually taught.
-   Rendering a day calls this twice per subject and the team view calls it
-   per subject per teammate, so the key sort and the results are cached and
+   Rendering a day calls this twice per subject, so the key sort and the
+   results are cached and
    dropped whenever DAYS changes. */
 let _dayKeys = null, _ltCache = new Map();
 function invalidateDayCache(){ _dayKeys = null; _ltCache.clear(); }
@@ -941,47 +892,14 @@ function stashDraft(){
 async function persistSettings(){ await store.set(K.settings, S); }
 async function persistMe(){ await store.set(K.me, ME); }
 
-/* ---------- team sync ----------
-   Only a name and lesson positions ever leave this device. Day notes,
-   subject notes and schedule-change flags are never published. */
-const canSync = () => cloudOK;
-
+/* A lesson position as one number from the start of the year (curriculum.js
+   uses it). v116: kept when the team sharing it sat among was removed. */
 function absIndex(sb,p){
   if(!p) return null;
   if(sb.schema==='uwd') return ((((p.unit||1)-1)*(sb.weeksPerUnit||3))+((p.week||1)-1))*(sb.daysPerWeek||5)+((p.day||1)-1);
   if(sb.schema==='ul')  return (((p.unit||1)-1)*(sb.lessonsPerUnit||10))+((p.lesson||1)-1);
   if(sb.schema==='l')   return (p.lesson||1)-1;
   return null;
-}
-
-async function publishStatus(){
-  if(!canSync() || !ME.share || !ME.name || !ME.code) return;
-  const pos = {};
-  S.subjects.filter(s=>s.on && s.schema!=='free').forEach(sb=>{
-    const lt = lastTaught(sb, '9999-12-31');
-    if(lt) pos[sb.id] = {pos:lt.pos, on:lt.from};
-  });
-  const rec = {id:ME.id, name:ME.name, theme:ME.theme, updated:new Date().toISOString(), pos};
-  try{ await window.storage.set(teamKey(ME.code, ME.id), JSON.stringify(rec), true); }
-  catch(e){ /* sync is best-effort; never blocks saving a day */ }
-}
-
-async function fetchTeam(){
-  if(!canSync() || !ME.code) return [];
-  const out = [];
-  try{
-    const r = await window.storage.list(`team:${slug(ME.code)}:`, true);
-    for(const k of (r && r.keys) || []){
-      try{ const v = await window.storage.get(k, true); if(v && v.value) out.push(JSON.parse(v.value)); }
-      catch(e){ /* skip unreadable entries */ }
-    }
-  }catch(e){ /* no shared data yet */ }
-  return out.sort((a,b)=> a.id===ME.id ? -1 : b.id===ME.id ? 1 : String(a.name).localeCompare(String(b.name)));
-}
-
-async function stopSharing(){
-  if(!canSync() || !ME.code || !ME.id) return;
-  try{ await window.storage.delete(teamKey(ME.code, ME.id), true); }catch(e){}
 }
 
 /* Typing debounces; an explicit save writes through immediately so nothing is
@@ -995,7 +913,7 @@ function commitDay(flush){
   dirty = false;
   invalidateDayCache();
   if(PENDING[dk]){ delete PENDING[dk]; queuePending(); }
-  if(flush){ clearTimeout(saveTimer); persist(); teamCache=null; publishStatus(); } else queueSave();
+  if(flush){ clearTimeout(saveTimer); persist(); } else queueSave();
 }
 function flushSave(){
   stashDraft();
@@ -1029,7 +947,6 @@ function render(){
   renderJar();
   if(view==='today') renderToday();
   else if(view==='week') renderWeek();
-  else if(view==='team') renderTeam();
   else renderSettings();
 }
 
@@ -1343,10 +1260,10 @@ function applyBackup(text){
   let d;
   try{ d = JSON.parse(text); }
   catch(e){ toast('That isn’t valid backup text'); return false; }
-  if(!d || typeof d!=='object'){ toast('That isn’t a Pocket Chart backup'); return false; }
+  if(!d || typeof d!=='object'){ toast('That isn’t a planner backup'); return false; }
   const hasDays = d.days && typeof d.days==='object';
   const hasSettings = d.settings && Array.isArray(d.settings.subjects) && d.settings.subjects.length;
-  if(!hasDays && !hasSettings){ toast('That isn’t a Pocket Chart backup'); return false; }
+  if(!hasDays && !hasSettings){ toast('That isn’t a planner backup'); return false; }
   if(hasSettings){
     S = d.settings;
     if(!S.templates || typeof S.templates!=='object')
@@ -1455,10 +1372,18 @@ function renderWeek(){
     stashDraft(); cursor=parseKey(b.dataset.jump); draft=null; view='today'; render();
   });
 }
+/* v117: subjects in the order of that day's schedule, by each one's first
+   block; one with no block that day keeps its usual place, after them.
+   (suite-boot.js did this after every draw since v51; now the planner does.) */
+function inDayOrder(d, subs){
+  const bl = blocksFor(d) || [];
+  const first = id => { for(let i=0;i<bl.length;i++) if(bl[i] && bl[i].s===id) return i; return 1e6; };
+  return subs.map((s,i)=>({s,i,k:first(s.id)})).sort((a,b)=>(a.k-b.k)||(a.i-b.i)).map(x=>x.s);
+}
 function weekCard(d){
   const dk=key(d), rec=DAYS[dk], st=dayStatus(d);
   const rows = rec && st.school
-    ? S.subjects.filter(s=>s.on && rec.entries[s.id] && rec.entries[s.id].taught && fmt(s,rec.entries[s.id].pos)!=='—')
+    ? inDayOrder(d, S.subjects.filter(s=>s.on && rec.entries[s.id] && rec.entries[s.id].taught && fmt(s,rec.entries[s.id].pos)!=='—'))
         .map(s=>`<div class="wrow"><span class="dot" style="--c:${esc(s.color)}"></span><em>${esc(s.name)}</em><b>${esc(fmt(s,rec.entries[s.id].pos))}</b></div>`).join('')
     : '';
   const body = !st.school ? `<div class="wrow closedlbl">${esc(st.label)}</div>`
@@ -1472,114 +1397,8 @@ function weekCard(d){
     </button>`;
 }
 
-/* ---------- Team ---------- */
-let teamCache = null;
-function renderTeam(){
-  if(!canSync()){
-    main.innerHTML = `<div class="panel"><h2>Team</h2>
-      <p class="hint">Sharing needs synced storage, which only runs on a <b>published</b> artifact.
-      This copy is saving to this device alone, so your plans stay here and won't follow you to
-      another device. Publish it from the artifact menu to turn on sync and the Team tab.</p>
-      <p class="hint">Either way, use <b>Export a backup</b> in Settings to keep a copy you control.</p></div>`;
-    return;
-  }
-  if(!ME.share || !ME.name || !ME.code){ renderTeamSetup(); return; }
-
-  main.innerHTML = `
-    <div class="datenav">
-      <div class="dateblock">
-        <div class="dow">Team</div>
-        <div class="dsub">code: ${esc(slug(ME.code))}</div>
-      </div>
-      <button class="todaybtn" id="refresh">Refresh</button>
-    </div>
-    <div id="mates"><div class="empty">Loading…</div></div>
-    <div class="savebar"><button class="ghost" id="teamsettings">Sharing settings</button></div>`;
-  document.getElementById('refresh').onclick=()=>{ teamCache=null; loadMates(); };
-  document.getElementById('teamsettings').onclick=()=>{ view='settings'; render(); };
-  loadMates();
-}
-
-async function loadMates(){
-  const box = document.getElementById('mates');
-  if(!box) return;
-  if(!teamCache){ await publishStatus(); teamCache = await fetchTeam(); }
-  const mates = teamCache;
-  if(!mates.length){
-    box.innerHTML = `<div class="empty">No one's published yet. Once your teammates enter the code
-      <b>${esc(slug(ME.code))}</b> and save a day, they'll show up here.</div>`;
-    return;
-  }
-  box.innerHTML = mates.map(mateHTML).join('');
-}
-
-function mateHTML(m){
-  const isMe = m.id===ME.id;
-  const accent = (THEMES[m.theme]||THEMES.atomic).swatch[1];
-  const rows = S.subjects.filter(s=>s.on && s.schema!=='free').map(sb=>{
-    const theirs = m.pos && m.pos[sb.id];
-    if(!theirs) return `<div class="mrow"><em>${esc(sb.name)}</em><span class="delta same">—</span></div>`;
-    const mineLt = lastTaught(sb, '9999-12-31');
-    const a = absIndex(sb, theirs.pos), b = mineLt ? absIndex(sb, mineLt.pos) : null;
-    let d = `<span class="delta same">—</span>`;
-    if(!isMe && a!=null && b!=null){
-      const diff = a-b;
-      d = diff===0 ? `<span class="delta same">same</span>`
-        : diff>0   ? `<span class="delta ahead">+${diff} ahead</span>`
-                   : `<span class="delta behind">${diff} behind</span>`;
-    }
-    return `<div class="mrow"><em>${esc(sb.name)}</em><b>${esc(fmt(sb,theirs.pos))}</b>${d}</div>`;
-  }).join('');
-  const when = m.updated ? new Date(m.updated) : null;
-  return `<article class="mate ${isMe?'self':''}" style="--c:${esc(accent)}">
-      <div class="matetop">
-        <span class="matename">${esc(m.name||'Unnamed')}</span>
-        ${isMe?'<span class="mateyou">you</span>':''}
-        <span class="matewhen">${when?`${when.getMonth()+1}/${when.getDate()}`:''}</span>
-      </div>
-      ${rows}
-    </article>`;
-}
-
-function renderTeamSetup(){
-  main.innerHTML = `
-    <div class="panel">
-      <h2>Share with your team</h2>
-      <p class="hint">See where the other 2nd grade rooms are in each curriculum.</p>
-      <div class="privacy">
-        <b>What gets shared:</b> your name and the last lesson you logged in each subject.<br>
-        <b>What never leaves this device:</b> your day notes, subject notes and schedule flags —
-        so nothing you write about a student is ever published.<br>
-        Anyone who has this app <i>and</i> your team code can see the shared part, so pick a code
-        only your team would guess.
-      </div>
-      <div class="field">
-        <label for="tname">Your name</label>
-        <input type="text" id="tname" value="${esc(ME.name)}" placeholder="e.g. Josh" maxlength="40">
-      </div>
-      <div class="field">
-        <label for="tcode">Team code</label>
-        <input type="text" id="tcode" value="${esc(ME.code)}" placeholder="e.g. creslane-2nd-2026" maxlength="40">
-        <small>All three of you type the same code. Letters, numbers and dashes.</small>
-      </div>
-      <label class="optin"><input type="checkbox" id="topt" ${ME.share?'checked':''}>
-        Publish my name and lesson positions to this team code.</label>
-      <button class="primary" id="tsave">Start sharing</button>
-    </div>`;
-  document.getElementById('tsave').onclick=async()=>{
-    const n=document.getElementById('tname').value.trim();
-    const c=slug(document.getElementById('tcode').value);
-    const o=document.getElementById('topt').checked;
-    if(!n)  return toast('Add your name first');
-    if(!c)  return toast('Add a team code first');
-    if(!o)  return toast('Tick the box to start sharing');
-    if(!ME.id) ME.id=newId();
-    ME.name=n; ME.code=c; ME.share=true;
-    await persistMe(); teamCache=null; render(); toast('Sharing on');
-  };
-}
 /* ---------- Settings ---------- */
-let editDow = 1;
+let editDow = 1;   /* the weekday the schedule editor shows (v116: kept when the team code above it went) */
 function renderSettings(){
   main.innerHTML = `
     <div class="panel">
@@ -1603,7 +1422,7 @@ function renderSettings(){
 
     <div class="panel">
       <h2>Theme</h2>
-      <p class="hint">Yours only — your teammates each pick their own.</p>
+      <p class="hint">Yours only.</p>
       <div class="themegrid">
         ${Object.keys(THEMES).map(id=>`
           <button class="themebtn" data-theme-pick="${id}" aria-pressed="${ME.theme===id}">
@@ -1611,22 +1430,6 @@ function renderSettings(){
             <span>${esc(THEMES[id].name)}</span>
           </button>`).join('')}
       </div>
-    </div>
-
-    <div class="panel">
-      <h2>Team sharing</h2>
-      <p class="hint">${ME.share
-        ? `Publishing as <b>${esc(ME.name)}</b> to code <b>${esc(slug(ME.code))}</b>.`
-        : 'Off. Nothing about your plans leaves this device.'}</p>
-      <div class="privacy">
-        Shared: your name and last logged lesson per subject.
-        Never shared: day notes, subject notes and schedule flags.
-      </div>
-      ${ME.share ? `<div class="savebar">
-          <button class="ghost" id="teamedit">Change name or code</button>
-          <button class="ghost" id="teamoff" style="color:var(--orange)">Stop sharing</button>
-        </div>`
-      : `<div class="savebar"><button class="ghost" id="teamedit">Set up sharing</button></div>`}
     </div>
 
     <div class="panel">
@@ -1681,17 +1484,8 @@ function wireSettings(){
     applyThemePalette(ME.theme);
     applyTheme();
     await persistMe(); await persistSettings();
-    publishStatus(); renderSettings();
+    renderSettings();
   });
-  const te=document.getElementById('teamedit');
-  if(te) te.onclick=()=>{ view='team'; ME.share=false; render(); };
-  const to=document.getElementById('teamoff');
-  if(to) to.onclick=async()=>{
-    if(!confirm('Stop sharing and remove your entry from the team code?')) return;
-    await stopSharing();
-    ME.share=false; await persistMe(); teamCache=null; renderSettings(); toast('Sharing off');
-  };
-
   /* Year progress + the closure list, grouped so repeats collapse. */
   const first=parseKey(YEAR.first), last=parseKey(YEAR.last);
   let total=0, done=0, early=0, d=new Date(first);
@@ -1994,7 +1788,6 @@ function seedFirstDay(){
 (async function boot(){
   Object.values(THEMES).forEach(t=>t.subjects.forEach(c=>KNOWN_COLOURS.add(c.toUpperCase())));
   ['#17876B','#2F6FB2','#7B4FA8','#D9932B','#C4552F','#4E5D6C'].forEach(c=>KNOWN_COLOURS.add(c));
-  await detectStorage();
   const [s,d,me,pend] = await Promise.all([
     store.get(K.settings), store.get(K.days), store.get(K.me), store.get(K.pending)
   ]);

@@ -89,75 +89,9 @@
   })();
 })();
 
-/* ---- the planner's subject cards follow the day, not the subject list ----
-   The Today rail and each Week card list subjects in the order they were
-   added (Phonics, Reading, Writing, Math, Science, WIN …), while each card
-   shows its time, so Writing at 11:40 sat before Math at 10:00 and, on
-   Wednesday, WIN at 10:30 before Enrichment at 9:45. The planner is a
-   protected file, so its render is left alone: after each render the cards
-   are moved into the order of that day's schedule, by the first block each
-   subject has. A subject with no block that day keeps its place at the end,
-   in its usual order. The nodes themselves move, not a CSS `order`, so tab
-   order and VoiceOver follow the screen; every control binds by data-id, so
-   nothing is lost in the move. Runs in a MutationObserver callback, which is
-   before the next paint, so nothing is seen in the wrong order (v51). */
-(function () {
-  function ready() {
-    return typeof blocksFor === "function" && typeof parseKey === "function" &&
-      typeof S !== "undefined" && S && Array.isArray(S.subjects);
-  }
-  function firstBlock(date, id) {
-    var bl = blocksFor(date) || [];
-    for (var i = 0; i < bl.length; i++) if (bl[i] && bl[i].s === id) return i;
-    return 1e6;
-  }
-  function arrange(parent, items, keyOf) {
-    if (items.length < 2) return;
-    var keyed = items.map(function (n, i) { return { n: n, k: keyOf(n), i: i }; });
-    var sorted = keyed.slice().sort(function (a, b) { return (a.k - b.k) || (a.i - b.i); });
-    if (sorted.every(function (x, i) { return x.i === i; })) return;
-    var active = document.activeElement, sel = null;
-    if (active && parent.contains(active)) {
-      try { sel = [active.selectionStart, active.selectionEnd]; } catch (e) { }
-    } else active = null;
-    var anchor = items[items.length - 1].nextSibling;
-    sorted.forEach(function (x) { parent.insertBefore(x.n, anchor); });
-    if (active && document.activeElement !== active) {
-      try { active.focus({ preventScroll: true }); } catch (e) { active.focus(); }
-      try { if (sel && sel[0] != null) active.setSelectionRange(sel[0], sel[1]); } catch (e) { }
-    }
-  }
-  function subjectByName(name) {
-    for (var i = 0; i < S.subjects.length; i++) if (S.subjects[i].name === name) return S.subjects[i].id;
-    return null;
-  }
-  function run() {
-    if (!ready()) return;
-    var rail = document.querySelector(".rail");
-    /* v93: a rail laid out by the day (below) is already in order, with rows between the cards */
-    if (rail && typeof cursor !== "undefined" && !rail.classList.contains("byday")) {
-      var date = cursor;
-      var cards = [].filter.call(rail.children, function (n) { return n.classList && n.classList.contains("sub"); });
-      arrange(rail, cards, function (n) {
-        var b = n.querySelector("[data-skip]");
-        return b ? firstBlock(date, b.getAttribute("data-skip")) : 1e6;
-      });
-    }
-    [].forEach.call(document.querySelectorAll(".wday[data-jump]"), function (card) {
-      var d = parseKey(card.getAttribute("data-jump"));
-      var rows = [].filter.call(card.children, function (n) {
-        return n.classList && n.classList.contains("wrow") && n.querySelector("em");
-      });
-      arrange(card, rows, function (n) {
-        var id = subjectByName(n.querySelector("em").textContent);
-        return id ? firstBlock(d, id) : 1e6;
-      });
-    });
-  }
-  if (!document.querySelector || !window.MutationObserver) return;
-  run();
-  new MutationObserver(run).observe(document.body, { childList: true, subtree: true });
-})();
+/* ---- v51's reordering of the planner's cards was removed in v117: the Week
+   view sorts its subjects by the day's schedule itself (inDayOrder), and the
+   Today view is laid out by planner/day-view.js. ---- */
 
 /* ---- a fresh install gets the current schedule on its first load ----
    See `fresh` in suite-migrate.js. By the time this deferred file runs, the
@@ -405,24 +339,8 @@
   } catch (e) { }
 })();
 
-/* ---- v89: the planner's Team tab is retired ----
-   It shared plans through a Claude artifact's storage, which a page on
-   GitHub Pages does not have, so it could never work here (suite-boot.js
-   only reworded its note). The planner's file is the teacher's own and is
-   not edited: this takes the tab's button out of the nav, and if the
-   planner opened on it, moves to Today. Its data (lp:me:v1) is left. */
-(function () {
-  if (location.pathname.indexOf("planner") < 0) return;
-  function run() {
-    var b = document.querySelector('[role="tab"][data-view="team"]');
-    if (!b) return;
-    var was = b.getAttribute("aria-selected") === "true";
-    b.remove();
-    if (was) { var t = document.querySelector('[role="tab"][data-view="today"]'); if (t) t.click(); }
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
-})();
+/* ---- v89's removal of the planner's Team tab was itself removed in v116: the
+   tab and its sharing are gone from the planner. ---- */
 
 /* ---- v88: the planner's district calendar, for the suite calendar ----
    The planner carries Creswell's calendar in its own file (YEAR: first and
@@ -566,46 +484,8 @@
   }
 })();
 
-/* ---- v79: one name per tool, the same in every place it shows ----
-   The planner was "Pocket Chart — 2nd grade daily planner" and the ORF tool
-   "Running Records"; the switcher, the launcher and the gradebook called them
-   Planner and Fluency. Both files are protected, so their headings and tab
-   titles are renamed here, after the page has parsed. The words are the only
-   change: the planner's own header markup is untouched. */
-(function () {
-  var ph = document.querySelector(".brand h1");
-  if (ph && /pocket chart/i.test(ph.textContent)) {
-    ph.textContent = "Planner";
-    var tag = document.querySelector(".brand h1 + span");
-    if (tag) tag.textContent = "Grade 2 daily and weekly plans";
-    document.title = "Planner";
-  }
-  var fh = document.querySelector("header.top h1");
-  if (fh && /running records/i.test(fh.textContent)) {
-    fh.textContent = "ORF";
-    document.title = "ORF";
-  }
-
-  /* The planner's Team tab predates the suite. Its sharing needs a Claude
-     artifact's storage, which a GitHub Pages site never has, and its note
-     told the teacher to publish from "the artifact menu". Say what is true
-     here instead. The planner redraws #main on every view change, so this
-     watches for the note rather than looking once. */
-  var main = document.getElementById("main");
-  if (!main || !ph) return;
-  var fix = function () {
-    var hints = main.querySelectorAll(".panel .hint");
-    for (var i = 0; i < hints.length; i++) {
-      if (/published<\/b> artifact/.test(hints[i].innerHTML)) {
-        hints[i].innerHTML = "Sharing plans with your team is not available on this site. " +
-          "Your own plans already follow you between computers through <b>Sync</b> in the corner switcher.";
-        hints[i].setAttribute("data-suite-team-note", "");
-      }
-    }
-  };
-  fix();
-  new MutationObserver(fix).observe(main, { childList: true });
-})();
+/* ---- v79's renaming (Pocket Chart, Running Records) and its Team-note fix were
+   removed in v116: the names are right in the two files themselves. ---- */
 
 /* ---- v93/v98 (moved, v112): the Today view laid out as the day now lives in
    planner/day-view.js, called by the planner itself. ---- */

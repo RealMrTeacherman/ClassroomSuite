@@ -77,33 +77,39 @@
   .group{position:relative;display:flex;flex-direction:column;background:var(--card);border:4px solid var(--gc);border-radius:22px;
     padding:clamp(10px,1.2vw,20px);min-height:0;overflow:hidden}
   .group-head{display:flex;align-items:center;gap:clamp(8px,1vw,16px);min-width:0}
-  .medallion{flex:0 0 auto;width:clamp(58px,6.4vw,110px);height:clamp(58px,6.4vw,110px);border-radius:50%;background:var(--gt);
+  .medallion{flex:0 0 auto;width:clamp(40px,min(6.4vw,8.5vh),110px);height:clamp(40px,min(6.4vw,8.5vh),110px);border-radius:50%;background:var(--gt);
     display:grid;place-items:center;border:3px solid var(--gc)}
   .medallion svg{width:78%;height:78%;display:block}
-  .group-name{font-size:clamp(1.8rem,4.4vw,4.6rem);font-weight:700;line-height:.95;color:var(--gc);padding:2px 8px;border-radius:10px;outline:none;min-width:0;overflow-wrap:anywhere}
+  .group-name{font-size:clamp(1.4rem,min(4.4vw,6vh),4.6rem);font-weight:700;line-height:.95;color:var(--gc);padding:2px 8px;border-radius:10px;outline:none;min-width:0;overflow-wrap:anywhere}
   .group-name:focus{background:#F3F7FA;box-shadow:0 0 0 3px #9BC4E8}
 
-  .station-row{margin-top:clamp(8px,1vw,14px);display:flex;align-items:stretch;gap:6px;background:var(--sc);border-radius:16px;padding:6px}
+  .station-row{margin-top:clamp(4px,min(1vw,1.2vh),14px);display:flex;align-items:stretch;gap:6px;background:var(--sc);border-radius:16px;padding:6px}
   .board .station-main{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:clamp(8px,1vw,16px);background:transparent;color:#fff;border:none;
-    border-radius:12px;padding:clamp(4px,.7vw,12px) clamp(6px,1vw,16px);text-align:left;cursor:pointer}
+    border-radius:12px;padding:clamp(3px,min(.7vw,.9vh),12px) clamp(6px,1vw,16px);text-align:left;cursor:pointer}
   .board .station-main:hover{background:rgba(255,255,255,.15)}
-  .station-main svg{flex:0 0 auto;width:clamp(26px,2.9vw,52px);height:clamp(26px,2.9vw,52px)}
-  .station-label{font-size:clamp(1.15rem,2.5vw,2.7rem);font-weight:700;line-height:1.02;overflow-wrap:anywhere}
+  .station-main svg{flex:0 0 auto;width:clamp(20px,min(2.9vw,4vh),52px);height:clamp(20px,min(2.9vw,4vh),52px)}
+  .station-label{font-size:clamp(1rem,min(2.5vw,3.4vh),2.7rem);font-weight:700;line-height:1.02;overflow-wrap:anywhere}
   .page{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#fff;color:var(--sc);
     border-radius:12px;padding:clamp(3px,.5vw,9px) clamp(8px,1vw,18px);min-width:clamp(66px,6.5vw,118px)}
   .page-label{font-size:clamp(.6rem,.85vw,1rem);font-weight:700;line-height:1;opacity:.72}
-  .page-num{font-size:clamp(1.1rem,2.2vw,2.4rem);font-weight:700;line-height:1.05;min-width:1.6ch;text-align:center;border-radius:6px;outline:none}
+  .page-num{font-size:clamp(1rem,min(2.2vw,3vh),2.4rem);font-weight:700;line-height:1.05;min-width:1.6ch;text-align:center;border-radius:6px;outline:none}
   .page-num:focus{box-shadow:0 0 0 3px #9BC4E8}
   .page.blank{background:rgba(255,255,255,.18);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.65)}
 
-  .names{margin-top:clamp(8px,1vw,14px);padding-top:clamp(6px,.8vw,12px);border-top:2px dashed var(--rule);display:flex;flex-wrap:wrap;
+  .names{margin-top:clamp(5px,min(1vw,1.2vh),14px);padding-top:clamp(4px,min(.8vw,1vh),12px);border-top:2px dashed var(--rule);display:flex;flex-wrap:wrap;
     gap:calc(var(--name-k,1) * clamp(5px,.6vw,10px));align-content:flex-start;overflow:auto;min-height:0;flex:1 1 auto}
+  /* v115: on a wide, short screen (his school computer: 1920x1080 at 125%,
+     about 1536x740 in a window) the headers were sized by width alone and
+     took the height the names needed (names 14px, group names 68px). The
+     medallion, group name, station and gaps now take the smaller of a width
+     size and a height size, and names start bigger, so a short screen gives
+     the names the room. */
   /* Names are read from across the room. They are as big as the board allows:
      fitNames() lowers --name-k (on #grid, so all four groups stay one size)
      only when a group's names would not all show. Padding is in em so a chip
      keeps its shape as it shrinks. */
   .chip{display:inline-flex;align-items:center;gap:6px;background:var(--gt);color:var(--ink);border-radius:999px;
-    padding:.3em .62em;font-size:calc(var(--name-k,1) * clamp(.95rem,1.7vw,1.9rem));font-weight:700;line-height:1.1}
+    padding:.3em .62em;font-size:calc(var(--name-k,1) * clamp(1rem,min(2.2vw,3.6vh),2.2rem));font-weight:700;line-height:1.1}
   .arranging .chip.guest{box-shadow:inset 0 0 0 2px var(--gc)}
   .arranging .chip.guest::after{content:"visitor";font-size:.5em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gc);opacity:.85}
   .empty{color:var(--ink-soft);font-size:clamp(.9rem,1.4vw,1.3rem)}
@@ -837,7 +843,8 @@
 
   /* Every name on the board shows, as big as it can. Starts at full size and
      steps down together until no group's list overflows; a floor keeps a very
-     full board readable (it scrolls past that, as before). */
+     full board readable (it scrolls past that, as before). v115: with room
+     to spare, it steps up instead. */
   function fitNames() {
     if (tab !== "math" || !grid.clientHeight) return;
     var k = 1, guard = 0;
@@ -846,6 +853,17 @@
       return Array.prototype.some.call(grid.querySelectorAll(".names"), function (n) { return n.scrollHeight > n.clientHeight + 1; });
     }
     while (guard++ < 20 && k > 0.5 && over()) { k = Math.round((k - 0.05) * 100) / 100; grid.style.setProperty("--name-k", String(k)); }
+    /* v115: and when they all fit with room to spare, they grow (up to 1.8x)
+       until the fullest group is full: names are what the room reads */
+    if (k === 1 && !over()) {
+      guard = 0;
+      while (guard++ < 16 && k < 1.8) {
+        var next = Math.round((k + 0.05) * 100) / 100;
+        grid.style.setProperty("--name-k", String(next));
+        if (over()) { grid.style.setProperty("--name-k", String(k)); break; }
+        k = next;
+      }
+    }
   }
   window.addEventListener("resize", fitNames);
   document.addEventListener("fullscreenchange", function () { setTimeout(fitNames, 60); });

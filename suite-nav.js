@@ -92,6 +92,10 @@
     '#suitenav b{font-weight:600}' +
     '#suitenav .ic{font-size:13px;opacity:.75}' +
     '@media print{#suitenav{display:none!important}}' +
+    /* v115: on the Small Groups page (projected), the switcher steps aside when
+       the mouse is still, so it never sits over names; any move brings it back */
+    '#suitenav{transition:opacity .25s,transform .25s}' +
+    'body.suite-idle #suitenav{opacity:0;transform:translateY(12px);pointer-events:none}' +
     '#suitenav button{border:0;background:transparent;font:inherit;cursor:pointer;' +
     'display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;color:#55636E}' +
     '#suitenav button:hover{color:#14202A;background:rgba(16,24,32,.05)}' +
@@ -641,4 +645,20 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
+  /* v115: the switcher steps aside on the Small Groups page after a few still
+     seconds (that page is projected); any pointer move, touch or key brings
+     it back at once. Nowhere else, and never while a menu of it is open. */
+  (function () {
+    if (!/\/groups(\/|\/index\.html)?$/.test(location.pathname)) return;
+    var t = null;
+    function wake() {
+      document.body.classList.remove("suite-idle");
+      clearTimeout(t);
+      t = setTimeout(function () { if (!document.getElementById("suitesheet")) document.body.classList.add("suite-idle"); }, 4000);
+    }
+    ["mousemove", "pointerdown", "touchstart", "keydown", "focusin"].forEach(function (ev) { document.addEventListener(ev, wake, { passive: true }); });
+    if (document.body) wake(); else document.addEventListener("DOMContentLoaded", wake);
+  })();
+
+
 })();

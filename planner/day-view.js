@@ -83,8 +83,9 @@
     ".sub .cblocks .cbn{display:block;color:var(--ink-3)}",
     "@media (max-width:760px){.rail.byday .dayrow time{flex-basis:70px}.rail.byday .drday{font-size:16px}}",
     "@media print{.rail.byday .dradd{display:none}}",
-    /* v114 (F): on a computer the day is three columns, Morning, Midday and
-       Afternoon, broken after morning recess and after lunch. Lesson cards
+    /* v114 (F), v115: the day in three sections, Morning, Midday and
+       Afternoon, broken after morning recess and after lunch, one under the
+       other in a single column (v114 had them side by side). Lesson cards
        keep everything; a long one shows CMID_MAX of its middle, then Show
        more opens it in place, in its column. Plain blocks are slim dashed
        rows. The column with the lesson on now says so. On a phone and in
@@ -97,7 +98,10 @@
     ".rail.byday .fcolempty{font-size:13px;color:var(--ink-3);padding:4px 2px}" +
     ".rail.byday .fcol>.sub,.rail.byday .fcol>.blockcell{margin:0 0 10px}" +
     "@media screen and (min-width:761px){" +
-      ".rail.byday{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}" +
+      /* v115: one long column (three side by side read as confusing); the
+         sections stay as headings down it */
+      ".rail.byday{display:block}" +
+      ".rail.byday .fcol+.fcol{margin-top:14px}" +
       ".rail.byday .fcol>.blockcell{background:rgba(255,255,255,.55);border:1.5px dashed var(--line);border-radius:12px;padding:4px 10px}" +
       ".rail.byday .fcol>.blockcell .dayrow{border-top:0;padding:5px 0}" +
       ".rail.byday .fcol>.blockcell .dayrow+.dayrow{border-top:1px solid var(--line)}" +
@@ -109,8 +113,9 @@
       ".rail.byday .more{flex:none;align-self:flex-start;margin:6px 0 4px;background:none;border:0;padding:2px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}" +
       ".rail.byday .more:hover{color:var(--ink)}" +
     "}",
-    /* on a wide screen the Today view takes more of it */
-    "@media screen and (min-width:1600px){html:not([data-suite-theme]):has(.rail.byday){--x-w:1560px}}",
+    /* v115: Today is one reading column, the date, day notes and lessons all
+       the same width (v98 widened the page for its grid) */
+    "@media screen and (min-width:761px){html:not([data-suite-theme]):has(.rail.byday){--x-w:960px}}",
     "@media not screen,(max-width:760px){.rail.byday>.blockcell,.rail.byday .cmid{display:contents}.rail.byday .more{display:none}}"
   ].join("\n");
   function style() {

@@ -580,8 +580,21 @@
     return "";
   }
   /* largest type that fits: shrink until nothing overflows */
+  /* v115: on the page (not presenting), the slide's box is 16:9 at full width,
+     taller than a short screen (1536x740 on his school computer) leaves it,
+     so it ran off the bottom. Its height is capped at what is left below its
+     top; fitSlide then fits the text to that box, as it does when presenting. */
+  function sizeStage(el) {
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fs === el) { el.style.height = ""; return; }
+    var r = el.getBoundingClientRect();
+    if (!r.width) return;
+    var room = window.innerHeight - Math.max(0, r.top) - 14;
+    el.style.height = Math.round(Math.max(260, Math.min(r.width * 9 / 16, room))) + "px";
+  }
   function fitSlide(el) {
     if (!el) return;
+    sizeStage(el);
     var slide = el.querySelector(".w-slide");
     if (!slide) return;
     /* The cards shrink to their share of the slide and their names spill

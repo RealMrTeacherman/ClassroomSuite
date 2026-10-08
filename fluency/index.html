@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Running Records</title>
+<title>ORF</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EDF0F2">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -93,6 +93,10 @@
     border-bottom:2px solid transparent;
   }
   .passage.locked .w{cursor:default}
+  /* v116: about 6px more each side, about the gap to the next word, so a tap
+     meant for a neighbour still lands on the neighbour */
+  .passage .w.short{position:relative}
+  .passage .w.short::after{content:"";position:absolute;top:-3px;bottom:-3px;left:-6px;right:-6px}
   .passage .w.e{background:var(--err-soft);color:var(--err);border-bottom-color:var(--err);text-decoration:line-through;text-decoration-thickness:2px}
   .passage .w.s{background:var(--sc-soft);color:var(--sc);border-bottom-color:var(--sc)}
   .passage .w.stopw{box-shadow:inset 0 -3px 0 var(--ink);background:#EDEFEE}
@@ -168,7 +172,7 @@
 
 <div class="wrap">
   <header class="top">
-    <h1>Running Records</h1>
+    <h1>ORF</h1>
     <p class="sub">One-minute oral reading fluency checks, scored and grouped.</p>
   </header>
 
@@ -684,7 +688,9 @@ function renderPassage(){
   el.innerHTML = S.tokens.map((t,i)=>{
     if(t.br) return `<div class="br"></div>`;
     if(!t.word) return `<span class="p">${esc(t.raw)} </span>`;
-    return `<span class="w" data-i="${i}" tabindex="0" role="button">${esc(t.raw)}</span> `;
+    /* v116: a short word ("a", "I", "it") is a narrow target when marking at
+       speed; it gets a wider invisible tap area (see .w.short) */
+    return `<span class="w${String(t.raw).replace(/[^A-Za-z0-9]/g,'').length <= 2 ? ' short' : ''}" data-i="${i}" tabindex="0" role="button">${esc(t.raw)}</span> `;
   }).join("");
   paintMarks();
 }
@@ -700,7 +706,8 @@ function paintMarks(){
   const isLast = S.editLap===S.laps.length-1;
   $$("#passage .w").forEach(sp=>{
     const i = +sp.dataset.i;
-    sp.className = "w";
+    const short = sp.classList.contains("short");   /* v116: kept through each repaint */
+    sp.className = short ? "w short" : "w";
     const m = cur.marks[i];
     if(m==="e") sp.classList.add("e");
     else if(m==="s") sp.classList.add("s");
@@ -1801,7 +1808,7 @@ $("#fileRestore").addEventListener("change", async e=>{
     DB.settings=Object.assign({},DEFAULT_SETTINGS,DB.settings||{});
     DB.students.sort(byLastName);
     saveDB(); renderAll(); toast("Backup restored.");
-  }catch(err){ toast("That file isn't a Running Records backup."); }
+  }catch(err){ toast("That file isn't an ORF backup."); }
   finally{ e.target.value=""; }
 });
 

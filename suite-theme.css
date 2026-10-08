@@ -577,3 +577,31 @@ body {
   html:not([data-suite-theme]) .panel.daynotes .flags { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
   html:not([data-suite-theme]) .panel.daynotes .flags .flag { flex: 0 0 auto; }
 }
+
+/* v116: phones (760px and under). Measured on an iPhone 14 and a 360px
+   Android: buttons and menus were 36-37px tall and checkboxes 22px; the
+   gradebook's tabs scrolled out of sight to the left; the planner's Week
+   view was 10-11.5px text. Nothing here reaches a computer or projector. */
+@media screen and (max-width: 760px) {
+  /* the theme's control height, which its own buttons use (36px) */
+  html:not([data-suite-theme]) { --x-h: 44px; }
+  html:not([data-suite-theme]) .btn,
+  html:not([data-suite-theme]) main select,
+  html:not([data-suite-theme]) .fld select,
+  html:not([data-suite-theme]) .fld input:not([type=checkbox]):not([type=radio]),
+  html:not([data-suite-theme]) .ghost,
+  html:not([data-suite-theme]) .skipbtn,
+  html:not([data-suite-theme]) .rv-yr,
+  html:not([data-suite-theme]) .board .bar button,
+  html:not([data-suite-theme]) .w-btn { min-height: 44px !important; }
+  html:not([data-suite-theme]) main input[type=checkbox],
+  html:not([data-suite-theme]) main input[type=radio] { width: 24px; height: 24px; }
+  html:not([data-suite-theme]) label:has(> input[type=checkbox]),
+  html:not([data-suite-theme]) label:has(> input[type=radio]) { min-height: 44px; align-items: center; }
+  html:not([data-suite-theme]) nav.tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 2px; }
+  html:not([data-suite-theme]) button.nmlink { min-height: 44px; display: inline-flex; align-items: center; }
+  html:not([data-suite-theme]) .wday h3 { font-size: 13px !important; }
+  html:not([data-suite-theme]) .wday .wd { font-size: 13px !important; }
+  html:not([data-suite-theme]) .wrow { font-size: 14px !important; }
+  html:not([data-suite-theme]) .wrow b { font-size: 12.5px !important; }
+}
