@@ -236,6 +236,19 @@ html:not([data-suite-theme]) .tside .panel.daynotes{flex-direction:column;align-
 html:not([data-suite-theme]) .tside .panel.daynotes textarea.notes{flex:none;width:100%;box-sizing:border-box}
 html:not([data-suite-theme]) .tside .panel.daynotes .flags{flex-wrap:wrap;overflow:visible;gap:6px}
 html:not([data-suite-theme]) .tside .panel.daynotes .flag{min-height:30px;padding:0 10px;font-size:12px}
+/* v119: on a very wide screen (1700px and up) the lessons column is wide
+   enough that one column of text runs too long to read, so each lesson card
+   uses two: the stepper and the lesson on the left, the notes box down the
+   right, the card's full height. The sidebar stays 330px. */
+@media screen and (min-width:1700px){
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip){display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.6fr);column-gap:28px;align-items:start}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subtop{grid-column:1 / -1}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > :is(.slot,.freein,.cmid,.more){grid-column:1}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subnote{grid-column:2;grid-row:2 / span 3;align-self:stretch;height:auto !important;min-height:120px;margin:0;resize:none;
+    box-sizing:border-box;background:#F6F8F9;border:1px solid rgba(16,24,32,.10) !important;border-radius:10px;padding:12px 14px !important;font-size:14px;line-height:1.5}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subnote:focus{background:#fff;border-color:var(--suite-accent,#10655C) !important;outline:none;box-shadow:0 0 0 3px rgba(16,101,92,.12)}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .more{justify-self:start}
+}
 @keyframes agflash{0%{box-shadow:0 0 0 3px #10655C}100%{box-shadow:0 0 0 3px rgba(16,101,92,0)}}
 .agflash{animation:agflash 1.4s ease-out}
 .primary{

@@ -117,7 +117,7 @@
        the same width (v98 widened the page for its grid) */
     "@media screen and (min-width:761px){html:not([data-suite-theme]):has(.rail.byday){--x-w:960px}}" +
     /* v118: with the day sidebar beside it, the page is the column plus the sidebar */
-    "@media screen and (min-width:1100px){html:not([data-suite-theme]):has(.todaygrid .rail.byday){--x-w:1340px}}",
+    "@media screen and (min-width:1100px){html:not([data-suite-theme]):has(.todaygrid .rail.byday){--x-w:max(1340px, min(1880px, calc(100vw - 96px)))}}",   /* v119: grows with a wide screen, to 1880px */
     "@media not screen,(max-width:760px){.rail.byday>.blockcell,.rail.byday .cmid{display:contents}.rail.byday .more{display:none}}"
   ].join("\n");
   function style() {
