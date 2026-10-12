@@ -36,8 +36,7 @@
       watch: [], specials: {},
       blocks: [
         { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "MTRF", subject: "", detail: "", emergency: "" },
-        { start: "8:15", end: "8:30", title: "Phonics", days: "MTRF", subject: "reading", detail: "", emergency: "" },
-        { start: "8:30", end: "8:50", title: "Reading small groups", days: "MTRF", subject: "reading", detail: "", emergency: "" },
+        { start: "8:15", end: "8:50", title: "Phonics, then small groups", days: "MTRF", subject: "reading", detail: "", emergency: "" },   /* v120: one Reading block */
         { start: "8:50", end: "9:10", title: "Whole-group comprehension", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "9:10", end: "9:30", title: "Reading small groups (rotate)", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "9:30", end: "9:45", title: "Recess", days: "MTRF", subject: "", detail: "", emergency: "" },
@@ -71,8 +70,7 @@
            have no blocks at all, so a Wednesday sub plan printed an empty
            schedule. */
         { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "W", subject: "", detail: "", emergency: "" },
-        { start: "8:15", end: "8:30", title: "Phonics", days: "W", subject: "reading", detail: "", emergency: "" },
-        { start: "8:30", end: "9:00", title: "Reading", days: "W", subject: "reading", detail: "", emergency: "" },
+        { start: "8:15", end: "9:00", title: "Reading", days: "W", subject: "reading", detail: "", emergency: "" },   /* v120: ECRI starts it */
         { start: "9:00", end: "9:15", title: "Structured break", days: "W", subject: "", detail: "", emergency: "" },
         { start: "9:15", end: "9:45", title: "Math", days: "W", subject: "math", detail: "", emergency: "" },
         { start: "9:45", end: "10:30", title: "Assembly / Enrichment / World Wednesday", days: "W", subject: "enrich", detail: "", emergency: "" },
