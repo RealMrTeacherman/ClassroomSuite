@@ -205,6 +205,39 @@ header::after{
 
 /* ---------- save bar ---------- */
 .savebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 0}
+/* v118: the day sidebar (a wide screen only; sideLayout builds it) */
+.todaygrid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:0 28px;align-items:start}
+.tmain{min-width:0}
+.tside{position:sticky;top:16px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;padding:2px 2px 6px;margin-top:2px}
+.agenda{background:#fff;border:1px solid rgba(16,24,32,.09);border-radius:14px;box-shadow:0 1px 2px rgba(16,24,32,.06);overflow:hidden;flex:none}
+.aghead{display:flex;align-items:baseline;gap:8px;padding:12px 14px 6px}
+.aghead b{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#8A95A0}
+.aghead span{margin-left:auto;font-size:12.5px;font-weight:600;color:#2F7A56}
+/* the list takes what the screen leaves after the notes and buttons, and scrolls */
+.agenda ol{list-style:none;margin:0;padding:0 0 8px;max-height:clamp(150px,calc(100vh - 500px),520px);overflow:auto;overscroll-behavior:contain}
+.ag{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;min-height:34px;padding:6px 14px;cursor:pointer;color:#8A95A0;font-size:14px}
+.ag:hover{background:rgba(16,24,32,.04)}
+.ag:focus-visible{outline:2px solid #10655C;outline-offset:-2px}
+.ag time{width:42px;flex:none;font-size:12.5px;font-variant-numeric:tabular-nums}
+.ag .dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.ag.lesson{color:#14202A}
+.ag.lesson .nm{font-weight:600}
+.ag .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag.skipped .nm{color:#8A95A0;text-decoration:line-through}
+.ag .agnote{font-size:12px;color:#8A95A0}
+.ag .tick{color:#2F7A56;font-weight:700}
+.ag.now{background:#E7F0EE}
+.ag .nowtag{background:#14202A;color:#fff;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:600}
+.tside .savebar{display:grid;grid-template-columns:1fr 1fr;margin:0;gap:8px}
+.tside .savebar button{width:100%;min-width:0}
+.tside .savebar #save{grid-column:1 / -1}
+.tside .savenote{display:none}   /* the Draft / Saved badge by the date says it */
+html:not([data-suite-theme]) .tside .panel.daynotes{flex-direction:column;align-items:stretch;margin:0;flex:none}
+html:not([data-suite-theme]) .tside .panel.daynotes textarea.notes{flex:none;width:100%;box-sizing:border-box}
+html:not([data-suite-theme]) .tside .panel.daynotes .flags{flex-wrap:wrap;overflow:visible;gap:6px}
+html:not([data-suite-theme]) .tside .panel.daynotes .flag{min-height:30px;padding:0 10px;font-size:12px}
+@keyframes agflash{0%{box-shadow:0 0 0 3px #10655C}100%{box-shadow:0 0 0 3px rgba(16,101,92,0)}}
+.agflash{animation:agflash 1.4s ease-out}
 .primary{
   font-family:var(--display);font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;
   background:var(--orange);color:#FFF6E8;padding:15px 24px;border-radius:999px;
@@ -1046,8 +1079,77 @@ function renderToday(){
            </div>`}
     </div>`}`;
   wireToday();
+  sideLayout();                                    /* v118: the day sidebar, on a wide screen */
+  fitSide(); setTimeout(fitSide, 300);
   markNow();
   if(window.DayView) window.DayView.afterToday();   /* v112: the day laid out (was suite-boot.js) */
+}
+
+/* v118: on a screen 1100px wide or more, a sidebar beside the lessons holds
+   the day: every block (tap one to go to it), then the day notes and the
+   save buttons, moved there from the page (moved, so their handlers stay).
+   Narrower screens never run this, so they keep the page exactly as it was.
+   Skip switches "taught" off, and every lesson starts taught, so a tick only
+   shows once the day is saved. */
+const SIDE_MQ = '(min-width:1100px)';
+function sideWide(){ return !!(window.matchMedia && matchMedia(SIDE_MQ).matches); }
+function agendaHTML(){
+  const blocks = blocksFor(cursor);
+  if(!blocks.length) return '';
+  const subj = id => id ? S.subjects.find(x=>x.id===id && x.on) : null;
+  const lessons = [...new Set(blocks.map(b=>b.s).filter(id=>subj(id)))];
+  const skipped = lessons.filter(id=>draft.entries[id] && !draft.entries[id].taught);
+  const head = draft.saved
+    ? `${lessons.length-skipped.length} taught`
+    : `${lessons.length} lesson${lessons.length===1?'':'s'}${skipped.length?` · ${skipped.length} skipped`:''}`;
+  const rows = blocks.map((b,i)=>{
+    const sb = subj(b.s), e = sb && draft.entries[b.s];
+    const skip = !!(e && !e.taught), done = !!(e && e.taught && draft.saved);
+    return `<li><button type="button" class="ag${sb?' lesson':''}${skip?' skipped':''}" data-sid="${sb?esc(b.s):''}" data-bk="${esc(b.t+'|'+b.l)}" data-span="${esc(b.t+'–'+(blockEnd(blocks,i)||''))}">`+
+      `<time>${esc(b.t)}</time><span class="dot" style="--c:${sb?esc(sb.color):'transparent'}"></span><span class="nm">${esc(b.l)}</span>`+
+      `${skip?'<span class="agnote">skipped</span>':''}${done?'<span class="tick" aria-label="taught">✓</span>':''}</button></li>`;
+  }).join('');
+  return `<section class="agenda" aria-label="The day"><div class="aghead"><b>The day</b><span>${esc(head)}</span></div><ol>${rows}</ol></section>`;
+}
+function sideLayout(){
+  if(!sideWide()) return;
+  const notes = main.querySelector(':scope > .panel.daynotes'), save = main.querySelector(':scope > .savebar');
+  if(!notes) return;                               /* a day with no school keeps the plain page */
+  const grid = document.createElement('div'); grid.className = 'todaygrid';
+  const left = document.createElement('div'); left.className = 'tmain';
+  const side = document.createElement('aside'); side.className = 'tside';
+  [...main.childNodes].forEach(n=>left.appendChild(n));
+  side.insertAdjacentHTML('beforeend', agendaHTML());
+  side.appendChild(notes); if(save) side.appendChild(save);
+  grid.appendChild(left); grid.appendChild(side); main.appendChild(grid);
+  side.querySelectorAll('.ag').forEach(b=>b.onclick=()=>{
+    const sid = b.dataset.sid;
+    const to = sid ? (main.querySelector(`.sub [data-skip="${CSS.escape(sid)}"]`)||{closest(){return null;}}).closest('.sub')
+                   : main.querySelector(`.dayrow[data-bk="${CSS.escape(b.dataset.bk)}"]`);
+    if(!to) return;
+    to.scrollIntoView({behavior:'smooth', block:'start'});
+    to.classList.remove('agflash'); void to.offsetWidth; to.classList.add('agflash');
+  });
+}
+/* the day's list gets exactly the room the screen leaves: from where the
+   sidebar starts (lower before the page scrolls) down to the floating
+   switcher, less the notes and buttons beneath it; at least 100px (three rows) */
+function fitSide(){
+  const side = document.querySelector('.tside'), list = side && side.querySelector('.agenda ol');
+  if(!list) return;
+  const top = Math.max(16, side.getBoundingClientRect().top);
+  /* above the floating switcher and the floating Sub plan button, whichever is higher */
+  const floats = ['suitenav','subbtn'].map(id=>document.getElementById(id)).filter(Boolean).map(e=>e.getBoundingClientRect().top - 10);
+  const bottom = Math.min(window.innerHeight - 12, ...floats);
+  const others = side.scrollHeight - list.offsetHeight;
+  const h = Math.max(100, Math.min(520, Math.floor(bottom - top - others)));
+  if(list.style.maxHeight !== h + 'px') list.style.maxHeight = h + 'px';
+}
+let fitT = null;
+['resize','scroll'].forEach(ev=>window.addEventListener(ev, ()=>{ if(fitT) return; fitT = requestAnimationFrame(()=>{ fitT = null; fitSide(); }); }, {passive:true}));
+if(window.matchMedia){
+  const mq = matchMedia(SIDE_MQ), redo = ()=>{ if(view==='today') render(); };
+  if(mq.addEventListener) mq.addEventListener('change', redo); else if(mq.addListener) mq.addListener(redo);
 }
 
 /* v110: the lesson on now (A2). A card whose time holds the clock, on the day
@@ -1064,9 +1166,19 @@ function markNow(){
   const rail = document.querySelector('.rail');
   if(!rail) return;
   rail.querySelectorAll('.sub.now').forEach(c=>{ c.classList.remove('now'); const t=c.querySelector('.nowtag'); if(t) t.remove(); });
+  document.querySelectorAll('.agenda .ag.now').forEach(b=>{ b.classList.remove('now'); const t=b.querySelector('.nowtag'); if(t) t.remove(); });   /* v118 */
   const now = (window.PlannerDay && window.PlannerDay.__now) ? window.PlannerDay.__now() : new Date();
   if(!(cursor instanceof Date) || key(cursor)!==key(now)) return;
   const m = now.getHours()*60 + now.getMinutes();
+  /* v118: the block on now in the sidebar's day */
+  document.querySelectorAll('.agenda .ag').forEach(b=>{
+    const r = spanOf(b.dataset.span);
+    if(!r || m<r[0] || m>=r[1]) return;
+    b.classList.add('now');
+    const tag=document.createElement('span'); tag.className='nowtag'; tag.textContent='Now'; b.appendChild(tag);
+    /* keep it in view in the list, a little below the top, without moving the page */
+    const list=b.closest('ol'); if(list) list.scrollTop=Math.max(0, b.parentNode.offsetTop - list.offsetTop - 48);
+  });
   rail.querySelectorAll('.sub').forEach(c=>{   /* v114: in the day's columns, not straight in the rail */
     if(c.classList.contains('skip')) return;
     const r = spanOf((c.querySelector('.subtime')||{}).textContent);
