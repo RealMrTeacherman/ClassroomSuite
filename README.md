@@ -5,7 +5,7 @@ Three tools that share one roster and one origin:
 | Path | What it is |
 |---|---|
 | `/` | Launcher page with links to all three |
-| `/gradebook/` | Standards gradebook (entry, grouping, iReady, ORF, report card) |
+| `/gradebook/` | Standards gradebook (entry, grouping, iReady, ORF, report card, conference sheets) |
 | `/planner/` | Lesson planner |
 | `/fluency/` | Oral reading fluency assessment |
 

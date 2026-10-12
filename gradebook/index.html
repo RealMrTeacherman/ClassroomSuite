@@ -283,6 +283,40 @@ summary.tiny,summary.small{padding:4px 0}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 
+/* ---------- v121: conference sheets (a sheet is paper, in every look) ---------- */
+.cf-preview{display:flex;flex-direction:column;gap:18px;align-items:center}
+.confsheet{background:#fff;color:#000;width:100%;max-width:8.5in;box-sizing:border-box;padding:.5in .6in;
+  border:1px solid var(--line);border-radius:4px;font-family:var(--sans);font-size:12.5px;line-height:1.4}
+.confsheet h3{font-size:14px;font-weight:600;margin:0;color:#000}
+.cf-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:1.5px solid #000;padding-bottom:8px}
+.cf-name{font-family:var(--serif);font-size:24px;font-weight:600;margin:0;color:#000}
+.cf-sub{color:#333;margin-top:2px}
+.cf-meta{color:#333;font-size:12px;text-align:right}
+.cf-reading,.cf-stds{margin-top:12px}
+.cf-hint{color:#444;margin:1px 0 0;font-size:12px}
+.cf-chart{display:block;width:100%;height:auto;margin-top:4px}
+.cf-key{color:#444;font-size:11.5px;margin:4px 0 0}
+.cf-says{margin:6px 0 0;font-size:13px}
+.cf-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+.cf-table th{text-align:left;font-weight:600;color:#000;background:none;border-bottom:1px solid #000;padding:3px 0;
+  text-transform:none;letter-spacing:normal;font-size:12.5px;position:static}
+.cf-table td{border-bottom:1px solid #D0D0D0;padding:3px 0;vertical-align:middle;color:#000}
+.cf-table tr{break-inside:avoid}
+.cf-table .cf-c{text-align:center;width:44px}
+.cf-mark{display:inline-block;min-width:22px;border:1px solid #000;font-weight:700;font-variant-numeric:tabular-nums;line-height:18px}
+.cf-arrow{font-size:16px;width:28px !important}
+.cf-none{color:#444;margin:8px 0 0}
+.cf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .confsheet{padding:18px 16px;font-size:13px}
+  .cf-name{font-size:20px}
+}
+@media print{
+  #printsheet .confsheet{border:0;border-radius:0;padding:0;max-width:none;break-after:page;page-break-after:always}
+  #printsheet .confsheet:last-child{break-after:auto;page-break-after:auto}
+  #printsheet .cf-table th{background:none !important}
+}
+
 /* ---------- moving between assignments ---------- */
 .asgbar{padding:10px 14px}
 .asgbar .row{gap:8px;flex-wrap:nowrap;align-items:center}
@@ -402,6 +436,7 @@ summary.tiny,summary.small{padding:4px 0}
     <button role="tab" data-tab="orf" aria-selected="false">ORF</button>
     <button role="tab" data-tab="iready" aria-selected="false">iReady</button>
     <button role="tab" data-tab="report" aria-selected="false">Report card</button>
+    <button role="tab" data-tab="conf" aria-selected="false">Conferences</button>
     <button role="tab" data-tab="setup" aria-selected="false">Setup</button>
   </nav>
 </header>
@@ -413,6 +448,7 @@ summary.tiny,summary.small{padding:4px 0}
   <section class="panel" id="panel-orf" hidden></section>
   <section class="panel" id="panel-iready" hidden></section>
   <section class="panel" id="panel-report" hidden></section>
+  <section class="panel" id="panel-conf" hidden></section>
   <section class="panel" id="panel-setup" hidden></section>
   <div id="printsheet"></div>
 </main>
@@ -577,6 +613,119 @@ const DEFAULT_RC = [
  {id:"rc17", s:"ELA", n:"Builds and uses vocabulary", std:["2.L.3","2.L.4","2.L.5","2.L.6"]},
  {id:"rc18", s:"ELA", n:"Speaks and listens effectively", std:["2.SL.1","2.SL.2","2.SL.3","2.SL.4","2.SL.5","2.SL.6"]}
 ];
+
+/* v121: each standard in a family's words, for the conference sheet. One
+   line per catalog code, sub-standards too (test-conference.js checks every
+   code has one). Plain present tense: what the child is working to do. */
+const PARENT_WORDS = {
+"2.OA.A.1":"Solves story problems with adding and subtracting up to 100",
+"2.OA.B.2":"Adds and subtracts within 20 quickly and accurately",
+"2.OA.C.3":"Tells whether a number is odd or even",
+"2.OA.C.4":"Uses adding to count objects in rows and columns",
+"2.NBT.A.1":"Understands hundreds, tens, and ones",
+"2.NBT.A.2":"Counts to 1,000 and skip-counts by 5s, 10s, and 100s",
+"2.NBT.A.3":"Reads and writes numbers up to 1,000",
+"2.NBT.A.4":"Compares three-digit numbers using >, =, and <",
+"2.NBT.B.5":"Adds and subtracts within 100 quickly and accurately",
+"2.NBT.B.6":"Adds up to four two-digit numbers",
+"2.NBT.B.7":"Adds and subtracts within 1,000 using place value",
+"2.NBT.B.8":"Finds 10 or 100 more or less than a number in their head",
+"2.NBT.B.9":"Explains why an adding or subtracting strategy works",
+"2.GM.A.1":"Names and draws shapes by their sides and corners",
+"2.GM.A.2":"Splits a rectangle into rows and columns of equal squares",
+"2.GM.A.3":"Divides shapes into halves, thirds, and fourths",
+"2.GM.B.4":"Measures length with the right tool",
+"2.GM.B.5":"Measures the same object in two different units",
+"2.GM.B.6":"Estimates lengths in inches, feet, centimeters, and meters",
+"2.GM.B.7":"Measures how much longer one object is than another",
+"2.GM.C.8":"Solves story problems about length",
+"2.GM.C.9":"Shows adding and subtracting on a number line",
+"2.GM.D.10":"Tells time to the nearest five minutes",
+"2.GM.D.11":"Solves problems with dollars and coins",
+"2.DR.A.1":"Asks questions and collects data to answer them",
+"2.DR.B.2":"Reads and explains graphs and charts",
+"2.RF.2":"Hears and changes the sounds in words",
+"2.RF.2a":"Changes the middle vowel sound to make a new word",
+"2.RF.2b":"Hears blends at the end of words",
+"2.RF.3":"Uses phonics to read new words",
+"2.RF.3a":"Tells long and short vowel sounds apart",
+"2.RF.3b":"Reads vowel teams such as ai, ee, and oa",
+"2.RF.3c":"Reads two-syllable words with long vowels",
+"2.RF.3d":"Reads words with common prefixes and suffixes",
+"2.RF.3e":"Reads words whose spelling and sound don't match",
+"2.RF.3f":"Reads tricky, irregularly spelled words",
+"2.RF.4":"Reads smoothly, accurately, and with understanding",
+"2.RF.4a":"Reads to understand, not just to finish",
+"2.RF.4b":"Reads accurately, at a good pace, with expression",
+"2.RF.4c":"Notices and fixes their own reading mistakes",
+"2.RL.1":"Asks and answers who, what, where, when, why, and how about stories",
+"2.RL.2":"Retells stories and finds the lesson or message",
+"2.RL.3":"Describes how characters handle problems",
+"2.RL.4":"Notices rhythm and word choice in stories and poems",
+"2.RL.5":"Describes a story's beginning, middle, and end",
+"2.RL.6":"Notices different characters' points of view",
+"2.RL.7":"Uses pictures and words together to understand a story",
+"2.RL.9":"Compares two versions of the same story",
+"2.RL.10":"Reads and understands second-grade stories and poems",
+"2.RI.1":"Asks and answers questions about nonfiction",
+"2.RI.2":"Finds the main topic of a nonfiction text",
+"2.RI.3":"Explains how events or steps in a text connect",
+"2.RI.4":"Figures out new words in nonfiction",
+"2.RI.5":"Uses headings, captions, and other text features",
+"2.RI.6":"Tells what the author wants to answer, explain, or describe",
+"2.RI.7":"Explains how pictures and diagrams help a text",
+"2.RI.8":"Tells how reasons support an author's points",
+"2.RI.9":"Compares two texts on the same topic",
+"2.RI.10":"Reads and understands second-grade nonfiction",
+"2.W.1":"Writes opinion pieces with reasons",
+"2.W.2":"Writes to teach about a topic",
+"2.W.2a":"Introduces a topic and groups facts together",
+"2.W.2b":"Uses facts and details in their writing",
+"2.W.2c":"Uses linking words such as also, another, and because",
+"2.W.3":"Writes stories about real or imagined events",
+"2.W.3a":"Sets up a situation and characters in a story",
+"2.W.3b":"Uses dialogue and description in stories",
+"2.W.3c":"Uses words like first, next, and later to show order",
+"2.W.3d":"Gives a story a clear ending",
+"2.W.5":"Revises and edits writing with help",
+"2.W.6":"Uses technology to publish writing",
+"2.W.7":"Takes part in shared research projects",
+"2.W.8":"Gathers information to answer a question",
+"2.L.1":"Uses correct grammar when writing and speaking",
+"2.L.1a":"Uses group words such as a team or a flock",
+"2.L.1b":"Uses irregular plurals such as feet, children, and mice",
+"2.L.1c":"Uses words like myself and ourselves",
+"2.L.1d":"Uses irregular past tense such as sat, hid, and told",
+"2.L.1e":"Uses describing words for nouns and verbs",
+"2.L.1f":"Writes simple and compound sentences",
+"2.L.2":"Uses capitals, punctuation, and spelling correctly",
+"2.L.2a":"Capitalizes names, holidays, and places",
+"2.L.2b":"Uses commas in letter greetings and closings",
+"2.L.2c":"Uses apostrophes in contractions and to show ownership",
+"2.L.2d":"Uses spelling patterns they've learned",
+"2.L.2e":"Checks spelling in a dictionary or word list",
+"2.L.3":"Chooses words and sentences that fit the purpose",
+"2.L.3a":"Tells formal and informal English apart",
+"2.L.4":"Figures out the meaning of new words",
+"2.L.4a":"Uses the rest of the sentence to work out a word",
+"2.L.4b":"Uses prefixes to work out a word's meaning",
+"2.L.4c":"Uses a known root word to work out a new word",
+"2.L.4d":"Uses the two parts of compound words to work out meaning",
+"2.L.4e":"Uses glossaries and dictionaries",
+"2.L.5":"Understands how words relate to each other",
+"2.L.5a":"Connects words to real life",
+"2.L.5b":"Tells apart close words such as toss, throw, and hurl",
+"2.L.6":"Uses new vocabulary when talking and writing",
+"2.SL.1":"Takes part in class conversations",
+"2.SL.1a":"Follows the rules for a good discussion",
+"2.SL.1b":"Builds on what others say",
+"2.SL.1c":"Asks questions when something isn't clear",
+"2.SL.2":"Retells what was read aloud or presented",
+"2.SL.3":"Asks and answers questions about what a speaker says",
+"2.SL.4":"Tells a story or experience clearly, with details",
+"2.SL.5":"Makes recordings or drawings to share stories",
+"2.SL.6":"Speaks in complete sentences when needed"
+};
 
 /* ============================================================
    STATE
@@ -906,6 +1055,7 @@ function render() {
   if (UI.tab === "orf") renderORF();
   if (UI.tab === "iready") renderIReady();
   if (UI.tab === "report") renderReport();
+  if (UI.tab === "conf") renderConferences();
   if (UI.tab === "setup") renderSetup();
   document.getElementById("metaline").textContent =
     S.students.length + " students \u00b7 " + S.scores.length + " marks \u00b7 " + (S.settings.year || "");
@@ -2335,6 +2485,182 @@ function printStudent() {
   });
   document.getElementById("printsheet").innerHTML = h;
   window.print();
+}
+
+/* ============================================================
+   CONFERENCES (v121)
+   One sheet per child for a parent conference: their reading line and
+   each standard marked this term, in a family's words, black on white.
+   Nothing is stored: every line is read from what the gradebook and the
+   ORF tool already hold. The mark is the report card's (finalStd: an
+   override if one is set), so the sheet and Synergy never disagree. The
+   arrow compares the two most recent hand-entered marks on that standard
+   up to the term's end (ORF and iReady marks are left out of it); one mark,
+   no arrow. Both subjects always, whatever the Math/ELA/Both switch says:
+   a family hears about both.
+   ============================================================ */
+const CONF_SUBJECTS = [["Math", "Math"], ["ELA", "Reading, writing, and language"]];
+function confTerm() {
+  const want = UI.confTerm || studentTermNow();
+  return S.terms.find(t => t.id === want) || termOf(want);
+}
+function confWords(code) { return PARENT_WORDS[code] || (byCode[code] ? byCode[code].lbl : code); }
+function confTrend(sid, code, term) {
+  const hand = S.scores.filter(x => x.sid === sid && !x.source && rcParent(x.std) === code && x.date <= term.end)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (hand.length < 2) return "";
+  const a = hand[hand.length - 2].v, b = hand[hand.length - 1].v;
+  return b > a ? "up" : b < a ? "down" : "same";
+}
+/* the standards this child was marked on this term, by subject */
+function confStandards(st, term) {
+  return CONF_SUBJECTS.map(([subj, label]) => {
+    const codes = [];
+    activeCodes(subj).forEach(c => { const p = rcParent(c); if (!codes.includes(p)) codes.push(p); });
+    const order = CATALOG.map(s => s.c);
+    codes.sort((x, y) => order.indexOf(x) - order.indexOf(y));
+    const rows = [];
+    codes.forEach(c => {
+      const f = finalStd(st.id, c, term);
+      if (!f.over && !f.n) return;
+      if (!f.v) return;
+      rows.push({ code: c, words: confWords(c), v: f.v, trend: confTrend(st.id, c, term) });
+    });
+    return { subj: subj, label: label, rows: rows };
+  });
+}
+/* the child's reading plan from the ORF tool: of the ORF students linked to
+   this child, the one read most recently */
+function confReading(st, now) {
+  if (!orfGoalsReady()) return null;
+  let db = null;
+  try { db = JSON.parse(localStorage.getItem("running-records-v1") || "null"); } catch (e) { db = null; }
+  if (!db || !Array.isArray(db.students) || !Array.isArray(db.records)) return null;
+  const G = window.SuiteOrf.goals, gs = orfGoalsForPlans(), comp = orfCompState();
+  let best = null;
+  db.students.filter(o => o && o.id && !o.demo && (orfStudentToLocal(o.id, db) || {}).id === st.id).forEach(o => {
+    let pl = null;
+    try { pl = G.planFor(db, o.id, gs, now, comp); } catch (e) { pl = null; }
+    if (pl && (!best || pl.latest.t > best.latest.t)) best = pl;
+  });
+  return best;
+}
+/* what the line says, to a family: no percentiles, no "aim line" */
+function confReadingWords(st, pl, now) {
+  const G = window.SuiteOrf.goals, first = String(st.first || "").trim() || "Your child";
+  const goal = pl.goal + (pl.comp ? ", answering all three questions about the passage" : "");
+  const by = G.fmtLong(pl.goalDate);
+  if (pl.result) {
+    let s = first + " read " + pl.springActual + " words a minute at the spring check. The goal was " + goal + ".";
+    if (pl.result === "green") s += " Goal met.";
+    else if (pl.result === "blue") s += " That met the start-of-year goal of " + pl.boySpring + ".";
+    return s;
+  }
+  if (pl.status === "start") return first + "\u2019s first reading check this year was " + pl.base + " words a minute. The goal by " + by + " is " + goal + ".";
+  let s = first + " went from " + pl.base + " to " + pl.latestY + " words a minute. The goal by " + by + " is " + goal + ".";
+  if (pl.status === "met") s += " " + first + " has already reached it.";
+  else if (pl.status === "metBoy") s += " That\u2019s past the start-of-year goal of " + pl.boySpring + ".";
+  else if (pl.status === "on") s += " That\u2019s on track.";
+  else if (pl.status === "close") s += " That\u2019s just under the pace for the goal.";
+  else if (pl.status === "below" && pl.perWeekNow != null) s += " Reaching it means growing about " + Math.max(1, Math.round(pl.perWeekNow)) + " words a minute each week.";
+  if (pl.winterDue && pl.winterGoal != null && pl.winterActual == null && now.getTime() < pl.winterDue.getTime())
+    s += " Mid-year checkpoint: " + pl.winterGoal + " by " + G.fmtLong(pl.winterDue) + ".";
+  return s;
+}
+/* the reading line in black and white: solid dots for checks, a dashed path
+   to the goal, an open square at a mid-year checkpoint, a filled one at the
+   goal. Same scale and aim line as the ORF tab's chart. */
+function confChartSVG(pl) {
+  const MON = window.SuiteOrf.goals.MONTHS;
+  const t0 = pl.baseDate.getTime(), t1 = pl.goalDate.getTime() + 14 * 864e5;
+  const ys = pl.checks.map(c => c.y).concat([pl.goal, pl.base, pl.winterGoal || 0]);
+  const yMax = Math.ceil(Math.max.apply(null, ys) * 1.12 / 10) * 10, yMin = Math.max(0, Math.floor(Math.min.apply(null, ys.filter(v => v > 0)) * 0.8 / 10) * 10);
+  const W = 720, H = 150, L = 34, R = 14, T = 8, B = 22;
+  const X = t => L + (W - L - R) * (t - t0) / Math.max(1, t1 - t0), Y = v => T + (H - T - B) * (1 - (v - yMin) / Math.max(1, yMax - yMin));
+  let g = '<svg class="cf-chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Reading checks and the path to the goal">';
+  const step = yMax - yMin > 120 ? 40 : 20;
+  for (let v = yMin; v <= yMax; v += step) {
+    g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="#C8C8C8" stroke-width="0.75"/>' +
+      '<text x="' + (L - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="#444">' + v + "</text>";
+  }
+  const d0 = new Date(t0);
+  for (let y = d0.getFullYear(), m = d0.getMonth() + 1; ; m++) {
+    if (m > 11) { m = 0; y++; }
+    const t = new Date(y, m, 1).getTime(); if (t > t1) break;
+    g += '<text x="' + X(t).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="#444">' + MON[m].slice(0, 3) + "</text>";
+  }
+  let path = "";
+  for (let t = t0; t <= pl.goalDate.getTime(); t += 3 * 864e5) path += (path ? "L" : "M") + X(t).toFixed(1) + " " + Y(pl.aim(t)).toFixed(1);
+  path += "L" + X(pl.goalDate.getTime()).toFixed(1) + " " + Y(pl.goal).toFixed(1);
+  g += '<path d="' + path + '" fill="none" stroke="#555" stroke-width="1.5" stroke-dasharray="6 4"/>';
+  const sq = (t, v, fill) => '<rect x="' + (X(t) - 5).toFixed(1) + '" y="' + (Y(v) - 5).toFixed(1) + '" width="10" height="10" fill="' + fill + '" stroke="#000" stroke-width="1.5"/>';
+  if (pl.winterDue && pl.winterGoal != null) g += sq(pl.winterDue.getTime(), pl.winterGoal, "#fff");
+  g += sq(pl.goalDate.getTime(), pl.goal, "#000");
+  const days = [];
+  pl.checks.forEach(c => { if (!days.includes(c.t)) days.push(c.t); });
+  const pts = days.map(t => { const v = Math.round(pl.checks.filter(c => c.t === t).map(c => c.y).sort((a, b) => a - b)[Math.floor(pl.checks.filter(c => c.t === t).length / 2)]); return [X(t), Y(v)]; });
+  if (pts.length > 1) g += '<polyline points="' + pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '" fill="none" stroke="#000" stroke-width="1.5"/>';
+  pl.checks.forEach(c => { g += '<circle cx="' + X(c.t).toFixed(1) + '" cy="' + Y(c.y).toFixed(1) + '" r="4" fill="#000"><title>' + window.SuiteOrf.goals.fmtShort(new Date(c.t)) + ": " + c.y + "</title></circle>"; });
+  return g + "</svg>";
+}
+const CONF_ARROW = { up: ["\u2191", "up from the mark before"], down: ["\u2193", "down from the mark before"], same: ["\u2192", "the same as the mark before"] };
+function confSheetHTML(st, term, now) {
+  const teacher = String(S.settings.teacher || "").trim();
+  let h = '<article class="confsheet" data-sid="' + esc(st.id) + '">' +
+    '<header class="cf-head"><div><h2 class="cf-name">' + esc(fullName(st)) + "</h2>" +
+    '<div class="cf-sub">Grade 2 \u00b7 ' + esc(term.name) + " conference</div></div>" +
+    '<div class="cf-meta">' + (teacher ? esc(teacher) + "<br>" : "") + esc(window.SuiteOrf ? window.SuiteOrf.goals.fmtLong(now) + ", " + now.getFullYear() : todayISO()) + "</div></header>";
+  const pl = confReading(st, now);
+  if (pl) {
+    h += '<section class="cf-reading"><h3>Reading fluency</h3><p class="cf-hint">Words read correctly in one minute</p>' + confChartSVG(pl) +
+      '<p class="cf-key">Dots: each reading check. Dashed line: the steady path to the goal. Filled square: the goal' +
+      (pl.winterDue && pl.winterGoal != null ? "; open square: the mid-year checkpoint" : "") + ".</p>" +
+      '<p class="cf-says">' + esc(confReadingWords(st, pl, now)) + "</p></section>";
+  }
+  const groups = confStandards(st, term).filter(g => g.rows.length);
+  h += '<section class="cf-stds"><h3>What we\u2019re learning, and how it\u2019s going</h3><p class="cf-hint">Standards assessed so far this term</p>';
+  if (!groups.length) h += '<p class="cf-none">No standards marked yet this term.</p>';
+  groups.forEach(g => {
+    h += '<table class="cf-table"><thead><tr><th>' + esc(g.label) + '</th><th class="cf-c">Mark</th><th class="cf-c"><span class="cf-sr">Trend</span></th></tr></thead><tbody>' +
+      g.rows.map(r => {
+        const a = CONF_ARROW[r.trend];
+        return '<tr data-std="' + esc(r.code) + '"><td>' + esc(r.words) + '</td><td class="cf-c"><span class="cf-mark">' + r.v + "</span></td>" +
+          '<td class="cf-c cf-arrow"' + (a ? ' title="' + a[1] + '"><span aria-hidden="true">' + a[0] + '</span><span class="cf-sr">' + a[1] + "</span>" : ">") + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  });
+  if (groups.length) h += '<p class="cf-key">Marks run from 1 to 4; 3 means meeting the end-of-year grade 2 standard. \u2191 \u2193 \u2192 compare the two most recent marks.</p>';
+  return h + "</section></article>";
+}
+function confRoster() {
+  const all = sortedStudents();
+  return UI.confWho && UI.confWho !== "all" ? all.filter(s => s.id === UI.confWho) : all;
+}
+function renderConferences() {
+  const el = document.getElementById("panel-conf");
+  if (!S.students.length) return noStudents(el);
+  if (UI.confWho && UI.confWho !== "all" && !S.students.find(s => s.id === UI.confWho)) UI.confWho = "all";
+  const term = confTerm(), now = new Date();
+  const roster = sortedStudents();
+  let h = '<div class="stack"><div class="card pad noprint"><div class="row">' +
+    '<label class="fld">Term<select id="cf-term">' + S.terms.map(t => '<option value="' + t.id + '"' + (t.id === term.id ? " selected" : "") + ">" + esc(t.name) + "</option>").join("") + "</select></label>" +
+    '<label class="fld">Student<select id="cf-who"><option value="all">Whole class</option>' +
+    roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.confWho ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
+    '<span style="flex:1"></span><button class="btn primary" id="cf-print">' + (UI.confWho && UI.confWho !== "all" ? "Print this sheet" : "Print all sheets") + "</button></div>" +
+    '<p class="hint" style="margin-top:8px">One page per child, black and white. Math and ELA both, whatever the subject switch says. Each mark is the report card\u2019s for this term.</p></div>' +
+    '<div class="cf-preview">' + confRoster().map(st => confSheetHTML(st, term, now)).join("") + "</div></div>";
+  el.innerHTML = h;
+  document.getElementById("cf-term").onchange = e => { UI.confTerm = e.target.value; renderConferences(); };
+  document.getElementById("cf-who").onchange = e => { UI.confWho = e.target.value; renderConferences(); };
+  document.getElementById("cf-print").onclick = printConferences;
+}
+function printConferences() {
+  const term = confTerm(), now = new Date();
+  document.getElementById("printsheet").innerHTML = confRoster().map(st => confSheetHTML(st, term, now)).join("");
+  /* a toast is fixed, so it would print on every child's page */
+  const t = document.getElementById("toast");
+  if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
+  window.print();
+  if (t) t.style.display = "";
 }
 
 /* ============================================================

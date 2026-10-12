@@ -91,7 +91,8 @@
     '#suitenav a[aria-current="page"]{background:#10655C;color:#fff}' +
     '#suitenav b{font-weight:600}' +
     '#suitenav .ic{font-size:13px;opacity:.75}' +
-    '@media print{#suitenav{display:none!important}}' +
+    /* v121: and the update notice, which is fixed and so printed on every page */
+    '@media print{#suitenav,#suiteupdate{display:none!important}}' +
     /* v115: on the Small Groups page (projected), the switcher steps aside when
        the mouse is still, so it never sits over names; any move brings it back */
     '#suitenav{transition:opacity .25s,transform .25s}' +
