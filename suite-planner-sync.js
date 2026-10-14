@@ -804,12 +804,12 @@
     var st = SW.liveStatus(), out = [];
     if (st.error) out.push("Walk to WIN: " + st.error + ".");
     if (display()) {
-      if (!winRemote) out.push("Walk to WIN: GitHub has no WIN slides yet. Open Small groups \u2192 Walk to WIN on your Mac once.");
+      if (!winRemote) out.push("Walk to WIN: Firebase has no WIN slides yet. Open Small groups \u2192 Walk to WIN on your Mac once.");
       else out.push("Walk to WIN slides as of " + clock(winRemote.at) + (winRemote.from ? ", from " + winRemote.from : "") + ".");
       if (winRemote && st.drawing !== "summary") out.push("But this page is drawing this computer\u2019s own lists. Reload the page, wait a few seconds, and reload again.");
     } else if (!st.error) {
       if (!st.lists) out.push("Walk to WIN: no summary on this device yet. Open Small groups \u2192 Walk to WIN once.");
-      else out.push("Walk to WIN changed here " + clock(st.at) + "; GitHub has " +
+      else out.push("Walk to WIN changed here " + clock(st.at) + "; Firebase has " +
         (winRemote ? "the version from " + clock(winRemote.at) + (winRemote.from ? " (" + winRemote.from + ")" : "") : "none yet") + ".");
     }
     return out;
@@ -963,7 +963,7 @@
       box.appendChild(el("div", "hubhead", "Boards and Walk to WIN slides"));
       box.appendChild(el("i", "", display()
         ? "Shows the math board, reading cards and Walk to WIN slides as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
-        : "Keeps the math board, reading cards and Walk to WIN slides in step too, by student id only. Children\u2019s names, visiting children and the pasted WIN lists stay off GitHub; the WIN cards\u2019 teacher names and rooms go. Nothing goes while typed text names a student."));
+        : "Keeps the math board, reading cards and Walk to WIN slides in step too, by student id only. Children\u2019s names, visiting children and the pasted WIN lists stay off Firebase; the WIN cards\u2019 teacher names and rooms go. Nothing goes while typed text names a student."));
       box.appendChild(el("div", "hubstatus", boardsStatus()));
       if (boardsOn()) winLines().forEach(function (t) { box.appendChild(el("div", "hubstatus", t)); });   /* v103 */
       if (bstate === "held" && bhold && bhold.reason === "names") hits(bhold);

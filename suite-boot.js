@@ -184,12 +184,23 @@
     base[k] = now;
     if (!kin(mem, merged) || JSON.stringify(merged) === before) return false;
     adopt(mem, merged);
+    var d = g("draft"), dk = d && d.__key;
     if (k === "lp:days:v2") {
       if (typeof window.invalidateDayCache === "function") window.invalidateDayCache();
       /* the saved day on screen is edited through `draft`; give it the
-         other computer's fields too, or the next keystroke reverts them */
-      var d = g("draft"), dk = d && d.__key;
-      if (d && d.saved && dk && isObj(mem[dk])) { adopt(d, JSON.parse(JSON.stringify(mem[dk]))); d.__key = dk; }
+         other computer's fields too, or the next keystroke reverts them.
+         v124: and a day open here unsaved that the other device has saved
+         becomes that saved day, so edits here go to it, not to a draft */
+      if (d && dk && isObj(mem[dk])) { adopt(d, JSON.parse(JSON.stringify(mem[dk]))); d.__key = dk; }
+    }
+    /* v124: an unsaved day (a draft) on screen takes the other device's
+       edits the same way. Before, only saved days did: the screen kept this
+       device's copy and the next tap stashed it back over the pull and sent
+       it, so a day had to be saved before the other device's edits showed.
+       PENDING is merged three ways above, and every tap here stashes the
+       draft into it first, so this device's own edits are in it already. */
+    if (k === "lp:pending:v1" && d && !d.saved && dk && isObj(mem[dk])) {
+      adopt(d, JSON.parse(JSON.stringify(mem[dk]))); d.__key = dk;
     }
     return true;
   }
