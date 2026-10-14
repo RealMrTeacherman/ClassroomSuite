@@ -393,6 +393,39 @@ summary.tiny,summary.small{padding:4px 0}
   .cg-form input[type=number]{max-width:none}
 }
 
+/* ---------- v123: group goals ---------- */
+.gg-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+.gg-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.gg-sug h3{margin:0}
+.gg-head{display:flex;align-items:center;gap:8px}
+.gg-title{flex:1;margin:0;font-size:16px;min-width:0}
+.gg-head .gg-edit{flex:none}
+.gg-name{flex:1;font:inherit;font-size:16px;font-weight:600;border:1px solid transparent;border-radius:var(--radius-sm);padding:4px 6px;margin-left:-6px;background:transparent;color:var(--ink);min-width:0}
+.gg-name:hover,.gg-name:focus{border-color:var(--line-strong);background:var(--panel)}
+.gg-sides{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gg-sides>div{border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 10px;display:flex;flex-direction:column}
+.gg-sides b{font-size:18px;font-weight:600}
+.gg-sides i{font-style:normal;font-size:12px;color:var(--ink-3)}
+.gg-kids{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.gg-kid{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:13.5px;background:var(--panel)}
+.gg-sug .gg-kid{padding-right:10px}
+.gg-move{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 4px;background:var(--panel);color:var(--ink-2);max-width:120px}
+.gg-goal .cg-statement{font-size:14.5px;margin:8px 0 4px}
+.gg-goal .cg-stat b{font-size:20px}
+.gg-more summary{cursor:pointer;color:var(--ink-2);font-size:13.5px;margin-top:6px}
+.gg-more textarea{width:100%;font:inherit;font-weight:400;padding:8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--panel);color:var(--ink)}
+.gg-draft textarea{width:100%;font:inherit;font-weight:400;padding:8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--panel);color:var(--ink)}
+.gg-draft .fld,.gg-more .fld{flex-direction:column}
+.gg-draft .cg-statement{font-size:14.5px}
+.gg-rest{margin:8px 0 0}
+.gg-out{margin-top:12px}
+.gg-s-block{break-inside:avoid;page-break-inside:avoid;border-top:1px solid #000;padding-top:4px;margin-top:10px}
+.ggsheet .cg-s-goal{font-size:13px}
+@media (max-width:760px){
+  .gg-cards{grid-template-columns:1fr}
+  .gg-move{max-width:none}
+}
+
 /* ---------- moving between assignments ---------- */
 .asgbar{padding:10px 14px}
 .asgbar .row{gap:8px;flex-wrap:nowrap;align-items:center}
@@ -863,6 +896,8 @@ function hydrate(p) {
   if (!Array.isArray(out.iready)) out.iready = [];
   if (!Array.isArray(out.orf)) out.orf = [];
   if (!Array.isArray(out.goals)) out.goals = [];   /* v122: class goals */
+  if (!Array.isArray(out.ggroups)) out.ggroups = [];   /* v123: group goals */
+  if (!out.ggPlace || typeof out.ggPlace !== "object" || Array.isArray(out.ggPlace)) out.ggPlace = {};
   if (!Array.isArray(out.missing)) out.missing = [];
   if (!Array.isArray(out.terms) || !out.terms.length) out.terms = defTerms;
   if (!Array.isArray(out.rc)) out.rc = defRc;
@@ -925,6 +960,8 @@ function blankState() {
     iready: [],
     orf: [],
     goals: [],
+    ggroups: [],
+    ggPlace: {},
     orfLink: {},
     missing: [],
     mergeLog: null,
@@ -2803,9 +2840,12 @@ function cgMark(sid, codes, asOf, since) {
   });
   return per.length ? avg(per) : null;
 }
-function cgClassStat(codes, asOf, since) {
-  const out = { n: S.students.length, marked: 0, at: 0, below: [], none: [], pct: null };
-  S.students.forEach(st => {
+/* sids: just these children (a group); omitted, the whole class */
+function cgPopOf(sids) { return sids ? S.students.filter(st => sids.indexOf(st.id) >= 0) : S.students; }
+function cgClassStat(codes, asOf, since, sids) {
+  const pop = cgPopOf(sids);
+  const out = { n: pop.length, marked: 0, at: 0, below: [], none: [], pct: null };
+  pop.forEach(st => {
     const m = cgMark(st.id, codes, asOf, since);
     if (m == null) { out.none.push(st); return; }
     out.marked++;
@@ -2853,9 +2893,9 @@ function cgDomRank(rec, dkey) {
   const k = Object.keys(rec.domains || {}).find(k => d.match.test(normHdr(k)));
   return k ? placementRank((rec.domains[k] || {}).p) : null;
 }
-function cgIrStat(dkey, asOf) {
+function cgIrStat(dkey, asOf, sids) {
   const now = [], prev = [];
-  S.students.forEach(st => {
+  cgPopOf(sids).forEach(st => {
     const a = S.iready.filter(r => r.sid === st.id && r.subject === "Math" && r.date && (!asOf || r.date <= asOf))
       .sort((x, y) => x.date.localeCompare(y.date))
       .map(r => ({ date: r.date, rank: cgDomRank(r, dkey) })).filter(x => x.rank != null);
@@ -2907,7 +2947,9 @@ function cgAgreement(nd) {
 }
 
 /* ---- goals ---- */
-function cgActive() { return (S.goals || []).find(g => !g.done) || null; }
+function cgActive() { return (S.goals || []).find(g => !g.done && !g.group) || null; }
+/* a group goal counts whoever is in the group now: data follows the child (v123) */
+function cgPop(g) { return g && g.group ? ggMembers(g.group) : null; }
 function cgFocusCodes(kind, key) {
   if (kind === "std") return byCode[key] ? [key] : [];
   return activeCodes("Math").filter(c => cgDomainOf(c) === key);
@@ -2936,7 +2978,10 @@ function cgGrade() {
   return ({ 1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth" }[g] || "") + (g >= 1 && g <= 5 ? " graders" : "students");
 }
 function cgStatement(g) {
-  let s = "By " + cgLongDate(g.due) + ", " + g.target + "% of our " + cgGrade() + " will score 3 or higher on " +
+  /* a group still named for its need would say the need twice: "this group" */
+  const gname = g.group ? ggName(g) : "", same = g.group && byCode[g.focus.key] && gname === byCode[g.focus.key].lbl;
+  const who = g.group ? (same ? "the children in this group" : "the children in the " + gname + " group") : "our " + cgGrade();
+  let s = "By " + cgLongDate(g.due) + ", " + g.target + "% of " + who + " will score 3 or higher on " +
     cgFocusWords(g) + " in daily classwork, up from " + (g.base.pct == null ? "no marks yet" : g.base.pct + "%") +
     " on " + cgLongDate(g.started) + ".";
   if (g.ir && g.ir.target != null) {
@@ -2975,8 +3020,9 @@ function cgStartGoal() {
   save(); renderClassGoal(); toast("Class goal started");
 }
 function cgGoalNow(g) {
-  const st = cgClassStat(g.codes, null, null);
-  const ir = g.ir ? cgIrStat(g.ir.dom) : null;
+  const pop = cgPop(g);
+  const st = cgClassStat(g.codes, null, null, pop);
+  const ir = g.ir ? cgIrStat(g.ir.dom, null, pop) : null;
   const t = todayISO(), total = Math.max(1, cgDaysBetween(g.started, g.due));
   const el = Math.max(0, Math.min(total, cgDaysBetween(g.started, t)));
   const b = g.base.pct == null ? 0 : g.base.pct;
@@ -2987,7 +3033,7 @@ function cgGoalNow(g) {
   else if (el < 7) pace = "early";
   else if (st.pct >= expected - 5) pace = "on";
   else pace = "behind";
-  const last = S.scores.filter(x => g.codes.indexOf(x.std) >= 0 && cgIsClasswork(x) && x.date && x.date >= g.started && x.date <= t)
+  const last = S.scores.filter(x => g.codes.indexOf(x.std) >= 0 && cgIsClasswork(x) && x.date && x.date >= g.started && x.date <= t && (!pop || pop.indexOf(x.sid) >= 0))
     .map(x => x.date).sort().pop() || null;
   return { st: st, ir: ir, expected: expected, pace: pace, last: last, quiet: cgDaysBetween(last || g.started, t) };
 }
@@ -2995,20 +3041,20 @@ function cgPaceWords(g, now) {
   switch (now.pace) {
     case "met": return "Goal met: " + now.st.pct + "% are at 3 or higher, against a target of " + g.target + "%.";
     case "early": return "Just started. The first check against the line comes after a week of marks.";
-    case "on": return "On pace. The line has the class at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
-    case "behind": return "Behind pace by " + (now.expected - now.st.pct) + " points. The line has the class at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
+    case "on": return "On pace. The line has " + (g.group ? "the group" : "the class") + " at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
+    case "behind": return "Behind pace by " + (now.expected - now.st.pct) + " points. The line has " + (g.group ? "the group" : "the class") + " at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
     default: return "No classwork marks on the focus yet.";
   }
 }
 /* weekly points from the start to today, plus today */
 function cgSeries(g) {
-  const t = todayISO(), end = g.due < t ? g.due : t, pts = [];
+  const t = todayISO(), end = g.due < t ? g.due : t, pts = [], pop = cgPop(g);
   for (let d = g.started; d <= end; d = cgAddDays(d, 7)) {
-    const s = cgClassStat(g.codes, d, null);
+    const s = cgClassStat(g.codes, d, null, pop);
     if (s.pct != null) pts.push({ date: d, pct: s.pct });
   }
   if (!pts.length || pts[pts.length - 1].date !== end) {
-    const s = cgClassStat(g.codes, end, null);
+    const s = cgClassStat(g.codes, end, null, pop);
     if (s.pct != null) pts.push({ date: end, pct: s.pct });
   }
   return pts;
@@ -3017,16 +3063,16 @@ function cgSeries(g) {
    each other are one sitting */
 function cgIrSeries(g) {
   if (!g.ir) return [];
-  const lo = cgAddDays(g.started, -45);
-  const dates = Array.from(new Set(S.iready.filter(r => r.subject === "Math" && r.date && r.date >= lo && r.date <= g.due).map(r => r.date))).sort();
+  const lo = cgAddDays(g.started, -45), pop = cgPop(g);
+  const dates = Array.from(new Set(S.iready.filter(r => r.subject === "Math" && r.date && r.date >= lo && r.date <= g.due && (!pop || pop.indexOf(r.sid) >= 0)).map(r => r.date))).sort();
   const wins = [];
   dates.forEach(d => { const w = wins[wins.length - 1]; if (w && cgDaysBetween(w.first, d) <= 21) w.last = d; else wins.push({ first: d, last: d }); });
-  return wins.map(w => { const s = cgIrStat(g.ir.dom, w.last); return { date: w.last < g.started ? g.started : w.last, pct: s.pct }; })
+  return wins.map(w => { const s = cgIrStat(g.ir.dom, w.last, pop); return { date: w.last < g.started ? g.started : w.last, pct: s.pct }; })
     .filter(p => p.pct != null);
 }
-function cgChartSVG(g, paper, narrow) {
+function cgChartSVG(g, paper, narrow, height) {
   /* a phone draws it narrower rather than shrinking the type; paper shorter, to keep the sheet to one page */
-  const W = narrow ? 360 : 640, H = paper ? 150 : narrow ? 200 : 220, L = 38, R = 14, T = 12, B = 30;
+  const W = narrow ? 360 : 640, H = height || (paper ? 150 : narrow ? 200 : 220), L = 38, R = 14, T = 12, B = 30;
   const x0 = g.started, span = Math.max(1, cgDaysBetween(g.started, g.due));
   const X = d => L + (W - L - R) * Math.max(0, Math.min(1, cgDaysBetween(x0, d) / span));
   const Y = p => T + (H - T - B) * (1 - p / 100);
@@ -3225,7 +3271,7 @@ function cgPastHTML() {
   const done = (S.goals || []).filter(g => g.done).sort((a, b) => (b.done.date || "").localeCompare(a.done.date || ""));
   if (!done.length) return "";
   return '<div class="card pad cg-past"><h2>Past goals</h2>' + done.map(g =>
-    '<div class="cg-pastrow" data-goal="' + esc(g.id) + '"><p>' + esc(cgStatement(g)) + "</p><p class=\"hint\">Finished " + esc(cgLongDate(g.done.date)) +
+    '<div class="cg-pastrow" data-goal="' + esc(g.id) + '"><p>' + (g.group ? '<span class="tag">Group</span> ' : "") + esc(cgStatement(g)) + "</p><p class=\"hint\">Finished " + esc(cgLongDate(g.done.date)) +
     ": classwork " + (g.done.pct == null ? "\u2013" : g.done.pct + "%") + " against " + g.target + "% (" + (g.done.pct != null && g.done.pct >= g.target ? "met" : "not met") + ")" +
     (g.ir && g.done.irPct != null ? "; iReady " + g.done.irPct + "%" + (g.ir.target != null ? " against " + g.ir.target + "%" : "") : "") + ".</p></div>").join("") + "</div>";
 }
@@ -3241,9 +3287,10 @@ function renderClassGoal() {
     (UI.subject !== "Math" ? '<p class="hint" style="margin-top:6px">This tab looks at Math whatever the subject switch says.</p>' : "") + "</div>";
   if (g) h += cgGoalHTML(g) + '<div class="divider"></div>' + cgNeedsHTML(nd, false);
   else h += cgNeedsHTML(nd, true) + '<div class="divider"></div>' + cgDraftHTML();
-  h += cgPastHTML() + "</div>";
+  h += '<div class="divider"></div>' + ggHTML() + cgPastHTML() + "</div>";
   el.innerHTML = h;
   cgWire(g);
+  ggWire();
 }
 function cgWire(g) {
   const $ = id => document.getElementById(id);
@@ -3351,6 +3398,311 @@ function cgSheetHTML() {
 }
 function printClassGoal() {
   document.getElementById("printsheet").innerHTML = cgSheetHTML();
+  const t = document.getElementById("toast");
+  if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
+  window.print();
+  if (t) t.style.display = "";
+}
+
+/* ============================================================
+   GROUP GOALS (v123) — Math
+   Small groups formed here from each child's biggest classwork need, and a
+   goal for each. A child's need is their lowest standard below 3 (the
+   report card's rule, classwork only, over the same window as the class
+   needs); on a tie, the one more of the class shares, so groups come out
+   whole rather than in ones. A child alone with their need moves to their
+   next need that already has a group; if none, they are listed on their
+   own rather than made a group of one.
+
+   Groups are kept once used: S.ggroups (records with ids) and S.ggPlace,
+   a { child id: group id } map, so a move on one device and a move on
+   another both survive the sync merge. A group goal is an S.goals record
+   with `group`; its numbers are always over the group's *current* members,
+   so a child's data follows them when they move (his choice). The baseline
+   is the group as it stood on the day the goal started.
+   ============================================================ */
+function ggMembers(gid) { return S.students.filter(st => (S.ggPlace || {})[st.id] === gid).map(st => st.id); }
+function ggGroup(gid) { return (S.ggroups || []).find(x => x.id === gid) || null; }
+function ggName(g) { const gr = g && g.group ? ggGroup(g.group) : null; return gr ? gr.name : (g && g.groupName) || "this"; }
+function ggOpenGoal(gid) { return (S.goals || []).find(g => g.group === gid && !g.done) || null; }
+function ggHasGroups() { return (S.ggroups || []).length > 0; }
+
+function ggSuggest(win) {
+  const since = cgSuggestSince(win);
+  const codes = activeCodes("Math").filter(c => cgDomainOf(c));
+  const marks = {}, below = {};
+  S.students.forEach(st => {
+    marks[st.id] = {};
+    codes.forEach(c => { const m = cgMark(st.id, [c], null, since); if (m != null) marks[st.id][c] = m; });
+  });
+  codes.forEach(c => { below[c] = S.students.filter(st => marks[st.id][c] != null && roundMark(marks[st.id][c]) < 3).length; });
+  const order = c => codes.indexOf(c);
+  const needs = {}, onTrack = [], noMarks = [];
+  S.students.forEach(st => {
+    const mine = Object.keys(marks[st.id]);
+    if (!mine.length) { noMarks.push(st.id); return; }
+    const low = mine.filter(c => roundMark(marks[st.id][c]) < 3)
+      .sort((a, b) => marks[st.id][a] - marks[st.id][b] || below[b] - below[a] || order(a) - order(b));
+    if (!low.length) onTrack.push(st.id); else needs[st.id] = low;
+  });
+  const by = {};
+  Object.keys(needs).forEach(sid => { const c = needs[sid][0]; (by[c] = by[c] || []).push(sid); });
+  /* a child alone with their need joins their next need that has a group */
+  const alone = [];
+  Object.keys(by).filter(c => by[c].length === 1).forEach(c => {
+    const sid = by[c][0];
+    const next = needs[sid].slice(1).find(n => by[n] && by[n].length >= 2);
+    if (next) { by[next].push(sid); delete by[c]; }
+  });
+  Object.keys(by).filter(c => by[c].length === 1).forEach(c => { alone.push({ sid: by[c][0], std: c }); delete by[c]; });
+  const groups = Object.keys(by).map(c => ({ std: c, kids: by[c].sort((a, b) => marks[a][c] - marks[b][c]), marks: marks }))
+    .sort((a, b) => b.kids.length - a.kids.length || order(a.std) - order(b.std));
+  return { groups: groups, alone: alone, onTrack: onTrack, noMarks: noMarks, marks: marks };
+}
+/* the suggestion uses the needs window; kept separate so a test can see it */
+function cgSuggestSince(win) { return cgSince(win); }
+
+function ggUse(sug) {
+  S.ggroups = sug.groups.map(x => ({ id: uid(), name: byCode[x.std].lbl, std: x.std, made: todayISO() }));
+  S.ggPlace = {};
+  sug.groups.forEach((x, i) => x.kids.forEach(sid => { S.ggPlace[sid] = S.ggroups[i].id; }));
+  save(); renderClassGoal(); toast(S.ggroups.length + " groups made");
+}
+function ggRegroup() {
+  const open = (S.goals || []).filter(g => g.group && !g.done);
+  if (!confirm("Start the groups over?" + (open.length ? " Their " + open.length + " open goal" + (open.length > 1 ? "s are" : " is") + " finished and kept under Past goals." : ""))) return;
+  open.forEach(g => { const now = cgGoalNow(g); g.groupName = ggName(g); g.done = { date: todayISO(), pct: now.st.pct, irPct: now.ir && now.ir.n ? now.ir.pct : null }; });
+  S.ggroups = []; S.ggPlace = {};
+  save(); renderClassGoal();
+}
+function ggStart(gid) {
+  const d = UI.ggDraft, gr = ggGroup(gid);
+  if (!d || d.gid !== gid || !gr) return;
+  const t = todayISO();
+  if (!d.due || d.due <= t) { toast("The goal date needs to be after today"); return; }
+  const sids = ggMembers(gid), dom = cgDomainOf(gr.std);
+  if (!sids.length) { toast("This group has no children in it"); return; }
+  const base = cgClassStat([gr.std], null, null, sids), irs = cgIrStat(dom, null, sids);
+  const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+  S.goals = (S.goals || []).concat([{
+    id: uid(), subject: "Math", group: gid, groupName: gr.name, focus: { kind: "std", key: gr.std }, codes: [gr.std],
+    started: t, due: d.due, base: { pct: base.pct, marked: base.marked, n: base.n, at: base.at },
+    target: clamp(d.target),
+    ir: cgHasIready() ? { dom: dom, base: irs.n ? { pct: irs.pct, n: irs.n, date: irs.to } : null,
+      target: d.irTarget == null || d.irTarget === "" ? null : clamp(d.irTarget) } : null,
+    actions: String(d.actions || ""), notes: [], done: null
+  }]);
+  UI.ggDraft = null; save(); renderClassGoal(); toast("Goal set for " + gr.name);
+}
+
+function ggMemberChips(gid, sids, std, canMove) {
+  const others = (S.ggroups || []).filter(x => x.id !== gid);
+  return '<div class="gg-kids">' + sids.map(sid => {
+    const st = S.students.find(s => s.id === sid), m = cgMark(sid, [std], null, null);
+    return '<span class="gg-kid" data-sid="' + esc(sid) + '">' + nameLink(st, fullName(st)) +
+      (m != null ? ' <span class="tiny muted">' + m.toFixed(1) + "</span>" : "") +
+      (canMove ? '<select class="gg-move" data-sid="' + esc(sid) + '" aria-label="Move ' + esc(fullName(st)) + '"><option value="">Move\u2026</option>' +
+        others.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") +
+        '<option value="-">Out of groups</option></select>' : "") + "</span>";
+  }).join("") + "</div>";
+}
+function ggSideBySide(std, sids) {
+  const st = cgClassStat([std], null, null, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
+  return '<div class="gg-sides"><div><span class="hint">Classwork \u00b7 ' + esc(dispCode(std)) + "</span><b>" +
+    (st.marked ? st.at + " of " + st.marked : "\u2013") + "</b><i>at 3 or higher</i></div>" +
+    "<div><span class=\"hint\">iReady \u00b7 " + esc(cgDom(dom).name) + "</span><b>" + (ir.n ? ir.on + " of " + ir.n : "\u2013") + "</b><i>" +
+    (ir.n ? "on or above grade level" : "no diagnostic yet") + "</i></div></div>";
+}
+function ggSuggestHTML() {
+  const sug = ggSuggest(UI.cgWin), nm = sid => esc(fullName(S.students.find(s => s.id === sid)));
+  let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Each child goes with their biggest classwork need: their lowest standard below 3. A child alone with a need joins their next need that has a group.</p>';
+  if (!sug.groups.length) h += '<div class="cg-empty">No two children share a need below 3 yet, so there are no groups to suggest.</div>';
+  else {
+    h += '<div class="grid2">' + sug.groups.map(x => '<div class="gg-card gg-sug" data-std="' + esc(x.std) + '"><h3>' + esc(byCode[x.std].lbl) +
+      ' <span class="tiny muted">' + x.kids.length + "</span></h3><div>" + codeHTML(x.std) + "</div>" +
+      ggSideBySide(x.std, x.kids) + ggMemberChips(null, x.kids, x.std, false) + "</div>").join("") + "</div>";
+  }
+  const line = (label, list) => list.length ? '<p class="hint gg-rest"><b>' + label + "</b> " + list.join(", ") + "</p>" : "";
+  h += line("On their own:", sug.alone.map(a => nm(a.sid) + " (" + esc(dispCode(a.std)) + ")")) +
+    line("No need below 3:", sug.onTrack.map(nm)) + line("No math marks yet:", sug.noMarks.map(nm));
+  if (sug.groups.length) h += '<div class="row" style="margin-top:10px"><button class="btn primary" id="gg-use">Use these groups</button></div>';
+  return h + "</div>";
+}
+function ggDraftHTML(gr) {
+  const d = UI.ggDraft, sids = ggMembers(gr.id), dom = cgDomainOf(gr.std);
+  const base = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(dom, null, sids);
+  const g = { group: gr.id, focus: { kind: "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
+    base: { pct: base.pct }, ir: ir.n && d.irTarget != null && d.irTarget !== "" ? { dom: dom, base: { pct: ir.pct }, target: Number(d.irTarget) } : null };
+  return '<div class="gg-draft" data-gid="' + esc(gr.id) + '"><div class="row cg-form">' +
+    '<label class="fld">Classwork target (%)<input type="number" min="0" max="100" step="5" class="gg-d-target" value="' + esc(d.target) + '"></label>' +
+    (ir.n ? '<label class="fld">iReady target (%)<input type="number" min="0" max="100" step="5" class="gg-d-irtarget" value="' + esc(d.irTarget == null ? "" : d.irTarget) + '" placeholder="blank to skip"></label>' : "") +
+    '<label class="fld">Goal date<input type="date" class="gg-d-due" value="' + esc(d.due) + '"></label></div>' +
+    '<label class="fld" style="margin-top:8px;display:flex">What this group will do<textarea class="gg-d-actions" rows="2" placeholder="e.g. Teacher table 3 days a week: make-a-ten with ten frames, then open number line">' + esc(d.actions || "") + "</textarea></label>" +
+    '<div class="cg-statement gg-preview">' + esc(cgStatement(g)) + "</div>" +
+    '<div class="row"><button class="btn primary gg-d-start">Start this goal</button><button class="btn ghost gg-d-cancel">Cancel</button></div></div>';
+}
+function ggGoalHTML(g) {
+  const now = cgGoalNow(g), gid = g.group, moved = now.st.n !== g.base.n;
+  return '<div class="gg-goal" data-goal="' + esc(g.id) + '"><p class="cg-statement">' + esc(cgStatement(g)) + "</p>" +
+    '<div class="cg-stats"><div class="cg-stat"><span>Baseline</span><b>' + (g.base.pct == null ? "\u2013" : g.base.pct + "%") + "</b><i>" + (g.base.n ? g.base.n + " children" : "") + "</i></div>" +
+    '<div class="cg-stat cg-now"><span>Now</span><b>' + (now.st.pct == null ? "\u2013" : now.st.pct + "%") + "</b><i>" + now.st.at + " of " + now.st.marked + "</i></div>" +
+    '<div class="cg-stat"><span>Target</span><b>' + g.target + "%</b><i>by " + esc(shortDate(g.due)) + "</i></div></div>" +
+    (moved ? '<p class="hint gg-moved">Started with ' + g.base.n + " children; " + now.st.n + " now. The numbers follow whoever is in the group.</p>" : "") +
+    '<div class="notice ' + (now.pace === "behind" ? "warn" : now.pace === "met" || now.pace === "on" ? "ok" : "") + ' cg-pace" data-pace="' + now.pace + '"><b>' +
+    ({ met: "Met", on: "On pace", behind: "Behind", early: "Early days", none: "No marks yet" }[now.pace]) + "</b><span>" + esc(cgPaceWords(g, now)) + "</span></div>" +
+    (now.quiet >= 10 && g.due >= todayISO() ? '<div class="notice warn cg-quiet"><b>Quiet</b><span>No new marks on the focus in ' + now.quiet + " days.</span></div>" : "") +
+    '<div class="cg-chartbox gg-chart">' + cgChartSVG(g, false, phoneLayout()) + "</div>" +
+    '<details class="gg-more"><summary>Targets, plan and check-ins' + ((g.notes || []).length ? " (" + g.notes.length + ")" : "") + "</summary>" +
+    '<div class="row cg-form" style="margin-top:8px"><label class="fld">Classwork target (%)<input type="number" min="0" max="100" step="5" class="gg-g-target" value="' + g.target + '"></label>' +
+    (g.ir ? '<label class="fld">iReady target (%)<input type="number" min="0" max="100" step="5" class="gg-g-irtarget" value="' + (g.ir.target == null ? "" : g.ir.target) + '"></label>' : "") +
+    '<label class="fld">Goal date<input type="date" class="gg-g-due" value="' + esc(g.due) + '"></label></div>' +
+    '<label class="fld" style="margin-top:8px;display:flex">What this group is doing<textarea class="gg-g-actions" rows="2">' + esc(g.actions || "") + "</textarea></label>" +
+    '<div class="cg-notes">' + (g.notes || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(n =>
+      '<div class="cg-note"><span class="cg-ndate">' + esc(shortDate(n.date)) + "</span><span>" + esc(n.text) +
+      '</span><button class="btn sm ghost gg-delnote" data-note="' + esc(n.id) + '" title="Delete this check-in">\u00d7</button></div>').join("") + "</div>" +
+    '<div class="row" style="margin-top:6px"><input type="text" class="gg-n-text" placeholder="Check-in (no names: this prints)" style="flex:1;min-width:180px"><button class="btn gg-n-add">Add</button></div>' +
+    '<div class="row" style="margin-top:10px"><span class="spacer" style="flex:1"></span><button class="btn gg-finish">Finish this goal</button><button class="btn danger gg-delete">Delete</button></div>' +
+    "</details></div>";
+}
+/* Moving children and renaming are occasional, so they sit behind Edit
+   group: day to day a card is names, not a Move menu per child. */
+function ggCardHTML(gr) {
+  const sids = ggMembers(gr.id), g = ggOpenGoal(gr.id), editing = UI.ggEdit === gr.id;
+  const lbl = byCode[gr.std] ? byCode[gr.std].lbl : gr.std;
+  let h = '<div class="gg-card' + (editing ? " gg-editing" : "") + '" data-gid="' + esc(gr.id) + '"><div class="gg-head">' +
+    (editing ? '<input class="gg-name" value="' + esc(gr.name) + '" aria-label="Group name">'
+      : '<h3 class="gg-title">' + esc(gr.name) + ' <span class="tiny muted">' + sids.length + "</span></h3>") +
+    '<button class="btn sm ' + (editing ? "primary" : "ghost") + ' gg-edit">' + (editing ? "Done" : "Edit group") + "</button></div>" +
+    "<div>" + codeHTML(gr.std) + (lbl !== gr.name ? " " + esc(lbl) : "") + "</div>" +
+    ggSideBySide(gr.std, sids) + ggMemberChips(gr.id, sids, gr.std, editing);
+  if (g) h += ggGoalHTML(g);
+  else if (UI.ggDraft && UI.ggDraft.gid === gr.id) h += ggDraftHTML(gr);
+  else h += '<div class="row" style="margin-top:8px"><button class="btn gg-set"' + (sids.length ? "" : " disabled") + ">Set a goal for this group</button></div>";
+  return h + "</div>";
+}
+function ggHTML() {
+  let h = '<div class="sectionhead" id="gg"><h2>Group goals</h2><span class="spacer"></span>' +
+    (ggHasGroups() ? '<button class="btn" id="gg-print">Print group goals</button><button class="btn ghost" id="gg-regroup">Start groups over</button>' : "") + "</div>";
+  if (!ggHasGroups()) return h + ggSuggestHTML();
+  h += '<div class="gg-cards">' + S.ggroups.map(ggCardHTML).join("") + "</div>";
+  const out = S.students.filter(st => !ggGroup((S.ggPlace || {})[st.id]));
+  if (out.length) {
+    h += '<div class="card pad gg-out"><h3>Not in a group <span class="tiny muted">' + out.length + '</span></h3><div class="gg-kids">' +
+      out.map(st => '<span class="gg-kid" data-sid="' + esc(st.id) + '">' + nameLink(st, fullName(st)) +
+        '<select class="gg-move" data-sid="' + esc(st.id) + '" aria-label="Add ' + esc(fullName(st)) + '"><option value="">Add to\u2026</option>' +
+        S.ggroups.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") + "</select></span>").join("") + "</div></div>";
+  }
+  return h;
+}
+function ggWire() {
+  const P = document.getElementById("panel-goal");
+  const q = s => P.querySelector(s), qa = s => P.querySelectorAll(s);
+  if (q("#gg-use")) q("#gg-use").onclick = () => ggUse(ggSuggest(UI.cgWin));
+  if (q("#gg-regroup")) q("#gg-regroup").onclick = ggRegroup;
+  if (q("#gg-print")) q("#gg-print").onclick = printGroupGoals;
+  qa(".gg-move").forEach(sel => sel.onchange = () => {
+    const v = sel.value; if (!v) return;
+    S.ggPlace = S.ggPlace || {};
+    if (v === "-") delete S.ggPlace[sel.dataset.sid]; else S.ggPlace[sel.dataset.sid] = v;
+    save(); renderClassGoal();
+  });
+  qa(".gg-card[data-gid]").forEach(card => {
+    const gid = card.dataset.gid, gr = ggGroup(gid), c = s => card.querySelector(s);
+    if (!gr) return;
+    c(".gg-edit").onclick = () => {
+      const inp = c(".gg-name");
+      if (inp) { const v = inp.value.trim(); if (v && v !== gr.name) { gr.name = v; save(); } }
+      UI.ggEdit = UI.ggEdit === gid ? null : gid; renderClassGoal();
+    };
+    if (c(".gg-name")) {
+      c(".gg-name").onchange = e => { const v = e.target.value.trim(); if (v) { gr.name = v; save(); renderClassGoal(); } else e.target.value = gr.name; };
+      c(".gg-name").onkeydown = e => { if (e.key === "Enter") c(".gg-edit").click(); };
+    }
+    if (c(".gg-set")) c(".gg-set").onclick = () => {
+      const sids = ggMembers(gid), b = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(cgDomainOf(gr.std), null, sids);
+      UI.ggDraft = { gid: gid, target: cgSuggest(b.pct), irTarget: ir.n ? cgSuggest(ir.pct) : null, due: cgTermEnd(), actions: "" };
+      renderClassGoal();
+    };
+    if (c(".gg-draft")) {
+      const d = UI.ggDraft;
+      const preview = () => {
+        const sids = ggMembers(gid), dom = cgDomainOf(gr.std), b = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(dom, null, sids);
+        c(".gg-preview").textContent = cgStatement({ group: gid, focus: { kind: "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
+          base: { pct: b.pct }, ir: ir.n && d.irTarget != null && d.irTarget !== "" ? { dom: dom, base: { pct: ir.pct }, target: Number(d.irTarget) } : null });
+      };
+      c(".gg-d-target").oninput = e => { d.target = e.target.value; preview(); };
+      if (c(".gg-d-irtarget")) c(".gg-d-irtarget").oninput = e => { d.irTarget = e.target.value; preview(); };
+      c(".gg-d-due").oninput = e => { d.due = e.target.value; preview(); };
+      c(".gg-d-actions").oninput = e => { d.actions = e.target.value; };
+      c(".gg-d-start").onclick = () => ggStart(gid);
+      c(".gg-d-cancel").onclick = () => { UI.ggDraft = null; renderClassGoal(); };
+    }
+    const g = ggOpenGoal(gid);
+    if (g && c(".gg-goal")) {
+      const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+      const keepOpen = () => { UI.ggOpen = g.id; };
+      if (UI.ggOpen === g.id) c(".gg-more").open = true;
+      c(".gg-g-target").onchange = e => { g.target = clamp(e.target.value); keepOpen(); save(); renderClassGoal(); };
+      if (c(".gg-g-irtarget")) c(".gg-g-irtarget").onchange = e => { g.ir.target = e.target.value === "" ? null : clamp(e.target.value); keepOpen(); save(); renderClassGoal(); };
+      c(".gg-g-due").onchange = e => {
+        if (!e.target.value || e.target.value <= g.started) { toast("The goal date needs to be after the start"); e.target.value = g.due; return; }
+        g.due = e.target.value; keepOpen(); save(); renderClassGoal();
+      };
+      c(".gg-g-actions").onchange = e => { g.actions = e.target.value; save(); };
+      c(".gg-n-add").onclick = () => {
+        const t = c(".gg-n-text").value.trim(); if (!t) { toast("Write a line first"); return; }
+        g.notes = (g.notes || []).concat([{ id: uid(), date: todayISO(), text: t }]); keepOpen(); save(); renderClassGoal();
+      };
+      c(".gg-n-text").onkeydown = e => { if (e.key === "Enter") c(".gg-n-add").click(); };
+      card.querySelectorAll(".gg-delnote").forEach(b => b.onclick = () => { g.notes = g.notes.filter(n => n.id !== b.dataset.note); keepOpen(); save(); renderClassGoal(); });
+      c(".gg-finish").onclick = () => {
+        if (!confirm("Finish this group's goal? Its final numbers are kept under Past goals.")) return;
+        const now = cgGoalNow(g); g.groupName = gr.name;
+        g.done = { date: todayISO(), pct: now.st.pct, irPct: now.ir && now.ir.n ? now.ir.pct : null };
+        save(); renderClassGoal();
+      };
+      c(".gg-delete").onclick = () => {
+        if (!confirm("Delete this group's goal and its check-ins? This cannot be undone.")) return;
+        S.goals = S.goals.filter(x => x.id !== g.id); save(); renderClassGoal();
+      };
+    }
+  });
+}
+
+/* ---- printed: every group's goal, counts only, never names ---- */
+function ggSheetHTML() {
+  const who = S.settings.teacher ? esc(S.settings.teacher) + " \u00b7 " : "";
+  let h = '<article class="cgsheet ggsheet"><div class="cf-head"><div><h1 class="cf-name">Math group goals</h1>' +
+    '<div class="cf-sub">' + who + esc(S.settings.year || "") + " \u00b7 " + S.students.length + " students \u00b7 " + S.ggroups.length + " groups</div></div>" +
+    '<div class="cf-meta">Printed ' + esc(cgLongDate(todayISO())) + "</div></div>";
+  S.ggroups.forEach(gr => {
+    const sids = ggMembers(gr.id), g = ggOpenGoal(gr.id);
+    h += '<section class="gg-s-block"><h3 class="cg-s-h">' + esc(gr.name) + ' <span class="cg-s-n">' + esc(dispCode(gr.std)) + " \u00b7 " + sids.length + " children</span></h3>";
+    if (!g) {
+      const st = cgClassStat([gr.std], null, null, sids);
+      h += '<p class="cf-none">No goal set yet. ' + (st.marked ? st.at + " of " + st.marked + " at 3 or higher now." : "") + "</p></section>";
+      return;
+    }
+    const now = cgGoalNow(g);
+    h += '<p class="cg-s-goal">' + esc(cgStatement(g)) + "</p>" +
+      '<table class="cf-table cg-s-nums"><thead><tr><th>Measure</th><th class="cf-c">Baseline</th><th class="cf-c">Now</th><th class="cf-c">Target</th></tr></thead><tbody>' +
+      '<tr><td>Classwork: at 3 or higher</td><td class="cf-c">' + (g.base.pct == null ? "\u2013" : g.base.pct + "%") + '</td><td class="cf-c">' +
+      (now.st.pct == null ? "\u2013" : now.st.pct + "%") + ' <span class="cg-s-n">(' + now.st.at + "/" + now.st.marked + ')</span></td><td class="cf-c">' + g.target + "%</td></tr>" +
+      (g.ir ? '<tr><td>iReady: on or above in ' + esc(cgDom(g.ir.dom).name) + '</td><td class="cf-c">' + (g.ir.base && g.ir.base.pct != null ? g.ir.base.pct + "%" : "\u2013") +
+        '</td><td class="cf-c">' + (now.ir && now.ir.n ? now.ir.pct + '% <span class="cg-s-n">(' + now.ir.on + "/" + now.ir.n + ")</span>" : "\u2013") + '</td><td class="cf-c">' + (g.ir.target == null ? "\u2013" : g.ir.target + "%") + "</td></tr>" : "") +
+      "</tbody></table>" +
+      '<p class="cf-says"><b>' + ({ met: "Met.", on: "On pace.", behind: "Behind pace.", early: "Early days.", none: "No marks yet." }[now.pace]) + "</b> " +
+      esc(cgPaceWords(g, now).replace(/^[^.]*\.\s*/, "")) + (now.st.n !== g.base.n ? " Started with " + g.base.n + " children; " + now.st.n + " now." : "") + "</p>" +
+      cgChartSVG(g, true, false, 110).replace('class="cg-chart"', 'class="cg-chart cf-chart"');
+    if (g.actions) h += '<p class="cg-s-text"><b>Doing:</b> ' + esc(g.actions).replace(/\n/g, "; ") + "</p>";
+    const notes = (g.notes || []).slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(-2);
+    if (notes.length) h += '<p class="cg-s-text"><b>Latest:</b> ' + notes.map(n => esc(shortDate(n.date)) + ": " + esc(n.text)).join(" \u00b7 ") + "</p>";
+    h += "</section>";
+  });
+  return h + '<p class="cf-key">' + CG_KEY.replace("classroom marks", "the group's marks") + "</p></article>";
+}
+function printGroupGoals() {
+  document.getElementById("printsheet").innerHTML = ggSheetHTML();
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
   window.print();

@@ -181,6 +181,8 @@ An assignment was never stored as its own record — it is simply the marks that
 
 The gradebook's **Class goal** tab shows where the whole class most needs help in math: daily classwork by standard (how many are below 3, using the report card's rule) beside iReady by domain (how many are on or above grade level). The two are kept side by side rather than blended, and a note appears when they point at the same place. Choose **Make this the goal** on any need to draft a goal with a baseline and a suggested target; once started, the tab tracks the class against a straight line to the target, nudges when no marks have gone in on the focus, and keeps your check-ins. **Print goal sheet** gives one black-and-white page for a PLC or administrator with class counts only, never a student's name.
 
+Below it, **Group goals** suggests small groups, putting each child with their biggest classwork need (their lowest standard below 3). **Use these groups** keeps them; **Edit group** renames a group or moves a child. Each group can have its own goal, and its numbers always count whoever is in the group now, so a child's data moves with them. **Print group goals** gives every group's goal on paper, again with counts only.
+
 ## Sub plans
 
 They live in the **planner**, on the *Sub plan* button in the bottom corner. Pick a day and print either document:
