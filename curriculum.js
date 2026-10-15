@@ -1426,14 +1426,7 @@
     ".fam-prev p{margin:8px 0 2px}.fam-prev ul{margin:2px 0 6px;padding-left:20px}.fam-prev li{margin:2px 0}" +
     ".fam-prev:focus{outline:2px solid var(--ink-3);outline-offset:2px}";
 
-  /* The planner boots asynchronously. If it has already drawn, draw again
-     so Math picks all of this up; if not, its first render will. */
-  try {
-    if (S && S.subjects && S.subjects.length && typeof render === "function") {
-      /* a suggested draft built before this loaded used the old stepper;
-         one that has not been touched or saved is simply built again */
-      if (draft && !draft.saved && !dirty && !(PENDING && PENDING[draft.__key])) draft = null;
-      render();
-    }
-  } catch (x) { }
+  /* v125: the planner's first draw waits for every script, this one
+     included, so Math is never drawn without all of this and there is no
+     redraw to do here. */
 })();

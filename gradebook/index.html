@@ -426,6 +426,36 @@ summary.tiny,summary.small{padding:4px 0}
   .gg-move{max-width:none}
 }
 
+/* ---------- v126: reading goals as tracks ---------- */
+.ot-key{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:10px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--ink-2)}
+.ot-key span{display:inline-flex;align-items:center;gap:7px}
+.ot-key svg{color:var(--ink)}
+.ot-table td{vertical-align:middle}
+.ot-table .ot-name{white-space:nowrap}
+.ot-table .ot-axis{min-width:260px;width:46%;position:relative}
+.ot-ticks{position:relative;display:block;height:16px;font-weight:400;color:var(--ink-3);font-size:11px}
+.ot-ticks span{position:absolute;transform:translateX(-50%)}
+.ot-cell{min-width:260px}
+.ot-track{position:relative;display:block;height:28px;color:var(--ink)}
+.ot-track>span{position:absolute;display:block}
+.ot-span{top:12px;height:4px;border-radius:2px;background:currentColor;opacity:.14}
+.ot-fill{top:11px;height:6px;border-radius:3px}
+.ot-aim{top:3px;width:2px;height:22px;margin-left:-1px;border-radius:1px;background:currentColor}
+.ot-goal{top:7px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:2px solid currentColor;background:var(--panel);box-sizing:border-box}
+.ot-now{top:7px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:2px solid var(--panel);box-sizing:border-box}
+.ot-where{min-width:220px}
+.ot-detail{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.35;margin-top:1px}
+@media print{.ot-track{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+/* on a phone each child is a block: name, then the track across the full
+   width, then where they are. Three columns side by side scrolled sideways. */
+@media (max-width:760px){
+  .ot-table,.ot-table tbody,.ot-table tr,.ot-table td{display:block;width:auto;min-width:0}
+  .ot-table thead{display:none}
+  .ot-table tr{padding:8px 2px;border-top:1px solid var(--line-2)}
+  .ot-table td{border:0;padding:2px 4px}
+  .ot-table .ot-name{font-weight:600}
+}
+
 /* ---------- moving between assignments ---------- */
 .asgbar{padding:10px 14px}
 .asgbar .row{gap:8px;flex-wrap:nowrap;align-items:center}
@@ -433,6 +463,33 @@ summary.tiny,summary.small{padding:4px 0}
 .asgbar .count{white-space:nowrap}
 .asgbar .spacer{flex:1}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* v126: the saved assignments as a list beside the roster. Only drawn at
+   1100px and up, where there is room for it beside a full entry row; under
+   that the assignment bar above stays the way to move between them. */
+.enterlay{display:flex;gap:16px;align-items:flex-start}
+.enterlay>.enter-main{flex:1 1 auto;min-width:0}
+.asglist{flex:0 0 280px;padding:12px 8px 8px;display:none}
+.asglist .al-head{display:flex;align-items:center;gap:8px;padding:0 6px 8px}
+.asglist .al-head h2{flex:1}
+.asglist .al-items{display:flex;flex-direction:column;gap:2px}
+.asglist .al-item{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:2px;width:100%;padding:9px 10px;border-radius:var(--radius-sm);border:1px solid transparent;cursor:pointer}
+.asglist .al-item:hover{background:var(--accent-soft)}
+.asglist .al-item:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.asglist .al-item[aria-current="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.asglist .al-item.al-fresh{border:1px dashed var(--line-strong)}
+.asglist .al-item.al-fresh[aria-current="true"]{border-color:var(--accent)}
+.asglist .al-when{display:flex;gap:8px;font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.asglist .al-when .al-n{margin-left:auto}
+.asglist .al-name{font-weight:600;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+.asglist .al-code{font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.asglist .al-bar{display:block;height:5px;margin-top:4px;border-radius:3px;background:var(--line);overflow:hidden}
+.asglist .al-bar i{display:block;height:100%;background:var(--accent)}
+.asglist .al-foot{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 2px}
+@media (min-width:1100px){
+  .asglist{display:block}
+  .enterlay .asgbar{display:none}
+}
+@media print{.asglist{display:none !important}}
 
 /* ---------- phone ----------
    The gradebook is the densest of the three tools, so it needs the most work
@@ -1213,7 +1270,8 @@ function renderEnter() {
   const multi = multiCodes();
   const std = byCode[UI.enterStd];
 
-  let html = '<div class="stack">';
+  /* v126: the list of saved assignments sits beside everything else */
+  let html = '<div class="enterlay">' + asgListHTML() + '<div class="stack enter-main">';
   html += assignmentBarHTML();
   /* On a phone the assignment bar and this card filled the whole first
      screen of an iPhone SE, so every marking session began with a scroll.
@@ -1284,7 +1342,7 @@ function renderEnter() {
     html += '<div class="card pad"><div class="sectionhead"><h3>Just entered</h3><span class="spacer"></span><button class="btn sm" onclick="undoLast()">Undo last</button></div>' +
       '<div class="small muted">' + UI.log.slice(-8).reverse().map(l => esc(l)).join("<br>") + "</div></div>";
   }
-  html += "</div>";
+  html += "</div></div>";
   el.innerHTML = html;
 
   wireAssignmentBar(el);
@@ -4512,29 +4570,58 @@ function orfAnalysisHTML(db) {
   const rows = people.map(p => ({ p: p, pl: G.planFor(db, p.o.id, gs, now, comp) }));
   let h = "";
 
-  /* ---- the class ---- */
+  /* ---- the class ----
+     v126: one track per child instead of a table of numbers. Every track is
+     on the same scale: the grey run is start to goal, the coloured run and
+     dot are where the latest check landed, the upright tick is the aim line
+     at that check, and the ring is the goal. Children who need a change
+     come first. */
   h += '<div class="card pad"><div class="sectionhead"><h2>Reading goals</h2><span class="spacer"></span>' +
-    '<span class="hint">Goal by ' + esc(G.fmtLong(G.dueIn(now, gs.springDue, gs.seasons.fall))) + ", from each child\u2019s first check. Pick a name for the aim line.</span></div>";
+    '<span class="hint">Words correct per minute. Goal by ' + esc(G.fmtLong(G.dueIn(now, gs.springDue, gs.seasons.fall))) + ", from each child\u2019s first check. Tap a name to see every check.</span></div>";
   const withPlan = rows.filter(x => x.pl);
   if (!withPlan.length) h += '<p class="hint" style="margin-top:6px">No checks this school year yet.</p>';
   else {
-    h += '<div class="scroll"><table style="margin-top:6px"><thead><tr><th>Student</th><th class="c">Start</th><th class="c">Goal</th><th class="c">Latest</th>' +
-      '<th class="c">vs aim line</th><th>Where they are</th><th class="c">Comp.</th></tr></thead><tbody>';
-    rows.forEach(({ p, pl }) => {
+    const top = Math.max.apply(null, withPlan.map(x => Math.max(x.pl.goal, x.pl.latestY, x.pl.base)));
+    const step = top > 150 ? 40 : 20, MAX = Math.ceil(top * 1.05 / step) * step;
+    const P = v => (Math.max(0, Math.min(MAX, v)) / MAX * 100).toFixed(1) + "%";
+    h += '<div class="ot-key small">' +
+      '<span><svg width="40" height="12" aria-hidden="true"><rect x="0" y="4" width="40" height="4" rx="2" fill="currentColor" opacity=".18"/></svg>Start to goal</span>' +
+      '<span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="var(--s3)" stroke="var(--panel)" stroke-width="2"/></svg>Latest check</span>' +
+      '<span><svg width="6" height="20" aria-hidden="true"><rect x="2" y="0" width="2" height="20" rx="1" fill="currentColor"/></svg>Aim line: where they needed to be at that check</span>' +
+      '<span><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--panel)" stroke="currentColor" stroke-width="2"/></svg>Goal</span></div>';
+    const RANK = { below: 1, "r-red": 1, close: 2, "r-yellow": 2, start: 3, on: 4, metBoy: 5, "r-blue": 5, met: 6, "r-green": 6 };
+    const rank = pl => (pl.belowRun >= 3 || pl.flagged) ? 0 : (RANK[pl.status] == null ? 4 : RANK[pl.status]);
+    const order = rows.slice().sort((a, b) => (a.pl ? rank(a.pl) : 9) - (b.pl ? rank(b.pl) : 9) || a.p.name.localeCompare(b.p.name));
+    let ticks = "";
+    for (let v = 0; v <= MAX; v += step) ticks += '<span style="left:' + P(v) + '">' + v + "</span>";
+    h += '<div class="scroll"><table class="ot-table" style="margin-top:4px"><thead><tr><th>Student</th><th class="ot-axis"><span class="sr-only">Start to goal</span><span class="ot-ticks" aria-hidden="true">' + ticks + "</span></th>" +
+      "<th>Where they are</th></tr></thead><tbody>";
+    order.forEach(({ p, pl }) => {
       const sel = UI.orfGoalSid === p.o.id;
-      if (!pl) { h += '<tr><td>' + esc(p.name) + '</td><td colspan="6" class="muted small">no checks this year</td></tr>'; return; }
-      const col = ORF_STATUS_COLOR[pl.status] || "inherit";
+      const who = esc(p.name) + (p.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + (p.st ? "" : ' <span class="tiny muted">not on the roster</span>');
+      if (!pl) { h += "<tr><td>" + who + '</td><td colspan="2" class="muted small">no checks this year</td></tr>'; return; }
+      const col = ORF_STATUS_COLOR[pl.status] || "var(--ink-3)";
       const flag = pl.belowRun >= 3 || pl.flagged;
+      const first = pl.status === "start";
+      const goalTxt = pl.goal + (pl.comp ? " with 3/3" : "");
+      const pace = first || pl.result ? "" : pl.diff === 0 ? "on the aim line" : Math.abs(pl.diff) + (pl.diff > 0 ? " ahead of" : " behind") + " the aim line";
+      const nums = first ? "First check " + pl.base + ", goal " + goalTxt : "Started " + pl.base + ", now " + pl.latestY + ", goal " + goalTxt;
+      const detail = (pace ? pace + " \u00b7 " : "") + nums + (pl.latestComp == null ? "" : " \u00b7 comp. " + pl.latestComp + "/3");
+      const lo = Math.min(pl.base, pl.latestY), hi = Math.max(pl.base, pl.latestY);
+      const aimAt = !first && !pl.result ? pl.aim(pl.latest.t) : null;
       h += '<tr class="clickable' + (sel ? " sel" : "") + '" onclick="orfPickGoal(\'' + esc(p.o.id) + '\')" style="cursor:pointer' + (sel ? ";background:var(--s4-bg)" : "") + '">' +
-        "<td>" + esc(p.name) + (p.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + (p.st ? "" : ' <span class="tiny muted">not on the roster</span>') + "</td>" +
-        '<td class="c num">' + pl.base + "</td>" +
-        '<td class="c num"><strong>' + pl.goal + (pl.comp ? "+" : "") + "</strong>" + (pl.custom ? ' <span class="tiny muted">set</span>' : "") + "</td>" +
-        '<td class="c num">' + pl.latestY + "</td>" +
-        '<td class="c num" style="color:' + (pl.diff < 0 ? "var(--s1)" : "var(--s3)") + '">' + (pl.status === "start" ? "\u2014" : (pl.diff > 0 ? "+" : "") + pl.diff) + "</td>" +
-        '<td><span style="color:' + col + ';font-weight:600">' + esc(G.statusLabel(pl)) + "</span>" +
+        '<td class="ot-name">' + who + "</td>" +
+        '<td class="ot-cell"><span class="ot-track" role="img" aria-label="' + esc(nums + (pace ? ", " + pace : "")) + '">' +
+          '<span class="ot-span" style="left:' + P(pl.base) + ";width:" + P(Math.max(pl.goal, pl.latestY) - pl.base) + '"></span>' +
+          '<span class="ot-fill" style="left:' + P(lo) + ";width:" + P(Math.max(0.5, hi - lo)) + ";background:" + col + '"></span>' +
+          (aimAt != null ? '<span class="ot-aim" style="left:' + P(aimAt) + '"></span>' : "") +
+          '<span class="ot-goal" style="left:' + P(pl.goal) + '"></span>' +
+          '<span class="ot-now" style="left:' + P(pl.latestY) + ";background:" + col + '"></span>' +
+        "</span></td>" +
+        '<td class="ot-where"><span style="color:' + col + ';font-weight:600">' + esc(G.statusLabel(pl)) + "</span>" +
         (flag ? ' <span class="tag reteach" title="' + (pl.flagged ? "below the grade-level line, within the margin of error" : pl.belowRun + " checks in a row below the aim line") + '">\u2691 ' +
-          (pl.flagged ? "flagged" : pl.belowRun + " below") + "</span>" : "") + "</td>" +
-        '<td class="c num">' + (pl.latestComp == null ? '<span class="muted">\u2014</span>' : pl.latestComp + "/3") + "</td></tr>";
+          (pl.flagged ? "flagged" : pl.belowRun + " in a row below: change the plan") + "</span>" : "") +
+        '<span class="ot-detail">' + esc(detail) + "</span></td></tr>";
     });
     h += "</tbody></table></div>";
     const flagged = withPlan.filter(x => x.pl.belowRun >= 3);
@@ -6794,7 +6881,7 @@ function assignmentLabelText(a) {
     : d.getDate() + " " + ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()];
   return when + " \u00b7 " + dispCode(a.std) + " " + a.label +
     (a.ctx ? " \u00b7 " + a.ctx : "") +
-    (a.fresh ? " \u00b7 new" : " \u00b7 " + a.done + "/" + a.total);
+    (a.fresh ? " \u00b7 nothing marked yet" : " \u00b7 " + a.done + "/" + a.total);
 }
 
 function assignmentBarHTML() {
@@ -6822,7 +6909,57 @@ function assignmentBarHTML() {
     '<button class="btn sm primary" onclick="newAssignment()">New assignment</button>' +
     "</div></div>";
 }
+/* v126: the saved assignments as a list (CHANGELOG v126). The dropdown
+   hid them: Enter scores opens on today's date, so an assignment marked on
+   Tuesday looked empty on Thursday until it was found in the menu. Here
+   every saved assignment is on screen with how much of it is marked, the
+   one open is highlighted, and today's unstarted one is drawn dashed and
+   says "not started". Newest first, ten at a time. */
+const ASG_LIST_SHOWN = 10;
+function asgWhen(iso) {
+  if (iso === todayISO()) return "Today";
+  const d = new Date(iso + "T12:00:00");
+  if (isNaN(d)) return iso;
+  const y = new Date(todayISO() + "T12:00:00"); y.setDate(y.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return "Yesterday";
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + ", " + shortDate(iso);
+}
+function asgListHTML() {
+  if (!S.students.length) return "";
+  const list = stepList(), k = currentKey();
+  const saved = list.filter(a => !a.fresh).length;
+  let shown = UI.asgAll ? list : list.slice(0, ASG_LIST_SHOWN);
+  const cur = list.find(a => a.key === k);
+  if (cur && shown.indexOf(cur) < 0) shown = shown.concat([cur]);
+  const unfinished = visibleAssignments().filter(a => !a.complete).length;
+  let h = '<nav class="card asglist" aria-label="Assignments"><div class="al-head"><h2>Assignments</h2>' +
+    '<button class="btn sm primary" onclick="newAssignment()">New</button></div><div class="al-items">';
+  if (!shown.length) h += '<p class="small muted" style="padding:0 6px">Nothing marked yet.</p>';
+  shown.forEach(a => {
+    const pct = a.total ? Math.min(100, Math.round(a.done / a.total * 100)) : 0;
+    const title = a.marked + " marked" + (a.missing ? ", " + a.missing + " not turned in" : "") + " of " + a.total;
+    h += '<button class="al-item' + (a.fresh ? " al-fresh" : "") + '" data-asg="' + esc(a.key) + '"' +
+      (a.key === k ? ' aria-current="true"' : "") + (a.fresh ? "" : ' title="' + esc(title) + '"') + ">" +
+      '<span class="al-when"><span>' + esc(asgWhen(a.date)) + '</span><span class="al-n">' +
+      (a.fresh ? "not started" : a.done + "/" + a.total) + "</span></span>" +
+      '<span class="al-name">' + esc(a.ctx || a.label) + "</span>" +
+      '<span class="al-code">' + esc(dispCode(a.std) + (a.ctx ? " " + a.label : "")) + "</span>" +
+      (a.fresh ? "" : '<span class="al-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span>') +
+      "</button>";
+  });
+  h += '</div><div class="al-foot">' +
+    (saved > ASG_LIST_SHOWN ? '<button class="btn sm ghost" data-asg-all>' + (UI.asgAll ? "Show fewer" : "Show all " + saved) + "</button>" : "") +
+    (unfinished ? '<button class="btn sm ghost" onclick="jumpUnfinished()">Next unfinished <span class="tiny muted">' + unfinished + "</span></button>" : "") +
+    "</div></nav>";
+  return h;
+}
 function wireAssignmentBar(el) {
+  el.querySelectorAll("[data-asg]").forEach(b => {
+    b.onclick = () => gotoAssignment(stepList().find(x => x.key === b.dataset.asg));
+  });
+  el.querySelectorAll("[data-asg-all]").forEach(b => {
+    b.onclick = () => { UI.asgAll = !UI.asgAll; renderEnter(); };
+  });
   el.querySelectorAll("[data-step]").forEach(b => {
     b.onclick = () => stepAssignment(Number(b.dataset.step));
   });

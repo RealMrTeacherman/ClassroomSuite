@@ -305,8 +305,8 @@ body {
 @media (max-width: 760px) {
   /* A long open-text entry in the planner's timeline could not wrap, made
      the page up to 207px wider than the screen, and dragged the fixed
-     switcher and Sub plan button off the right edge. */
-  .tl .tlpos { white-space: normal; overflow-wrap: anywhere; }
+     switcher and Sub plan button off the right edge. (v125: that timeline
+     is gone; its list rows remain, in Settings' school-year list.) */
   .tllabel { min-width: 0; overflow-wrap: anywhere; }
 
   /* Pickers with an inline min-width, and file inputs, overflowed at 375

@@ -13,8 +13,10 @@
    note from Settings and a note of its own for that day. The timeline panel
    is taken away. (v112: built in suite-boot.js while the planner was thought
    protected; moved here unchanged. The planner calls cardBlocks from
-   cardHTML, afterToday from renderToday, withDayNotes from copySubPlan; it
-   runs after the first draw and redraws, as it did from suite-boot.js.)
+   cardHTML, afterToday from renderToday, withDayNotes from copySubPlan.
+   v125: the planner draws for the first time only after this file has run,
+   so the day is never drawn without it, and the planner no longer builds
+   the timeline at all.)
 
    - renderToday: after the planner draws, the rail is rebuilt in schedule
      order. The card nodes are moved, not redrawn, so every control keeps
@@ -398,10 +400,6 @@
     rail.classList.add("byday");
     gridCells(rail);                                       /* v98 */
     if (typeof window.markNow === "function") window.markNow();   /* v110: the planner's own; the grid rebuilt cells */
-    /* the timeline panel it replaces */
-    [].forEach.call(document.querySelectorAll(".panel > h2"), function (h) {
-      if (/^The day, block by block$/.test(h.textContent.trim())) h.parentNode.parentNode.removeChild(h.parentNode);
-    });
   }
   function afterToday() {
     try { layout(); } catch (x) { if (window.console) console.error("planner day layout:", x); }
@@ -421,7 +419,4 @@
   }
 
   window.DayView = { cardBlocks: cardBlocks, afterToday: afterToday, withDayNotes: withDayNotes };   /* v112: the planner calls these */
-
-  /* the planner may already have drawn Today before this ran */
-  try { if (typeof view !== "undefined" && view === "today" && document.querySelector(".rail")) renderToday(); } catch (x) { }
 })();

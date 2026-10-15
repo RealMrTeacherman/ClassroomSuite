@@ -294,7 +294,8 @@ textarea.notes:focus{
 .flag:hover{border-color:var(--line-2)}
 .flag[aria-pressed="true"]{background:var(--teal);color:#FFF6E8;border-color:var(--teal)}
 
-/* ---------- timeline ---------- */
+/* ---------- list rows: the school year's closures in Settings (v125: the
+   Today timeline that also used them is gone) ---------- */
 .tl{list-style:none;margin:0;padding:0}
 .tl li{display:flex;gap:12px;padding:9px 0;border-top:1.5px solid var(--line)}
 .tl li:first-child{border-top:none}
@@ -303,17 +304,6 @@ textarea.notes:focus{
 .tllabel{font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:0 0 9px;
   box-shadow:0 0 0 2.5px color-mix(in srgb, var(--c) 22%, transparent)}
-.tlpos{
-  font-family:var(--mono);font-size:10.5px;font-weight:700;background:var(--screen);
-  color:var(--screen-txt);border-radius:5px;padding:2px 7px;white-space:nowrap;letter-spacing:.02em;
-}
-.tlnote{font-size:13.5px;color:var(--ink-2);margin-top:3px;line-height:1.55}
-/* Your own note keeps its line breaks — bulleted notes were rendering as
-   one run-on paragraph — and gets the subject colour as a margin rule. */
-.tlnote.mine{
-  color:var(--ink);font-weight:500;white-space:pre-wrap;margin-top:7px;
-  border-left:2.5px solid var(--c,var(--line-2));padding-left:11px;
-}
 .empty{text-align:center;padding:28px 14px;color:var(--ink-3);font-size:13.5px}
 
 /* ---------- week view ---------- */
@@ -418,7 +408,7 @@ textarea.notes:focus{
   header,.datenav,.savebar,.flags,.tabs,.toast,.skipbtn,.step{display:none !important}
   body{background:#fff;padding:0;background-image:none}
   .panel,.sub{break-inside:avoid;border-color:#bbb;box-shadow:none}
-  .readout,.freein,.tlpos{background:#fff !important;color:#000 !important;
+  .readout,.freein{background:#fff !important;color:#000 !important;
     border:1px solid #999 !important;box-shadow:none !important}
   .readout::after{display:none}
   /* Notes are textareas, so anything past the visible box was silently
@@ -426,7 +416,6 @@ textarea.notes:focus{
   .subnote,textarea.notes{max-height:none !important;overflow:visible !important;
     background:#fff !important;border-color:#bbb !important;box-shadow:none !important}
   .wnote{-webkit-line-clamp:unset !important;overflow:visible !important}
-  .tlnote,.tlnote.mine{color:#000 !important}
 }
 
 /* ---------- themes ---------- */
@@ -985,7 +974,13 @@ window.addEventListener('resize', ()=>{ clearTimeout(growTimer); growTimer=setTi
 const main = document.getElementById('main');
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+/* v125: nothing is drawn until every script on the page has loaded (boot,
+   below), so the day is drawn once, already laid out, instead of drawn bare
+   and then rebuilt in front of him. A render() asked for sooner is skipped;
+   the first draw comes after it and includes whatever it was for. */
+let firstDrawn = false;
 function render(){
+  if(!firstDrawn) return;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.view===view)));
   renderJar();
   if(view==='today') renderToday();
@@ -1076,17 +1071,16 @@ function renderToday(){
           : 'Kept as a draft as you type. Saving is what moves tomorrow’s lessons on.'}</span>
       </div>`}
 
-    ${!st.school ? '' : `
+    ${(!st.school || hasTemplate) ? '' : `
     <div class="panel">
       <h2>The day, block by block</h2>
-      <p class="hint">${hasTemplate?'Straight from your sub plans — edit any block in Settings.':''}</p>
-      ${hasTemplate ? `<ul class="tl">${(()=>{const seen=new Set();return blocks.map((b,i)=>blockHTML(b,seen,blockEnd(blocks,i))).join('');})()}</ul>`
-        : `<div class="empty">
+      <p class="hint"></p>
+      <div class="empty">
              ${cursor.getDay()===3
                ? 'Wednesday is an early-release PD day, so it runs a shortened schedule. Add its blocks in Settings, or start from Monday and trim.'
                : `No schedule set for ${DOW[cursor.getDay()]} yet.`}<br>
              <button class="ghost" id="copysched" style="margin-top:10px">Copy Monday’s schedule here</button>
-           </div>`}
+           </div>
     </div>`}`;
   wireToday();
   sideLayout();                                    /* v118: the day sidebar, on a wide screen */
@@ -1232,28 +1226,6 @@ function cardBase(sb){
              placeholder="Add specifics — pages, groups, what to reteach"
              aria-label="Notes for ${esc(sb.name)}">${esc(e.note||'')}</textarea>
     </article>`;
-}
-
-function blockHTML(b, seen, endT){
-  const sb = b.s ? sub(b.s) : null;
-  const e = sb && draft.entries[sb.id];
-  const txt = (sb && e && e.taught) ? fmt(sb,e.pos) : '';
-  const pos = (txt && txt!=='—') ? `<span class="tlpos">${esc(txt)}</span>` : '';
-  let mine = '';
-  if(sb && e && e.note && seen && !seen.has(sb.id)){
-    seen.add(sb.id);
-    mine = `<div class="tlnote mine">${esc(e.note)}</div>`;
-  }
-  return `<li ${sb?`style="--c:${esc(sb.color)}"`:''}>
-      <time>${esc(span(b.t,endT))}</time>
-      <div class="tlbody">
-        <div class="tllabel">
-          ${sb?'<span class="dot"></span>':''}${esc(b.l)}${pos}
-        </div>
-        ${b.n?`<div class="tlnote">${esc(b.n)}</div>`:''}
-        ${mine}
-      </div>
-    </li>`;
 }
 
 function wireToday(){
@@ -1898,6 +1870,11 @@ function seedFirstDay(){
 
 /* ---------- boot ---------- */
 (async function boot(){
+  /* v125: DOMContentLoaded comes after every script, deferred ones included
+     (day-view.js, suite-boot.js, sub-plans.js), so the first draw has them
+     all. Data is still read now, as before: those scripts expect it loaded. */
+  const allLoaded = new Promise(r => document.readyState==='loading'
+    ? document.addEventListener('DOMContentLoaded', r, {once:true}) : r());
   Object.values(THEMES).forEach(t=>t.subjects.forEach(c=>KNOWN_COLOURS.add(c.toUpperCase())));
   ['#17876B','#2F6FB2','#7B4FA8','#D9932B','#C4552F','#4E5D6C'].forEach(c=>KNOWN_COLOURS.add(c));
   const [s,d,me,pend] = await Promise.all([
@@ -1917,6 +1894,8 @@ function seedFirstDay(){
   Object.keys(PENDING).forEach(k=>{ if(DAYS[k]) delete PENDING[k]; });
   seedFirstDay();
   if(!dayStatus(cursor).school) cursor = nextSchoolDay(cursor, 1);
+  await allLoaded;
+  firstDrawn = true;
   render();
 })();
 </script>

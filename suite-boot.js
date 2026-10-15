@@ -70,22 +70,15 @@
   }
   window.__suiteUnbake = unbake;
 
-  /* If the planner already drew the open day from the old answer and
-     nothing has been typed, draw it again; a day with edits, or saved, is
-     left. The planner boots asynchronously, so wait until it has loaded its
-     subjects (S starts as an empty shell) rather than trust script timing. */
-  function redraw() {
-    var d = g("draft");
-    if (d && !d.saved && d.__key && !g("dirty") && typeof window.render === "function") {
-      try { (0, eval)("draft = null"); window.render(); } catch (e) { }
-    }
-  }
+  /* Wait until the planner has loaded its subjects (S starts as an empty
+     shell) rather than trust script timing. v125: the planner draws for the
+     first time only after this file has run, so the day is never drawn from
+     the old answer and there is nothing to redraw. */
   var tries = 0;
   (function whenLoaded() {
     var S = g("S");
     if (!S || !Array.isArray(S.subjects) || !S.subjects.length) { if (++tries < 80) setTimeout(whenLoaded, 50); return; }
     try { unbake(); } catch (e) { }
-    redraw();
   })();
 })();
 
