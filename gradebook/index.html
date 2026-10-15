@@ -2956,15 +2956,17 @@ function cgMark(sid, codes, asOf, since) {
 }
 /* sids: just these children (a group); omitted, the whole class */
 function cgPopOf(sids) { return sids ? S.students.filter(st => sids.indexOf(st.id) >= 0) : S.students; }
-function cgClassStat(codes, asOf, since, sids) {
-  const pop = cgPopOf(sids);
+/* opt (v129, Extend groups): { bar: 4, codeFor: sid => that child's own
+   standard }, so each child is counted on their own next skill at 4 */
+function cgClassStat(codes, asOf, since, sids, opt) {
+  const pop = cgPopOf(sids), bar = opt && opt.bar || 3;
   const out = { n: pop.length, marked: 0, at: 0, below: [], none: [], pct: null, byMark: [0, 0, 0, 0] };
   pop.forEach(st => {
-    const m = cgMark(st.id, codes, asOf, since);
+    const m = cgMark(st.id, opt && opt.codeFor ? [opt.codeFor(st.id)] : codes, asOf, since);
     if (m == null) { out.none.push(st); return; }
     out.marked++;
     out.byMark[roundMark(m) - 1]++;                         /* v127: the bar on Class goal */
-    if (roundMark(m) >= 3) out.at++; else out.below.push({ st: st, m: m });
+    if (roundMark(m) >= bar) out.at++; else out.below.push({ st: st, m: m });
   });
   out.pct = cgPct(out.at, out.marked);
   return out;
@@ -3065,6 +3067,10 @@ function cgAgreement(nd) {
 function cgActive() { return (S.goals || []).find(g => !g.done && !g.group) || null; }
 /* a group goal counts whoever is in the group now: data follows the child (v123) */
 function cgPop(g) { return g && g.group ? ggMembers(g.group) : null; }
+/* v129: an Extend goal counts each child at 4 on the skill they were
+   working toward when it started (one who joins later: their next skill) */
+function cgGoalOpt(g) { return g && g.bar ? { bar: g.bar, codeFor: sid => (g.targets || {})[sid] || ggExtendTarget(sid) } : null; }
+function cgBarWords(g) { return g && g.bar === 4 ? "at 4 on their next skill" : "at 3 or higher"; }
 function cgFocusCodes(kind, key) {
   if (kind === "std") return byCode[key] ? [key] : [];
   return activeCodes("Math").filter(c => cgDomainOf(c) === key);
@@ -3094,10 +3100,11 @@ function cgGrade() {
 }
 function cgStatement(g) {
   /* a group still named for its need would say the need twice: "this group" */
-  const gname = g.group ? ggName(g) : "", same = g.group && byCode[g.focus.key] && gname === byCode[g.focus.key].lbl;
+  const gname = g.group ? ggName(g) : "", same = g.group && (g.bar === 4 ? gname === "Extend" : byCode[g.focus.key] && gname === byCode[g.focus.key].lbl);
   const who = g.group ? (same ? "the children in this group" : "the children in the " + gname + " group") : "our " + cgGrade();
-  let s = "By " + cgLongDate(g.due) + ", " + g.target + "% of " + who + " will score 3 or higher on " +
-    cgFocusWords(g) + " in daily classwork, up from " + (g.base.pct == null ? "no marks yet" : g.base.pct + "%") +
+  let s = "By " + cgLongDate(g.due) + ", " + g.target + "% of " + who + (g.bar === 4
+    ? " will score 4 on the next skill each is working toward"
+    : " will score 3 or higher on " + cgFocusWords(g)) + " in daily classwork, up from " + (g.base.pct == null ? "no marks yet" : g.base.pct + "%") +
     " on " + cgLongDate(g.started) + ".";
   if (g.ir && g.ir.target != null) {
     const d = cgDom(g.ir.dom);
@@ -3136,7 +3143,7 @@ function cgStartGoal() {
 }
 function cgGoalNow(g) {
   const pop = cgPop(g);
-  const st = cgClassStat(g.codes, null, null, pop);
+  const st = cgClassStat(g.codes, null, null, pop, cgGoalOpt(g));
   const ir = g.ir ? cgIrStat(g.ir.dom, null, pop) : null;
   const t = todayISO(), total = Math.max(1, cgDaysBetween(g.started, g.due));
   const el = Math.max(0, Math.min(total, cgDaysBetween(g.started, t)));
@@ -3154,7 +3161,7 @@ function cgGoalNow(g) {
 }
 function cgPaceWords(g, now) {
   switch (now.pace) {
-    case "met": return "Goal met: " + now.st.pct + "% are at 3 or higher, against a target of " + g.target + "%.";
+    case "met": return "Goal met: " + now.st.pct + "% are " + cgBarWords(g) + ", against a target of " + g.target + "%.";
     case "early": return "Just started. The first check against the line comes after a week of marks.";
     case "on": return "On pace. The line has " + (g.group ? "the group" : "the class") + " at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
     case "behind": return "Behind pace by " + (now.expected - now.st.pct) + " points. The line has " + (g.group ? "the group" : "the class") + " at about " + now.expected + "% by today; it is at " + now.st.pct + "%.";
@@ -3165,11 +3172,11 @@ function cgPaceWords(g, now) {
 function cgSeries(g) {
   const t = todayISO(), end = g.due < t ? g.due : t, pts = [], pop = cgPop(g);
   for (let d = g.started; d <= end; d = cgAddDays(d, 7)) {
-    const s = cgClassStat(g.codes, d, null, pop);
+    const s = cgClassStat(g.codes, d, null, pop, cgGoalOpt(g));
     if (s.pct != null) pts.push({ date: d, pct: s.pct });
   }
   if (!pts.length || pts[pts.length - 1].date !== end) {
-    const s = cgClassStat(g.codes, end, null, pop);
+    const s = cgClassStat(g.codes, end, null, pop, cgGoalOpt(g));
     if (s.pct != null) pts.push({ date: end, pct: s.pct });
   }
   return pts;
@@ -3559,44 +3566,139 @@ function ggGroup(gid) { return (S.ggroups || []).find(x => x.id === gid) || null
 function ggName(g) { const gr = g && g.group ? ggGroup(g.group) : null; return gr ? gr.name : (g && g.groupName) || "this"; }
 function ggOpenGoal(gid) { return (S.goals || []).find(g => g.group === gid && !g.done) || null; }
 function ggHasGroups() { return (S.ggroups || []).length > 0; }
+/* v129: the Extend group, for children at 3 or higher on every focus skill.
+   Its numbers count each child at 4 on their own next skill. */
+function ggIsExtend(gr) { return !!gr && gr.kind === "extend"; }
+function ggOpt(gr) { return ggIsExtend(gr) ? { bar: 4, codeFor: sid => (gr.targets && gr.targets[sid]) || ggExtendTarget(sid) } : null; }
+function ggStat(gr, sids, asOf) { return cgClassStat(ggIsExtend(gr) ? ggFocusCodes() : [gr.std], asOf || null, null, sids, ggOpt(gr)); }
+/* where a child not in any group belongs among the groups there are */
+function ggFit(sid) {
+  const codes = ggFocusCodes(), gs = S.ggroups || [];
+  if (!codes.length || !gs.length) return null;
+  const mk = {};
+  codes.forEach(c => { const m = cgMark(sid, [c], null, null); if (m != null) mk[c] = m; });
+  const p = ggPlaceOf(sid, codes, mk), need = gs.filter(g => !ggIsExtend(g));
+  if (p.extend) { const x = gs.find(ggIsExtend); if (x) return x; }
+  const order = c => { const i = codes.indexOf(c); return i < 0 ? 999 : i; }, at = p.extend ? codes.length : order(p.std);
+  const same = need.find(g => g.std === p.std);
+  if (same) return same;
+  const earlier = need.filter(g => order(g.std) < at).sort((a, b) => order(b.std) - order(a.std))[0];
+  const later = need.filter(g => order(g.std) > at).sort((a, b) => order(a.std) - order(b.std))[0];
+  return earlier || later || gs[0];
+}
+function ggPlaceOut() {
+  const out = S.students.filter(st => !ggGroup((S.ggPlace || {})[st.id]));
+  S.ggPlace = S.ggPlace || {};
+  let n = 0;
+  out.forEach(st => { const g = ggFit(st.id); if (g) { S.ggPlace[st.id] = g.id; n++; } });
+  save(); renderClassGoal(); toast(n + (n === 1 ? " child placed" : " children placed"));
+}
+
+/* v129: the skills a group goal can be about, in the order they build on
+   each other, earliest first. A child's goal area is the first of these
+   they are below 3 on. These are the four strands he spends most time on;
+   fact fluency within 20, measurement, time, money, shapes and data are
+   left out on purpose (the whole grade works on fluency all year), so a
+   low mark there never makes a goal area. Only standards switched on count. */
+const GG_FOCUS = [
+  ["Place value", ["2.NBT.A.1", "2.NBT.A.2", "2.NBT.A.3", "2.NBT.A.4"]],
+  ["Adding and subtracting within 100", ["2.NBT.B.5", "2.OA.A.1"]],
+  ["Extending the operations", ["2.NBT.B.8", "2.NBT.B.6", "2.NBT.B.7", "2.NBT.B.9"]],
+  ["Groundwork for multiplication", ["2.OA.C.3", "2.OA.C.4"]]
+];
+function ggFocusCodes() {
+  const on = activeCodes("Math");
+  return GG_FOCUS.reduce((a, t) => a.concat(t[1]), []).filter(c => on.indexOf(c) >= 0);
+}
+function ggTierOf(code) { const t = GG_FOCUS.find(t => t[1].indexOf(code) >= 0); return t ? t[0] : ""; }
+/* iReady places a child with no marks on these skills: their lower of
+   Number and Operations and Algebra, when below grade level (a tie goes to
+   Number and Operations, which comes first), to that domain's first skill */
+function ggIreadyPlace(sid, codes) {
+  const r = S.iready.filter(x => x.sid === sid && x.subject === "Math" && x.date).sort((a, b) => a.date.localeCompare(b.date)).pop();
+  if (!r) return null;
+  const num = cgDomRank(r, "num"), alg = cgDomRank(r, "alg");
+  if (num == null && alg == null) return null;
+  const first = re => codes.find(c => re.test(c)) || null;
+  const nb = num != null && num < 0, ab = alg != null && alg < 0;
+  if (nb && (!ab || num <= alg)) return { std: first(/\.NBT\./) || codes[0] };
+  if (ab) return { std: first(/\.OA\./) || codes[0] };
+  return { extend: true };
+}
+/* one child: where they go and why. marks are their marks on the focus skills */
+function ggPlaceOf(sid, codes, mk) {
+  const marked = codes.filter(c => mk[c] != null);
+  if (marked.length) {
+    const low = marked.filter(c => roundMark(mk[c]) < 3);
+    if (low.length) return { std: low[0], needs: low, why: "marks" };
+    return { extend: true, why: "marks" };
+  }
+  const ir = ggIreadyPlace(sid, codes);
+  if (ir) return Object.assign({ why: "iready", needs: ir.std ? [ir.std] : [] }, ir);
+  return { std: codes[0], needs: [codes[0]], why: "none" };
+}
+/* an Extend child's next skill: the first focus skill they are below 4 on;
+   at 4 on all they have marks on, the next skill after those; else the last */
+function ggExtendTarget(sid, codes, mk) {
+  codes = codes || ggFocusCodes();
+  if (!mk) { mk = {}; codes.forEach(c => { const m = cgMark(sid, [c], null, null); if (m != null) mk[c] = m; }); }
+  const marked = codes.filter(c => mk[c] != null);
+  const below = marked.find(c => roundMark(mk[c]) < 4);
+  if (below) return below;
+  if (!marked.length) return codes[0];
+  const after = codes.slice(codes.indexOf(marked[marked.length - 1]) + 1)[0];
+  return after || codes[codes.length - 1];
+}
 
 function ggSuggest(win) {
-  const since = cgSuggestSince(win);
-  const codes = activeCodes("Math").filter(c => cgDomainOf(c));
-  const marks = {}, below = {};
+  const since = cgSuggestSince(win), codes = ggFocusCodes(), order = c => codes.indexOf(c);
+  const marks = {}, why = {}, needs = {}, targets = {}, by = {}, extend = [];
   S.students.forEach(st => {
-    marks[st.id] = {};
-    codes.forEach(c => { const m = cgMark(st.id, [c], null, since); if (m != null) marks[st.id][c] = m; });
+    const mk = marks[st.id] = {};
+    codes.forEach(c => { const m = cgMark(st.id, [c], null, since); if (m != null) mk[c] = m; });
   });
-  codes.forEach(c => { below[c] = S.students.filter(st => marks[st.id][c] != null && roundMark(marks[st.id][c]) < 3).length; });
-  const order = c => codes.indexOf(c);
-  const needs = {}, onTrack = [], noMarks = [];
+  if (!codes.length) return { groups: [], codes: codes, marks: marks, why: why, targets: targets };
   S.students.forEach(st => {
-    const mine = Object.keys(marks[st.id]);
-    if (!mine.length) { noMarks.push(st.id); return; }
-    const low = mine.filter(c => roundMark(marks[st.id][c]) < 3)
-      .sort((a, b) => marks[st.id][a] - marks[st.id][b] || below[b] - below[a] || order(a) - order(b));
-    if (!low.length) onTrack.push(st.id); else needs[st.id] = low;
+    const p = ggPlaceOf(st.id, codes, marks[st.id]);
+    why[st.id] = p.why;
+    if (p.extend) { extend.push(st.id); targets[st.id] = ggExtendTarget(st.id, codes, marks[st.id]); return; }
+    needs[st.id] = p.needs.length ? p.needs : [p.std];
+    (by[p.std] = by[p.std] || []).push(st.id);
   });
-  const by = {};
-  Object.keys(needs).forEach(sid => { const c = needs[sid][0]; (by[c] = by[c] || []).push(sid); });
-  /* a child alone with their need joins their next need that has a group */
-  const alone = [];
-  Object.keys(by).filter(c => by[c].length === 1).forEach(c => {
-    const sid = by[c][0];
-    const next = needs[sid].slice(1).find(n => by[n] && by[n].length >= 2);
-    if (next) { by[next].push(sid); delete by[c]; }
-  });
-  Object.keys(by).filter(c => by[c].length === 1).forEach(c => { alone.push({ sid: by[c][0], std: c }); delete by[c]; });
-  const groups = Object.keys(by).map(c => ({ std: c, kids: by[c].sort((a, b) => marks[a][c] - marks[b][c]), marks: marks }))
-    .sort((a, b) => b.kids.length - a.kids.length || order(a.std) - order(b.std));
-  return { groups: groups, alone: alone, onTrack: onTrack, noMarks: noMarks, marks: marks };
+  /* nobody is left on their own while another group could take them: from
+     the latest skill back, a child alone with their need joins the group for
+     their next missing skill, else the nearest earlier group, else the
+     nearest later one. With no other group at all, a group of one stays. */
+  for (let moved = true; moved;) {
+    moved = false;
+    const single = Object.keys(by).filter(c => by[c].length === 1).sort((a, b) => order(b) - order(a));
+    for (const c of single) {
+      const sid = by[c][0], others = Object.keys(by).filter(x => x !== c);
+      if (!others.length) continue;
+      const next = needs[sid].slice(1).find(n => by[n] && by[n].length >= 2);
+      const earlier = others.filter(x => order(x) < order(c)).sort((a, b) => order(b) - order(a))[0];
+      const later = others.filter(x => order(x) > order(c)).sort((a, b) => order(a) - order(b))[0];
+      const to = next || earlier || later;
+      by[to].push(sid); delete by[c]; moved = true; break;
+    }
+  }
+  const lowFirst = c => (a, b) => (marks[a][c] == null) - (marks[b][c] == null) || (marks[a][c] || 0) - (marks[b][c] || 0);
+  const groups = Object.keys(by).sort((a, b) => order(a) - order(b))
+    .map(c => ({ std: c, kind: "need", tier: ggTierOf(c), kids: by[c].sort(lowFirst(c)), marks: marks }));
+  if (extend.length) {
+    const count = {};
+    extend.forEach(sid => { count[targets[sid]] = (count[targets[sid]] || 0) + 1; });
+    const std = Object.keys(count).sort((a, b) => count[b] - count[a] || order(a) - order(b))[0];
+    groups.push({ std: std, kind: "extend", tier: "Extend", kids: extend.slice(), marks: marks, targets: targets });
+  }
+  return { groups: groups, codes: codes, marks: marks, why: why, targets: targets };
 }
 /* the suggestion uses the needs window; kept separate so a test can see it */
 function cgSuggestSince(win) { return cgSince(win); }
 
 function ggUse(sug) {
-  S.ggroups = sug.groups.map(x => ({ id: uid(), name: byCode[x.std].lbl, std: x.std, made: todayISO() }));
+  S.ggroups = sug.groups.map(x => Object.assign({ id: uid(), name: x.kind === "extend" ? "Extend" : byCode[x.std].lbl, std: x.std, made: todayISO(), v: 129 },
+    x.kind === "extend" ? { kind: "extend" } : {}));
   S.ggPlace = {};
   sug.groups.forEach((x, i) => x.kids.forEach(sid => { S.ggPlace[sid] = S.ggroups[i].id; }));
   save(); renderClassGoal(); toast(S.ggroups.length + " groups made");
@@ -3615,34 +3717,43 @@ function ggStart(gid) {
   if (!d.due || d.due <= t) { toast("The goal date needs to be after today"); return; }
   const sids = ggMembers(gid), dom = cgDomainOf(gr.std);
   if (!sids.length) { toast("This group has no children in it"); return; }
-  const base = cgClassStat([gr.std], null, null, sids), irs = cgIrStat(dom, null, sids);
+  /* an Extend goal fixes each child's next skill on the day it starts */
+  const ext = ggIsExtend(gr), targets = {};
+  if (ext) sids.forEach(sid => { targets[sid] = ggExtendTarget(sid); });
+  const base = ext ? cgClassStat(ggFocusCodes(), null, null, sids, { bar: 4, codeFor: sid => targets[sid] }) : cgClassStat([gr.std], null, null, sids), irs = cgIrStat(dom, null, sids);
   const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-  S.goals = (S.goals || []).concat([{
-    id: uid(), subject: "Math", group: gid, groupName: gr.name, focus: { kind: "std", key: gr.std }, codes: [gr.std],
+  S.goals = (S.goals || []).concat([Object.assign({
+    id: uid(), subject: "Math", group: gid, groupName: gr.name, focus: { kind: ext ? "extend" : "std", key: gr.std }, codes: ext ? ggFocusCodes() : [gr.std],
     started: t, due: d.due, base: { pct: base.pct, marked: base.marked, n: base.n, at: base.at },
     target: clamp(d.target),
     ir: cgHasIready() ? { dom: dom, base: irs.n ? { pct: irs.pct, n: irs.n, date: irs.to } : null,
       target: d.irTarget == null || d.irTarget === "" ? null : clamp(d.irTarget) } : null,
     actions: String(d.actions || ""), notes: [], done: null
-  }]);
+  }, ext ? { bar: 4, targets: targets } : {})]);
   UI.ggDraft = null; save(); renderClassGoal(); toast("Goal set for " + gr.name);
 }
 
-function ggMemberChips(gid, sids, std, canMove) {
+/* codeFor (v129): an Extend child's own next skill; why: how a suggested
+   child was placed, when it was not by their marks */
+function ggMemberChips(gid, sids, std, canMove, codeFor, why) {
   const others = (S.ggroups || []).filter(x => x.id !== gid);
   return '<div class="gg-kids">' + sids.map(sid => {
-    const st = S.students.find(s => s.id === sid), m = cgMark(sid, [std], null, null);
+    const st = S.students.find(s => s.id === sid), c = codeFor ? codeFor(sid) : std, m = cgMark(sid, [c], null, null);
+    const w = why && why[sid];
     return '<span class="gg-kid" data-sid="' + esc(sid) + '">' + nameLink(st, fullName(st)) +
-      (m != null ? ' <span class="mark v' + roundMark(m) + ' gg-mk" title="Mark on ' + esc(dispCode(std)) + ' by the report card\u2019s rule">' + m.toFixed(1) + "</span>" : "") +
+      (m != null ? ' <span class="mark v' + roundMark(m) + ' gg-mk" title="Mark on ' + esc(dispCode(c)) + ' by the report card\u2019s rule">' + m.toFixed(1) + "</span>" : "") +
+      (codeFor ? ' <span class="tiny muted gg-next">' + esc(dispCode(c)) + "</span>" : "") +
+      (w === "iready" ? ' <span class="tiny muted gg-why">by iReady</span>' : w === "none" ? ' <span class="tiny muted gg-why">no marks or iReady yet</span>' : "") +
       (canMove ? '<select class="gg-move" data-sid="' + esc(sid) + '" aria-label="Move ' + esc(fullName(st)) + '"><option value="">Move\u2026</option>' +
         others.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") +
         '<option value="-">Out of groups</option></select>' : "") + "</span>";
   }).join("") + "</div>";
 }
-function ggSideBySide(std, sids) {
-  const st = cgClassStat([std], null, null, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
-  return '<div class="gg-sides"><div><span class="hint">Classwork \u00b7 ' + esc(dispCode(std)) + "</span><b>" +
-    (st.marked ? st.at + " of " + st.marked : "\u2013") + "</b><i>at 3 or higher</i></div>" +
+function ggSideBySide(gr, sids) {
+  if (typeof gr === "string") gr = { std: gr };
+  const std = gr.std, ext = ggIsExtend(gr), st = ggStat(gr, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
+  return '<div class="gg-sides"><div><span class="hint">Classwork \u00b7 ' + (ext ? "each child\u2019s next skill" : esc(dispCode(std))) + "</span><b>" +
+    (st.marked ? st.at + " of " + st.marked : "\u2013") + "</b><i>" + (ext ? "at 4" : "at 3 or higher") + "</i></div>" +
     "<div><span class=\"hint\">iReady \u00b7 " + esc(cgDom(dom).name) + "</span><b>" + (ir.n ? ir.on + " of " + ir.n : "\u2013") + "</b><i>" +
     (ir.n ? "on or above grade level" : "no diagnostic yet") + "</i></div></div>";
 }
@@ -3650,36 +3761,44 @@ function ggSideBySide(std, sids) {
    on its standard in the window the suggestion used, which is why they are
    together; said that way rather than as "0 of 3". The all-year figure can
    differ when a shorter window is chosen, and then the count is shown. */
-function ggStartHTML(std, sids) {
-  const st = cgClassStat([std], null, null, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
-  const n = sids.length, all = n === 2 ? "both" : "all " + n;
-  const cw = st.marked === n && st.at === 0
-    ? all + " are below 3 on this standard. That is why they are together."
-    : (st.marked ? st.at + " of " + st.marked + " at 3 or higher on this standard, all year" : "no marks on this standard") + "; below 3 in the window chosen above.";
+function ggStartHTML(gr, sids, why) {
+  if (typeof gr === "string") gr = { std: gr };
+  const std = gr.std, ext = ggIsExtend(gr), st = ggStat(gr, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
+  const n = sids.length, all = n === 2 ? "both" : n === 1 ? "this child" : "all " + n;
+  const byIr = sids.filter(sid => why && why[sid] === "iready").length, none = sids.filter(sid => why && why[sid] === "none").length;
+  const placed = (byIr ? " " + byIr + " placed by iReady, with no marks on these skills yet." : "") + (none ? " " + none + " with no marks or iReady yet, starting here." : "");
+  const cw = ext
+    ? "at 3 or higher on every focus skill they have marks on; each works toward 4 on their next one. " + (st.marked ? st.at + " of " + st.marked + " at 4 on it now." : "") + placed
+    : st.marked && st.at === 0
+    ? (st.marked === n ? all : st.marked === 1 ? "the one with marks" : (st.marked === 2 ? "both" : "all " + st.marked) + " with marks") +
+      (st.marked === 1 ? " is" : " are") + " below 3 on this standard. That is why they are together." + placed
+    : (st.marked ? st.at + " of " + st.marked + " at 3 or higher on this standard, all year" : "no marks on this standard yet") +
+      (st.at > 0 ? "; below 3 in the window chosen above" : "") + "." + placed;
   return '<div class="gg-start"><span class="hint">Where they start</span><div class="gg-sides">' +
     "<div><b>Classwork:</b> " + esc(cw) + "</div>" +
     "<div><b>iReady, " + esc(cgDom(dom).name) + ":</b> " + (ir.n ? ir.on + " of " + ir.n + " on or above grade level." : "no diagnostic yet.") + "</div></div></div>";
 }
 function ggSuggestHTML() {
-  const sug = ggSuggest(UI.cgWin), nm = sid => esc(fullName(S.students.find(s => s.id === sid)));
-  let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Each child goes with their biggest classwork need: their lowest standard below 3. A child alone with a need joins their next need that has a group.</p>' +
+  const sug = ggSuggest(UI.cgWin);
+  let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Every child is in a group. Each goes with the first skill they are below 3 on, in the order these skills build: ' +
+    GG_FOCUS.map(t => esc(t[0].toLowerCase())).join(", then ") + '. Children at 3 or higher on all of them go to <b>Extend</b>, working toward 4 on their next skill. With no marks on these yet, iReady places them; with neither, they start at the first skill.</p>' +
     '<p class="gg-legend"><span class="mark v2 gg-mk">2.0</span> beside a name is that child\u2019s mark on the group\u2019s standard, by the report card\u2019s rule.</p>';
-  if (!sug.groups.length) h += '<div class="cg-empty">No two children share a need below 3 yet, so there are no groups to suggest.</div>';
-  else {
-    h += '<div class="grid2">' + sug.groups.map(x => '<div class="gg-card gg-sug" data-std="' + esc(x.std) + '"><h3>' + esc(byCode[x.std].lbl) +
-      ' <span class="tiny muted">' + x.kids.length + (x.kids.length === 1 ? " child" : " children") + "</span></h3><div>" + codeHTML(x.std) + "</div>" +
-      ggMemberChips(null, x.kids, x.std, false) + ggStartHTML(x.std, x.kids) + "</div>").join("") + "</div>";
-  }
-  const line = (label, list) => list.length ? '<p class="hint gg-rest"><b>' + label + "</b> " + list.join(", ") + "</p>" : "";
-  h += line("On their own:", sug.alone.map(a => nm(a.sid) + " (" + esc(dispCode(a.std)) + ")")) +
-    line("No need below 3:", sug.onTrack.map(nm)) + line("No math marks yet:", sug.noMarks.map(nm));
+  if (!sug.codes.length) return h + '<div class="cg-empty">None of the focus skills are switched on in Setup, so there are no groups to suggest.</div></div>';
+  h += '<div class="grid2">' + sug.groups.map(x => {
+    const ext = x.kind === "extend", gr = { std: x.std, kind: x.kind, targets: x.targets };
+    return '<div class="gg-card gg-sug" data-std="' + esc(x.std) + '" data-kind="' + x.kind + '"><h3>' + (ext ? "Extend" : esc(byCode[x.std].lbl)) +
+      ' <span class="tiny muted">' + x.kids.length + (x.kids.length === 1 ? " child" : " children") + "</span></h3>" +
+      '<div class="tiny muted gg-tier">' + esc(ext ? "At 3 or higher on every focus skill" : x.tier) + "</div>" +
+      (ext ? "" : "<div>" + codeHTML(x.std) + "</div>") +
+      ggMemberChips(null, x.kids, x.std, false, ext ? (sid => x.targets[sid]) : null, sug.why) + ggStartHTML(gr, x.kids, sug.why) + "</div>";
+  }).join("") + "</div>";
   if (sug.groups.length) h += '<div class="row" style="margin-top:10px"><button class="btn primary" id="gg-use">Use these groups</button></div>';
   return h + "</div>";
 }
 function ggDraftHTML(gr) {
   const d = UI.ggDraft, sids = ggMembers(gr.id), dom = cgDomainOf(gr.std);
-  const base = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(dom, null, sids);
-  const g = { group: gr.id, focus: { kind: "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
+  const base = ggStat(gr, sids), ir = cgIrStat(dom, null, sids);
+  const g = { group: gr.id, bar: ggIsExtend(gr) ? 4 : undefined, focus: { kind: ggIsExtend(gr) ? "extend" : "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
     base: { pct: base.pct }, ir: ir.n && d.irTarget != null && d.irTarget !== "" ? { dom: dom, base: { pct: ir.pct }, target: Number(d.irTarget) } : null };
   return '<div class="gg-draft" data-gid="' + esc(gr.id) + '"><div class="row cg-form">' +
     '<label class="fld">Classwork target (%)<input type="number" min="0" max="100" step="5" class="gg-d-target" value="' + esc(d.target) + '"></label>' +
@@ -3721,8 +3840,9 @@ function ggCardHTML(gr) {
     (editing ? '<input class="gg-name" value="' + esc(gr.name) + '" aria-label="Group name">'
       : '<h3 class="gg-title">' + esc(gr.name) + ' <span class="tiny muted">' + sids.length + "</span></h3>") +
     '<button class="btn sm ' + (editing ? "primary" : "ghost") + ' gg-edit">' + (editing ? "Done" : "Edit group") + "</button></div>" +
-    "<div>" + codeHTML(gr.std) + (lbl !== gr.name ? " " + esc(lbl) : "") + "</div>" +
-    ggSideBySide(gr.std, sids) + ggMemberChips(gr.id, sids, gr.std, editing);
+    (ggIsExtend(gr) ? '<div class="hint">Each child works toward 4 on their next focus skill, shown beside their name.</div>'
+      : "<div>" + codeHTML(gr.std) + (lbl !== gr.name ? " " + esc(lbl) : "") + "</div>") +
+    ggSideBySide(gr, sids) + ggMemberChips(gr.id, sids, gr.std, editing, ggIsExtend(gr) ? ggOpt(gr).codeFor : null);
   if (g) h += ggGoalHTML(g);
   else if (UI.ggDraft && UI.ggDraft.gid === gr.id) h += ggDraftHTML(gr);
   else h += '<div class="row" style="margin-top:8px"><button class="btn gg-set"' + (sids.length ? "" : " disabled") + ">Set a goal for this group</button></div>";
@@ -3732,13 +3852,19 @@ function ggHTML() {
   let h = '<div class="sectionhead" id="gg"><h2>Group goals</h2><span class="spacer"></span>' +
     (ggHasGroups() ? '<button class="btn" id="gg-print">Print group goals</button><button class="btn ghost" id="gg-regroup">Start groups over</button>' : "") + "</div>";
   if (!ggHasGroups()) return h + ggSuggestHTML();
+  /* v129: groups made by the old rule (lowest mark, any standard) stay as
+     they are until he starts over; nothing is regrouped behind his back */
+  if (S.ggroups.some(g => !(g.v >= 129)))
+    h += '<div class="notice gg-oldrule"><b>Made by the old rule</b><span>These groups came from each child\u2019s lowest mark on any standard. <b>Start groups over</b> to regroup everyone by the first focus skill they\u2019re missing, with an Extend group.</span></div>';
   h += '<div class="gg-cards">' + S.ggroups.map(ggCardHTML).join("") + "</div>";
   const out = S.students.filter(st => !ggGroup((S.ggPlace || {})[st.id]));
   if (out.length) {
     h += '<div class="card pad gg-out"><h3>Not in a group <span class="tiny muted">' + out.length + '</span></h3><div class="gg-kids">' +
       out.map(st => '<span class="gg-kid" data-sid="' + esc(st.id) + '">' + nameLink(st, fullName(st)) +
+        (ggFit(st.id) ? ' <span class="tiny muted gg-fit">\u2192 ' + esc(ggFit(st.id).name) + "</span>" : "") +
         '<select class="gg-move" data-sid="' + esc(st.id) + '" aria-label="Add ' + esc(fullName(st)) + '"><option value="">Add to\u2026</option>' +
-        S.ggroups.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") + "</select></span>").join("") + "</div></div>";
+        S.ggroups.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") + "</select></span>").join("") + "</div>" +
+      (out.some(st => ggFit(st.id)) ? '<div class="row" style="margin-top:8px"><button class="btn primary" id="gg-place">Place ' + (out.length === 1 ? "them" : "all " + out.length) + " as suggested</button></div>" : "") + "</div>";
   }
   return h;
 }
@@ -3746,6 +3872,7 @@ function ggWire() {
   const P = document.getElementById("panel-goal");
   const q = s => P.querySelector(s), qa = s => P.querySelectorAll(s);
   if (q("#gg-use")) q("#gg-use").onclick = () => ggUse(ggSuggest(UI.cgWin));
+  if (q("#gg-place")) q("#gg-place").onclick = ggPlaceOut;
   if (q("#gg-regroup")) q("#gg-regroup").onclick = ggRegroup;
   if (q("#gg-print")) q("#gg-print").onclick = printGroupGoals;
   qa(".gg-move").forEach(sel => sel.onchange = () => {
@@ -3767,15 +3894,15 @@ function ggWire() {
       c(".gg-name").onkeydown = e => { if (e.key === "Enter") c(".gg-edit").click(); };
     }
     if (c(".gg-set")) c(".gg-set").onclick = () => {
-      const sids = ggMembers(gid), b = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(cgDomainOf(gr.std), null, sids);
+      const sids = ggMembers(gid), b = ggStat(gr, sids), ir = cgIrStat(cgDomainOf(gr.std), null, sids);
       UI.ggDraft = { gid: gid, target: cgSuggest(b.pct), irTarget: ir.n ? cgSuggest(ir.pct) : null, due: cgTermEnd(), actions: "" };
       renderClassGoal();
     };
     if (c(".gg-draft")) {
       const d = UI.ggDraft;
       const preview = () => {
-        const sids = ggMembers(gid), dom = cgDomainOf(gr.std), b = cgClassStat([gr.std], null, null, sids), ir = cgIrStat(dom, null, sids);
-        c(".gg-preview").textContent = cgStatement({ group: gid, focus: { kind: "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
+        const sids = ggMembers(gid), dom = cgDomainOf(gr.std), b = ggStat(gr, sids), ir = cgIrStat(dom, null, sids);
+        c(".gg-preview").textContent = cgStatement({ group: gid, bar: ggIsExtend(gr) ? 4 : undefined, focus: { kind: ggIsExtend(gr) ? "extend" : "std", key: gr.std }, due: d.due, started: todayISO(), target: Number(d.target) || 0,
           base: { pct: b.pct }, ir: ir.n && d.irTarget != null && d.irTarget !== "" ? { dom: dom, base: { pct: ir.pct }, target: Number(d.irTarget) } : null });
       };
       c(".gg-d-target").oninput = e => { d.target = e.target.value; preview(); };
@@ -3825,16 +3952,16 @@ function ggSheetHTML() {
     '<div class="cf-meta">Printed ' + esc(cgLongDate(todayISO())) + "</div></div>";
   S.ggroups.forEach(gr => {
     const sids = ggMembers(gr.id), g = ggOpenGoal(gr.id);
-    h += '<section class="gg-s-block"><h3 class="cg-s-h">' + esc(gr.name) + ' <span class="cg-s-n">' + esc(dispCode(gr.std)) + " \u00b7 " + sids.length + " children</span></h3>";
+    h += '<section class="gg-s-block"><h3 class="cg-s-h">' + esc(gr.name) + ' <span class="cg-s-n">' + (ggIsExtend(gr) ? "each child\u2019s next skill" : esc(dispCode(gr.std))) + " \u00b7 " + sids.length + " children</span></h3>";
     if (!g) {
-      const st = cgClassStat([gr.std], null, null, sids);
-      h += '<p class="cf-none">No goal set yet. ' + (st.marked ? st.at + " of " + st.marked + " at 3 or higher now." : "") + "</p></section>";
+      const st = ggStat(gr, sids);
+      h += '<p class="cf-none">No goal set yet. ' + (st.marked ? st.at + " of " + st.marked + (ggIsExtend(gr) ? " at 4 on their next skill now." : " at 3 or higher now.") : "") + "</p></section>";
       return;
     }
     const now = cgGoalNow(g);
     h += '<p class="cg-s-goal">' + esc(cgStatement(g)) + "</p>" +
       '<table class="cf-table cg-s-nums"><thead><tr><th>Measure</th><th class="cf-c">Baseline</th><th class="cf-c">Now</th><th class="cf-c">Target</th></tr></thead><tbody>' +
-      '<tr><td>Classwork: at 3 or higher</td><td class="cf-c">' + (g.base.pct == null ? "\u2013" : g.base.pct + "%") + '</td><td class="cf-c">' +
+      '<tr><td>Classwork: ' + cgBarWords(g) + '</td><td class="cf-c">' + (g.base.pct == null ? "\u2013" : g.base.pct + "%") + '</td><td class="cf-c">' +
       (now.st.pct == null ? "\u2013" : now.st.pct + "%") + ' <span class="cg-s-n">(' + now.st.at + "/" + now.st.marked + ')</span></td><td class="cf-c">' + g.target + "%</td></tr>" +
       (g.ir ? '<tr><td>iReady: on or above in ' + esc(cgDom(g.ir.dom).name) + '</td><td class="cf-c">' + (g.ir.base && g.ir.base.pct != null ? g.ir.base.pct + "%" : "\u2013") +
         '</td><td class="cf-c">' + (now.ir && now.ir.n ? now.ir.pct + '% <span class="cg-s-n">(' + now.ir.on + "/" + now.ir.n + ")</span>" : "\u2013") + '</td><td class="cf-c">' + (g.ir.target == null ? "\u2013" : g.ir.target + "%") + "</td></tr>" : "") +
