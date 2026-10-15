@@ -426,6 +426,57 @@ summary.tiny,summary.small{padding:4px 0}
   .gg-move{max-width:none}
 }
 
+/* ---------- v127: Class goal needs as a table; group starting points ---------- */
+.cg-needs{display:flex;flex-direction:column;gap:12px}
+.cg-colhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px}
+.cg-colhead .hint{margin:0}
+.cg-irtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 20px;margin-top:8px}
+.cg-irtiles .cg-nums{gap:2px 10px}
+.cg-irnone{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;border-style:dashed}
+.cg-irnone .cg-empty{flex:1 1 380px;padding:0}
+.cg-key{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.cg-key span{display:inline-flex;align-items:center;gap:6px}
+.cg-key i{display:inline-block;width:14px;height:9px;border-radius:2px}
+.cg-ntable{width:100%;min-width:860px;border-collapse:collapse;font-size:13.5px}
+.cg-ntable th{font-size:12px;font-weight:500;color:var(--ink-2);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line-strong)}
+.cg-ntable td{padding:10px 8px;vertical-align:middle;border:0}
+.cg-ntable .cg-rank{width:24px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.cg-ntable .cg-stdcell{min-width:200px}
+.cg-ntable .cg-unit2{display:block;margin:2px 0 0}
+.cg-ntable td.cg-nums{display:table-cell;white-space:nowrap}
+.cg-ntable td.cg-nums>span{display:block}
+.cg-ntable .cg-act{text-align:right;white-space:nowrap}
+.cg-barcell{min-width:240px;width:34%}
+.cg-bar{display:flex;height:22px;border-radius:5px;overflow:hidden;background:var(--line)}
+.cg-bar>span{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:#fff;min-width:0}
+.cg-b1{background:var(--s1)}
+.cg-b2{background:var(--s2)}
+.cg-b3{background:var(--s3)}
+.cg-b4{background:var(--s4)}
+.cg-bnone{background:var(--line-strong);color:var(--ink-2) !important}
+.cg-domcell{font-size:13px;min-width:170px}
+.cg-dompct{display:block;font-size:12px;color:var(--ink-2)}
+.cg-both{display:inline-block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--accent-2);background:var(--accent-soft);border:1px solid var(--accent);border-radius:5px;padding:0 6px}
+.gg-legend{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12.5px;color:var(--ink-2)}
+.gg-mk{width:auto;min-width:32px;padding:0 5px;height:21px;font-size:12px}
+.gg-start{margin-top:4px}
+.gg-start .gg-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
+.gg-start .gg-sides>div{background:var(--accent-soft);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;color:var(--ink)}
+.gg-start .gg-sides>div{display:block;border:0}
+.gg-start .gg-sides b{font-size:inherit}
+@media (max-width:760px){
+  .gg-start .gg-sides{grid-template-columns:1fr}
+  /* each need stacks: standard, bar, numbers, domain, button (order is the rank) */
+  .cg-ntable{min-width:0}
+  .cg-ntable thead{display:none}
+  .cg-ntable,.cg-ntable tbody,.cg-ntable tr,.cg-ntable td,.cg-ntable td.cg-nums{display:block;width:auto;min-width:0}
+  .cg-ntable tr{padding:10px 0}
+  .cg-ntable td{padding:3px 0}
+  .cg-ntable .cg-rank{display:none}
+  .cg-ntable td.cg-nums>span{display:inline;margin-right:10px}
+  .cg-ntable .cg-act{text-align:left}
+}
+
 /* ---------- v126: reading goals as tracks ---------- */
 .ot-key{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:10px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--ink-2)}
 .ot-key span{display:inline-flex;align-items:center;gap:7px}
@@ -485,8 +536,13 @@ summary.tiny,summary.small{padding:4px 0}
 .asglist .al-bar{display:block;height:5px;margin-top:4px;border-radius:3px;background:var(--line);overflow:hidden}
 .asglist .al-bar i{display:block;height:100%;background:var(--accent)}
 .asglist .al-foot{display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px 2px}
+/* v128: shut, the list is a button above the cards */
+.asgtoggle{display:none;align-items:center;flex-wrap:wrap;gap:6px 14px}
+.asgtoggle .btn{display:inline-flex;align-items:center;gap:7px}
+.asglist .al-close{margin-left:-4px}
 @media (min-width:1100px){
   .asglist{display:block}
+  .asgtoggle{display:flex}
   .enterlay .asgbar{display:none}
 }
 @media print{.asglist{display:none !important}}
@@ -1272,7 +1328,7 @@ function renderEnter() {
 
   /* v126: the list of saved assignments sits beside everything else */
   let html = '<div class="enterlay">' + asgListHTML() + '<div class="stack enter-main">';
-  html += assignmentBarHTML();
+  html += asgToggleHTML() + assignmentBarHTML();
   /* On a phone the assignment bar and this card filled the whole first
      screen of an iPhone SE, so every marking session began with a scroll.
      Once the assignment on screen has marks, the card folds to one line
@@ -2902,11 +2958,12 @@ function cgMark(sid, codes, asOf, since) {
 function cgPopOf(sids) { return sids ? S.students.filter(st => sids.indexOf(st.id) >= 0) : S.students; }
 function cgClassStat(codes, asOf, since, sids) {
   const pop = cgPopOf(sids);
-  const out = { n: pop.length, marked: 0, at: 0, below: [], none: [], pct: null };
+  const out = { n: pop.length, marked: 0, at: 0, below: [], none: [], pct: null, byMark: [0, 0, 0, 0] };
   pop.forEach(st => {
     const m = cgMark(st.id, codes, asOf, since);
     if (m == null) { out.none.push(st); return; }
     out.marked++;
+    out.byMark[roundMark(m) - 1]++;                         /* v127: the bar on Class goal */
     if (roundMark(m) >= 3) out.at++; else out.below.push({ st: st, m: m });
   });
   out.pct = cgPct(out.at, out.marked);
@@ -3164,21 +3221,33 @@ function cgArrow(t) {
   const a = t >= 10 ? "\u2191" : t <= -10 ? "\u2193" : "\u2192";
   return '<span class="cg-trend" title="Change in the share at 3 or higher over the last 3 weeks">' + a + " " + (t > 0 ? "+" : "") + t + " in 3 wks</span>";
 }
-function cgNeedRowHTML(r, canPick) {
-  const s = r.stat;
-  return '<div class="cg-need" data-std="' + esc(r.code) + '">' +
-    '<div class="cg-need-top">' + codeHTML(r.code) + ' <span class="cg-lbl">' + esc(byCode[r.code].lbl) + "</span>" +
-    (r.unit ? '<span class="cg-unit">' + esc(r.unit) + "</span>" : "") + "</div>" +
-    '<div class="cg-meter" aria-hidden="true"><span class="cg-at" style="width:' + s.pct + '%"></span></div>' +
-    '<div class="cg-nums"><span><b>' + s.below.length + " of " + s.marked + "</b> below 3</span><span>" + s.pct + "% at 3+</span>" +
-    cgArrow(r.trend) + '<span class="spacer" style="flex:1"></span>' +
-    (canPick ? '<button class="btn sm ghost cg-pick" data-kind="std" data-key="' + esc(r.code) + '">Make this the goal</button>' : "") +
-    "</div></div>";
+/* v127: one row of the classwork table. The bar is the whole class split by
+   each child's mark (the report card's rule, rounded as the report card
+   rounds), with no mark yet in grey; the numbers beside it are the same
+   ones the list had. Its iReady domain sits in its own column, with that
+   domain's share on or above: shown beside it, never folded into the rank. */
+function cgBarHTML(s) {
+  const n = Math.max(1, s.n), parts = s.byMark.map((v, i) => ({ v: v, c: "cg-b" + (i + 1), what: "at " + (i + 1) }))
+    .concat([{ v: s.none.length, c: "cg-bnone", what: "with no mark yet" }]).filter(x => x.v);
+  return '<span class="cg-bar" role="img" aria-label="' + esc(parts.map(x => x.v + " " + x.what).join(", ")) + '">' +
+    parts.map(x => '<span class="' + x.c + '" style="width:' + (100 * x.v / n).toFixed(2) + '%">' + (x.v / n >= 0.05 ? x.v : "") + "</span>").join("") + "</span>";
+}
+function cgNeedRowHTML(r, canPick, i, nd, both) {
+  const s = r.stat, ir = nd ? nd.ir.find(d => d.key === r.dom) : null;
+  return '<tr class="cg-need" data-std="' + esc(r.code) + '">' +
+    '<td class="cg-rank">' + (i + 1) + "</td>" +
+    '<td class="cg-stdcell">' + codeHTML(r.code) + ' <span class="cg-lbl">' + esc(byCode[r.code].lbl) + "</span>" +
+    (r.unit ? '<span class="cg-unit cg-unit2">' + esc(r.unit) + "</span>" : "") + "</td>" +
+    '<td class="cg-barcell">' + cgBarHTML(s) + "</td>" +
+    '<td class="cg-nums"><span><b>' + s.below.length + " of " + s.marked + "</b> below 3</span><span>" + s.pct + "% at 3+</span>" + cgArrow(r.trend) + "</td>" +
+    '<td class="cg-domcell">' + esc(cgDom(r.dom).name) + (ir ? '<span class="cg-dompct">' + ir.pct + "% on or above</span>" : "") +
+    (both ? '<span class="cg-both">Both point here</span>' : "") + "</td>" +
+    '<td class="cg-act">' + (canPick ? '<button class="btn sm ghost cg-pick" data-kind="std" data-key="' + esc(r.code) + '">Make this the goal</button>' : "") + "</td></tr>";
 }
 function cgIrRowHTML(d, canPick) {
   const w = x => d.n ? (100 * x / d.n).toFixed(1) : 0;
   const chg = d.prev ? d.pct - d.prev.pct : null;
-  return '<div class="cg-need cg-irrow" data-dom="' + d.key + '">' +
+  return '<div class="cg-irrow" data-dom="' + d.key + '">' +
     '<div class="cg-need-top"><span class="cg-lbl"><b>' + esc(d.name) + "</b></span></div>" +
     '<div class="cg-meter cg-stack" aria-hidden="true"><span class="cg-on" style="width:' + w(d.on) + '%"></span><span class="cg-one" style="width:' + w(d.one) + '%"></span><span class="cg-two" style="width:' + w(d.two) + '%"></span></div>' +
     '<div class="cg-nums"><span><b>' + d.pct + "%</b> on or above</span><span>" + d.one + " one below</span><span>" + d.two + " two+ below</span>" +
@@ -3189,31 +3258,36 @@ function cgIrRowHTML(d, canPick) {
 }
 function cgRange(a, b) { return !a ? "" : a === b ? shortDate(a) : shortDate(a) + "\u2013" + shortDate(b); }
 function cgNeedsHTML(nd, canPick) {
+  /* v127: iReady as a strip of its domains, then classwork as one table. Two
+     cards, each ranked by its own measure; they are not blended into one rank. */
   let h = '<div class="sectionhead"><h2>Where the class needs the most help</h2><span class="spacer"></span>' +
-    '<span class="hint">Classwork and iReady side by side. They measure different things, so they are not blended into one rank.</span></div>';
-  h += '<div class="grid2 cg-needs">';
-  /* classwork */
-  h += '<div class="card pad cg-col" id="cg-classwork"><h3>Daily classwork</h3><p class="hint" style="margin:2px 0 10px">Standards ranked by how many children are below 3, each child\u2019s mark by the report card\u2019s rule.</p>';
-  if (nd.ranked.length) h += nd.ranked.slice(0, 6).map(r => cgNeedRowHTML(r, canPick)).join("");
-  else h += '<div class="cg-empty">No standard has enough marks to rank yet. A standard is ranked once half the class has a mark on it.</div>';
-  const thin = nd.rows.filter(r => r.thin && r.stat.marked);
-  if (thin.length) h += '<p class="hint" style="margin-top:8px">Too few marks to rank yet: ' + thin.map(r => esc(dispCode(r.code)) + " (" + r.stat.marked + ")").join(", ") + ".</p>";
-  h += "</div>";
+    '<span class="hint">Classwork and iReady are ranked separately. They measure different things, so they are not blended into one rank.</span></div>';
+  h += '<div class="cg-needs">';
   /* iReady */
-  h += '<div class="card pad cg-col" id="cg-iready"><h3>iReady diagnostic</h3>';
   if (nd.ir.length) {
     const all = nd.ir.concat([nd.overall]);
     const from = all.map(d => d.from).filter(Boolean).sort()[0], to = all.map(d => d.to).filter(Boolean).sort().pop();
-    h += '<p class="hint" style="margin:2px 0 10px">Domains ranked by the share on or above grade level, from each child\u2019s most recent diagnostic (' + esc(cgRange(from, to)) + ").</p>";
-    h += nd.ir.map(d => cgIrRowHTML(d, canPick)).join("");
-    if (nd.overall.n) h += '<p class="hint" style="margin-top:8px">Overall: ' + nd.overall.pct + "% on or above grade level, " + nd.overall.two + " two or more grades below (" + nd.overall.n + " tested).</p>";
+    h += '<div class="card pad cg-col cg-irstrip" id="cg-iready"><div class="cg-colhead"><h3>iReady diagnostic</h3><span class="hint">Domains ranked by the share on or above grade level, lowest first, from each child\u2019s most recent diagnostic (' + esc(cgRange(from, to)) + ").</span></div>" +
+      '<div class="cg-irtiles">' + nd.ir.map(d => cgIrRowHTML(d, canPick)).join("") + "</div>" +
+      '<div class="cg-key"><span><i class="cg-on"></i>On or above grade level</span><span><i class="cg-one"></i>One grade below</span><span><i class="cg-two"></i>Two or more below</span></div>';
+    if (nd.overall.n) h += '<p class="hint" style="margin:6px 0 0">Overall: ' + nd.overall.pct + "% on or above grade level, " + nd.overall.two + " two or more grades below (" + nd.overall.n + " tested).</p>";
+    h += "</div>";
   } else {
-    h += '<div class="cg-empty">No iReady math results yet. Bring in a diagnostic export on the iReady tab and this side fills in.' +
-      '<div style="margin-top:8px"><button class="btn sm" onclick="gotoTab(\'iready\')">Go to iReady</button></div></div>';
+    h += '<div class="card pad cg-col cg-irstrip cg-irnone" id="cg-iready"><span class="cg-empty"><b>iReady diagnostic.</b> No iReady math results yet. Bring in a diagnostic export on the iReady tab and it is ranked here, on its own.</span>' +
+      '<button class="btn sm" onclick="gotoTab(\'iready\')">Go to iReady</button></div>';
   }
-  h += "</div></div>";
-  /* agreement */
-  const ag = cgAgreement(nd);
+  /* classwork */
+  const ag = cgAgreement(nd), bothCodes = [];
+  ag.forEach(a => a.rows.forEach(r => bothCodes.push(r.code)));
+  h += '<div class="card pad cg-col" id="cg-classwork"><div class="cg-colhead"><h3>Daily classwork</h3><span class="hint">Standards ranked by how many children are below 3, each child\u2019s mark by the report card\u2019s rule. Each bar is the whole class.</span></div>';
+  if (nd.ranked.length) {
+    h += '<div class="cg-key"><span><i class="cg-b1"></i>1</span><span><i class="cg-b2"></i>2</span><span><i class="cg-b3"></i>3</span><span><i class="cg-b4"></i>4</span><span><i class="cg-bnone"></i>No mark yet</span></div>' +
+      '<div class="cg-tablewrap"><table class="cg-ntable"><thead><tr><th class="cg-rank">#</th><th>Standard</th><th>Children by mark</th><th>Below 3</th><th>Its iReady domain</th><th></th></tr></thead><tbody>' +
+      nd.ranked.slice(0, 6).map((r, i) => cgNeedRowHTML(r, canPick, i, nd, bothCodes.indexOf(r.code) >= 0)).join("") + "</tbody></table></div>";
+  } else h += '<div class="cg-empty">No standard has enough marks to rank yet. A standard is ranked once half the class has a mark on it.</div>';
+  const thin = nd.rows.filter(r => r.thin && r.stat.marked);
+  if (thin.length) h += '<p class="hint" style="margin-top:8px">Too few marks to rank yet: ' + thin.map(r => esc(dispCode(r.code)) + " (" + r.stat.marked + ")").join(", ") + ".</p>";
+  /* agreement, said in full under the table it tags */
   if (ag.length) {
     h += '<div class="notice ok cg-agree"><b>Both point here</b><span>' + ag.map(a =>
       esc(a.dom.name) + " is among the lowest iReady domains (" + a.dom.pct + "% on or above), and " +
@@ -3222,6 +3296,7 @@ function cgNeedsHTML(nd, canPick) {
   } else if (nd.ranked.length && nd.ir.length) {
     h += '<div class="notice cg-agree"><b>The two disagree</b><span>The top classwork needs sit outside the lowest iReady domains. That can mean a skill the diagnostic has not caught up with yet, or a domain the units have not reached; worth a look before choosing.</span></div>';
   }
+  h += "</div></div>";
   /* every standard, grouped by iReady domain */
   h += '<details class="card pad cg-all"><summary><b>Every math standard</b> <span class="hint">grouped by iReady domain</span></summary><div class="cg-tablewrap"><table class="cg-table"><thead><tr><th>Standard</th><th class="c">At 3+</th><th class="c">Below 3</th><th class="c">Marked</th><th>Trend</th><th>Unit</th></tr></thead><tbody>';
   CG_DOMAINS.forEach(d => {
@@ -3558,7 +3633,7 @@ function ggMemberChips(gid, sids, std, canMove) {
   return '<div class="gg-kids">' + sids.map(sid => {
     const st = S.students.find(s => s.id === sid), m = cgMark(sid, [std], null, null);
     return '<span class="gg-kid" data-sid="' + esc(sid) + '">' + nameLink(st, fullName(st)) +
-      (m != null ? ' <span class="tiny muted">' + m.toFixed(1) + "</span>" : "") +
+      (m != null ? ' <span class="mark v' + roundMark(m) + ' gg-mk" title="Mark on ' + esc(dispCode(std)) + ' by the report card\u2019s rule">' + m.toFixed(1) + "</span>" : "") +
       (canMove ? '<select class="gg-move" data-sid="' + esc(sid) + '" aria-label="Move ' + esc(fullName(st)) + '"><option value="">Move\u2026</option>' +
         others.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") +
         '<option value="-">Out of groups</option></select>' : "") + "</span>";
@@ -3571,14 +3646,29 @@ function ggSideBySide(std, sids) {
     "<div><span class=\"hint\">iReady \u00b7 " + esc(cgDom(dom).name) + "</span><b>" + (ir.n ? ir.on + " of " + ir.n : "\u2013") + "</b><i>" +
     (ir.n ? "on or above grade level" : "no diagnostic yet") + "</i></div></div>";
 }
+/* v127: a suggested group's starting point. Every child in it is below 3
+   on its standard in the window the suggestion used, which is why they are
+   together; said that way rather than as "0 of 3". The all-year figure can
+   differ when a shorter window is chosen, and then the count is shown. */
+function ggStartHTML(std, sids) {
+  const st = cgClassStat([std], null, null, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
+  const n = sids.length, all = n === 2 ? "both" : "all " + n;
+  const cw = st.marked === n && st.at === 0
+    ? all + " are below 3 on this standard. That is why they are together."
+    : (st.marked ? st.at + " of " + st.marked + " at 3 or higher on this standard, all year" : "no marks on this standard") + "; below 3 in the window chosen above.";
+  return '<div class="gg-start"><span class="hint">Where they start</span><div class="gg-sides">' +
+    "<div><b>Classwork:</b> " + esc(cw) + "</div>" +
+    "<div><b>iReady, " + esc(cgDom(dom).name) + ":</b> " + (ir.n ? ir.on + " of " + ir.n + " on or above grade level." : "no diagnostic yet.") + "</div></div></div>";
+}
 function ggSuggestHTML() {
   const sug = ggSuggest(UI.cgWin), nm = sid => esc(fullName(S.students.find(s => s.id === sid)));
-  let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Each child goes with their biggest classwork need: their lowest standard below 3. A child alone with a need joins their next need that has a group.</p>';
+  let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Each child goes with their biggest classwork need: their lowest standard below 3. A child alone with a need joins their next need that has a group.</p>' +
+    '<p class="gg-legend"><span class="mark v2 gg-mk">2.0</span> beside a name is that child\u2019s mark on the group\u2019s standard, by the report card\u2019s rule.</p>';
   if (!sug.groups.length) h += '<div class="cg-empty">No two children share a need below 3 yet, so there are no groups to suggest.</div>';
   else {
     h += '<div class="grid2">' + sug.groups.map(x => '<div class="gg-card gg-sug" data-std="' + esc(x.std) + '"><h3>' + esc(byCode[x.std].lbl) +
-      ' <span class="tiny muted">' + x.kids.length + "</span></h3><div>" + codeHTML(x.std) + "</div>" +
-      ggSideBySide(x.std, x.kids) + ggMemberChips(null, x.kids, x.std, false) + "</div>").join("") + "</div>";
+      ' <span class="tiny muted">' + x.kids.length + (x.kids.length === 1 ? " child" : " children") + "</span></h3><div>" + codeHTML(x.std) + "</div>" +
+      ggMemberChips(null, x.kids, x.std, false) + ggStartHTML(x.std, x.kids) + "</div>").join("") + "</div>";
   }
   const line = (label, list) => list.length ? '<p class="hint gg-rest"><b>' + label + "</b> " + list.join(", ") + "</p>" : "";
   h += line("On their own:", sug.alone.map(a => nm(a.sid) + " (" + esc(dispCode(a.std)) + ")")) +
@@ -6795,15 +6885,22 @@ function assignmentsList() {
   const map = {};
   function slot(std, date, ctx) {
     const k = std + "|" + date + "|" + (ctx || "");
-    return (map[k] = map[k] || { key: k, std: std, date: date, ctx: ctx || "", marked: 0, missing: 0 });
+    return (map[k] = map[k] || { key: k, std: std, date: date, ctx: ctx || "", markedIds: {}, missingIds: {} });
   }
-  /* marks derived from iReady or the ORF tool are not assignments you graded */
-  S.scores.forEach(x => { if (!x.source) slot(x.std, x.date, x.ctx).marked++; });
-  S.missing.forEach(m => { if (!m.excused) slot(m.std, m.date, m.ctx).missing++; });
+  /* marks derived from iReady or the ORF tool are not assignments you graded.
+     v128: counted per child on the roster, not per record, so a second mark
+     for the same child, or a child who has left, no longer reads 27/26. */
+  S.scores.forEach(x => { if (!x.source) slot(x.std, x.date, x.ctx).markedIds[x.sid] = 1; });
+  S.missing.forEach(m => { if (!m.excused) slot(m.std, m.date, m.ctx).missingIds[m.sid] = 1; });
+  const onRoster = {};
+  S.students.forEach(st => { onRoster[st.id] = 1; });
 
   return Object.keys(map)
     .map(k => {
       const a = map[k];
+      a.marked = Object.keys(a.markedIds).filter(id => onRoster[id]).length;
+      a.missing = Object.keys(a.missingIds).filter(id => onRoster[id] && !a.markedIds[id]).length;
+      delete a.markedIds; delete a.missingIds;
       a.subject = byCode[a.std] ? byCode[a.std].s : "";
       a.label = byCode[a.std] ? byCode[a.std].lbl : a.std;
       a.total = S.students.length;
@@ -6924,16 +7021,34 @@ function asgWhen(iso) {
   if (d.toDateString() === y.toDateString()) return "Yesterday";
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + ", " + shortDate(iso);
 }
+/* v128: "Recently graded", and shut until opened, so the roster has the
+   width. Shut, a button above the cards opens it; it says when the open
+   assignment has nothing marked yet, so earlier marks are still pointed to.
+   Open or shut is this session's choice (UI.asgOpen), not synced. */
+function asgToggleHTML() {
+  if (!S.students.length || UI.asgOpen) return "";
+  const list = stepList(), cur = list.find(a => a.key === currentKey());
+  const saved = list.filter(a => !a.fresh).length, unfinished = visibleAssignments().filter(a => !a.complete).length;
+  return '<div class="asgtoggle"><button class="btn sm" data-asg-open aria-expanded="false" aria-controls="asglist">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>' +
+    "Recently graded" + (saved ? ' <span class="tiny muted">' + saved + "</span>" : "") + "</button>" +
+    (cur && cur.fresh && saved ? '<span class="small muted">Nothing marked on this one yet. Earlier marks are in Recently graded.</span>' : "") +
+    /* the bar is hidden at this width, so its two other buttons come along */
+    '<span class="spacer" style="flex:1"></span>' +
+    (unfinished ? '<button class="btn sm ghost" onclick="jumpUnfinished()">Next unfinished <span class="tiny muted">' + unfinished + "</span></button>" : "") +
+    '<button class="btn sm primary" onclick="newAssignment()">New assignment</button></div>';
+}
 function asgListHTML() {
-  if (!S.students.length) return "";
+  if (!S.students.length || !UI.asgOpen) return "";
   const list = stepList(), k = currentKey();
   const saved = list.filter(a => !a.fresh).length;
   let shown = UI.asgAll ? list : list.slice(0, ASG_LIST_SHOWN);
   const cur = list.find(a => a.key === k);
   if (cur && shown.indexOf(cur) < 0) shown = shown.concat([cur]);
   const unfinished = visibleAssignments().filter(a => !a.complete).length;
-  let h = '<nav class="card asglist" aria-label="Assignments"><div class="al-head"><h2>Assignments</h2>' +
-    '<button class="btn sm primary" onclick="newAssignment()">New</button></div><div class="al-items">';
+  let h = '<nav class="card asglist" id="asglist" aria-label="Recently graded"><div class="al-head"><h2>Recently graded</h2>' +
+    '<button class="btn sm primary" onclick="newAssignment()">New</button>' +
+    '<button class="btn sm ghost al-close" data-asg-close aria-expanded="true" aria-controls="asglist" title="Hide the list">Hide</button></div><div class="al-items">';
   if (!shown.length) h += '<p class="small muted" style="padding:0 6px">Nothing marked yet.</p>';
   shown.forEach(a => {
     const pct = a.total ? Math.min(100, Math.round(a.done / a.total * 100)) : 0;
@@ -6956,6 +7071,12 @@ function asgListHTML() {
 function wireAssignmentBar(el) {
   el.querySelectorAll("[data-asg]").forEach(b => {
     b.onclick = () => gotoAssignment(stepList().find(x => x.key === b.dataset.asg));
+  });
+  el.querySelectorAll("[data-asg-open]").forEach(b => {
+    b.onclick = () => { UI.asgOpen = true; renderEnter(); const f = document.querySelector("#asglist .al-item[aria-current=true]") || document.querySelector("#asglist .al-close"); if (f) f.focus(); };
+  });
+  el.querySelectorAll("[data-asg-close]").forEach(b => {
+    b.onclick = () => { UI.asgOpen = false; renderEnter(); const t = document.querySelector("[data-asg-open]"); if (t) t.focus(); };
   });
   el.querySelectorAll("[data-asg-all]").forEach(b => {
     b.onclick = () => { UI.asgAll = !UI.asgAll; renderEnter(); };
