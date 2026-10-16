@@ -460,6 +460,10 @@ function renderSelectors(){
   $("#assessHint").textContent = pass
     ? `${wordCount(pass.text)} words in this passage.`
     : "Add a passage on the Passages tab to get started.";
+  /* v133: the class list or passages can change while nothing is being read
+     (the gradebook's roster arriving, a passage saved); Start and the cue
+     follow, instead of waiting for the next reset */
+  if(S.phase==="idle") setPhase("idle");
 }
 
 function renderPassage(){
@@ -519,7 +523,7 @@ function setPhase(p){
   const pass=$("#passage");
   pass.classList.toggle("locked", p==="idle");
   document.body.classList.toggle("marking", p==="running"||p==="done");
-  $("#btnStart").disabled = (p==="running") || !DB.students.length || !currentPassage();
+  $("#btnStart").disabled = (p==="running") || !DB.students.some(st=>!st.demo) || !currentPassage();
   $("#btnFinished").disabled = (p!=="running");
   $("#btnRestart").classList.toggle("hidden", p!=="running");
   $("#btnUndoRestart").classList.toggle("hidden", !(p==="running" && S.laps.length>1));
@@ -527,7 +531,7 @@ function setPhase(p){
   $("#btnStart").textContent = (p==="done"||p==="stopmark") ? "Start a new check" : "Start reading";
   const n=S.lap+1;
   const cue=$("#cue"); cue.classList.remove("act");
-  if(p==="idle") cue.textContent = DB.students.length ? "Pick a student and passage, then start the timer." : "Add your class on the Students tab first.";
+  if(p==="idle") cue.textContent = DB.students.some(st=>!st.demo) ? "Pick a student and passage, then start the timer." : "No class list yet: add your students in the gradebook's Setup tab.";
   if(p==="running") cue.textContent = (S.laps.length>1 ? `Pass ${n}. ` : "") + "Tap each word the student misses. Tap twice if they self-correct. If they reach the end and start over, tap “Started over”.";
   if(p==="stopmark"){ cue.textContent = `Time. Tap the last word the student read${S.laps.length>1?` on pass ${n}`:""}.`; cue.classList.add("act"); }
   if(p==="done") cue.textContent = "Tap words to adjust marks, or tap “Change last word” below.";
