@@ -1874,7 +1874,7 @@ function printSkillGroups() {
   if (res.out.length) h += '<tr><td>Not placed</td><td>' + res.out.map(r => esc(r.name)).join(" \u00b7 ") + "</td></tr>";
   h += "</tbody></table>";
   document.getElementById("printsheet").innerHTML = h;
-  window.print();
+  suitePrint();
 }
 
 function renderGroups() {
@@ -2641,7 +2641,7 @@ function printStudent() {
     h += "</table>";
   });
   document.getElementById("printsheet").innerHTML = h;
-  window.print();
+  suitePrint();
 }
 
 /* ============================================================
@@ -2816,7 +2816,7 @@ function printConferences() {
   /* a toast is fixed, so it would print on every child's page */
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
-  window.print();
+  suitePrint();
   if (t) t.style.display = "";
 }
 
@@ -3465,7 +3465,7 @@ function printClassGoal() {
   document.getElementById("printsheet").innerHTML = cgSheetHTML();
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
-  window.print();
+  suitePrint();
   if (t) t.style.display = "";
 }
 
@@ -3905,7 +3905,7 @@ function printGroupGoals() {
   document.getElementById("printsheet").innerHTML = ggSheetHTML();
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
-  window.print();
+  suitePrint();
   if (t) t.style.display = "";
 }
 
@@ -4976,13 +4976,192 @@ function orfSheetHTML() {
     "Status compares the latest check with the aim line, give or take the margin of error (10% of the line, at least " + ORF_BAND_FLOOR + " words, at most " + gs.margin +
     "): \u25B2 exceeding goal (more than the margin above), \u2713 on track (within it), \u25BC needs attention (more than the margin below), \u25CB first check. Shaded: the mid-year and end-of-year goals.</p></article>";
 }
+/* ============================================================
+   v135: DOWNLOAD PDF IN THE IPHONE HOME-SCREEN APP
+   On an iPhone or iPad the suite runs from its home-screen icon as its
+   own app, and there window.print() does nothing at all: no dialog, no
+   error. So there the button builds the PDF itself, from the same sheet
+   the print dialog shows (orfSheetHTML), and hands the file to the share
+   sheet (Save to Files, AirDrop, Mail). Everywhere else it is still the
+   print dialog. A small writer for one kind of page, no library: the
+   standard PDF fonts (Helvetica, its bold, ZapfDingbats for the status
+   marks), so nothing is embedded and the file is a few KB.
+   ============================================================ */
+function pdfIsIosApp() {
+  const n = window.navigator || {};
+  const ios = /iPhone|iPad|iPod/.test(n.userAgent || "") || (n.platform === "MacIntel" && n.maxTouchPoints > 1);
+  const app = n.standalone === true || !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  return ios && app;
+}
+/* every print button: in the iPhone home-screen app the print screen never
+   opens, so say so instead of doing nothing */
+function suitePrint() {
+  if (pdfIsIosApp()) { toast("The iPhone home-screen app can\u2019t open the print screen. Open the gradebook in Safari, or on your Mac, to print this."); return false; }
+  window.print();
+  return true;
+}
+/* Adobe's widths for Helvetica and Helvetica-Bold, WinAnsi 32-255, per 1000 */
+const PDF_WIDTHS = { H: [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,350,556,350,222,556,333,1000,556,556,333,1000,667,333,1000,350,611,350,350,222,222,333,333,350,556,1000,333,1000,500,333,944,350,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,333,400,584,333,333,333,556,537,278,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,584,611,556,556,556,556,500,556,500], B: [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,350,556,350,278,556,500,1000,556,556,333,1000,667,333,1000,350,611,350,350,278,278,500,500,350,556,1000,333,1000,556,333,944,350,500,667,278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,333,400,584,333,333,333,611,556,278,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,584,611,611,611,611,611,556,611,556] };
+const PDF_WIN = { "\u20AC": 128, "\u201A": 130, "\u0192": 131, "\u201E": 132, "\u2026": 133, "\u2020": 134, "\u2021": 135, "\u02C6": 136, "\u2030": 137, "\u0160": 138, "\u2039": 139, "\u0152": 140,
+  "\u017D": 142, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u02DC": 152, "\u2122": 153, "\u0161": 154, "\u203A": 155, "\u0153": 156, "\u017E": 158, "\u0178": 159, "\u2212": 45, "\u00A0": 32 };
+/* the status marks, drawn in ZapfDingbats: check, ballot x, triangles, circle */
+const PDF_DINGBATS = { "\u2713": "3", "\u2717": "7", "\u25B2": "s", "\u25BC": "t", "\u25CB": "m" };
+function pdfCode(ch) {
+  const c = ch.charCodeAt(0);
+  if (PDF_WIN[ch] != null) return PDF_WIN[ch];
+  return (c >= 32 && c <= 126) || (c >= 160 && c <= 255) ? c : 63;
+}
+/* a line of text as runs, each in one font: H, B (bold) or Z (dingbats) */
+function pdfRuns(text, bold) {
+  const runs = [];
+  for (const ch of String(text).replace(/\u2691/g, "!")) {
+    const z = PDF_DINGBATS[ch], f = z ? "Z" : bold ? "B" : "H", code = z ? z.charCodeAt(0) : pdfCode(ch);
+    const last = runs[runs.length - 1];
+    if (last && last.f === f) last.codes.push(code); else runs.push({ f: f, codes: [code] });
+  }
+  return runs;
+}
+function pdfWidth(runs, size) {
+  let w = 0;
+  runs.forEach(r => r.codes.forEach(c => { w += r.f === "Z" ? 790 : PDF_WIDTHS[r.f][c - 32] || 556; }));
+  return w * size / 1000;
+}
+function pdfStr(codes) {
+  return "(" + codes.map(c => c === 40 || c === 41 || c === 92 ? "\\" + String.fromCharCode(c) : c < 32 || c > 126 ? "\\" + c.toString(8).padStart(3, "0") : String.fromCharCode(c)).join("") + ")";
+}
+function pdfText(x, y, runs, size) {
+  let s = "BT " + x.toFixed(1) + " " + y.toFixed(1) + " Td ";
+  runs.forEach(r => { s += "/F" + r.f + " " + size + " Tf " + pdfStr(r.codes) + " Tj "; });
+  return s + "ET\n";
+}
+/* words onto lines no wider than w */
+function pdfWrap(text, bold, size, w) {
+  const out = []; let cur = "";
+  String(text).split(/\s+/).forEach(word => {
+    const t = cur ? cur + " " + word : word;
+    if (cur && pdfWidth(pdfRuns(t, bold), size) > w) { out.push(cur); cur = word; } else cur = t;
+  });
+  if (cur) out.push(cur);
+  return out;
+}
+/* a sheet cell as lines: what is outside a <span> first, then each <span> */
+function pdfCellLines(cell) {
+  const head = cell.tagName === "TH", lines = [];
+  let first = "", firstBold = head, any = false;
+  cell.childNodes.forEach(n => {
+    if (n.nodeType === 1 && n.tagName === "SPAN") return;
+    const t = n.textContent; if (!t.trim()) return;
+    first += t; any = true;
+    if (n.nodeType === 1 && n.tagName === "B") firstBold = true;
+  });
+  if (any) lines.push({ t: first.trim(), b: firstBold });
+  cell.querySelectorAll(":scope > span").forEach(sp => lines.push({ t: sp.textContent.trim(), b: !!sp.querySelector("b") }));
+  return lines;
+}
+/* the sheet (orfSheetHTML) as a PDF: landscape Letter, the title on the
+   first page, the header row on every page, Page n of N, the key last */
+function orfPdfBytes(html) {
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  const PW = 792, PH = 612, M = 34, W = PW - 2 * M;
+  const title = (box.querySelector("h2") || {}).textContent || "Reading progress";
+  const sub = (box.querySelector(".cf-sub") || {}).textContent || "";
+  const meta = box.querySelector(".cf-meta") ? box.querySelector(".cf-meta").innerHTML.split(/<br\s*\/?>/i).map(x => { const d = document.createElement("div"); d.innerHTML = x; return d.textContent.trim(); }) : [];
+  const key = (box.querySelector(".os-key") || {}).textContent || "";
+  const tr = [...box.querySelectorAll("table.os-table tr")];
+  const rows = tr.map(r => [...r.children].map(c => ({ lines: pdfCellLines(c), span: c.colSpan || 1, left: c.classList.contains("os-l"), shade: c.classList.contains("os-k") })));
+  const headRow = rows[0], body = rows.slice(1), ncol = headRow.length;
+  /* columns as wide as their widest line; shrink the type to fit the page */
+  let size = 8, cw;
+  const natural = sz => {
+    const w = new Array(ncol).fill(0);
+    rows.forEach(r => { let i = 0; r.forEach(c => { if (c.span === 1) c.lines.forEach(l => { w[i] = Math.max(w[i], pdfWidth(pdfRuns(l.t, l.b), sz) + 8); }); i += c.span; }); });
+    return w;
+  };
+  for (; size >= 6; size -= 0.5) { cw = natural(size); if (cw.reduce((a, b) => a + b, 0) <= W) break; }
+  const spare = W - cw.reduce((a, b) => a + b, 0);
+  if (spare > 0) cw = cw.map(x => x + spare / ncol);
+  const LH = size + 2.2, rowH = r => Math.max(...r.map(c => c.lines.length)) * LH + 6;
+  const pages = []; let ops = "", y = 0;
+  const startPage = firstPage => {
+    if (ops) pages.push(ops);
+    ops = ""; y = PH - M;
+    if (firstPage) {
+      ops += pdfText(M, y - 16, pdfRuns(title, true), 16); y -= 22;
+      ops += pdfText(M, y - 9, pdfRuns(sub, false), 9);
+      meta.forEach((m, i) => { const r = pdfRuns(m, false); ops += pdfText(PW - M - pdfWidth(r, 8.5), PH - M - 10 - i * 11, r, 8.5); });
+      y -= 16;
+      ops += "0 G 1.2 w " + M + " " + y.toFixed(1) + " m " + (PW - M) + " " + y.toFixed(1) + " l S\n"; y -= 8;
+    }
+    drawRow(headRow, true);
+  };
+  const drawRow = (r, head) => {
+    const h = rowH(r); let x = M, i = 0;
+    r.forEach(c => {
+      let w = 0; for (let k = 0; k < c.span; k++) w += cw[i + k];
+      if (c.shade) ops += "0.93 g " + x.toFixed(1) + " " + (y - h).toFixed(1) + " " + w.toFixed(1) + " " + h.toFixed(1) + " re f 0 g\n";
+      const lines = head ? c.lines : c.lines, base = head ? y - h + 4 + (lines.length - 1) * LH : y - 3 - size;
+      lines.forEach((l, k) => {
+        const runs = pdfRuns(l.t, l.b), lw = pdfWidth(runs, size), ly = head ? y - h + 4 + (lines.length - 1 - k) * LH : y - 3 - size - k * LH;
+        ops += pdfText(c.left ? x + 4 : x + w - 4 - lw, ly, runs, size);
+      });
+      x += w; i += c.span;
+    });
+    y -= h;
+    ops += (head ? "0 G 1 w " : "0.55 G 0.5 w ") + M + " " + y.toFixed(1) + " m " + (PW - M) + " " + y.toFixed(1) + " l S\n";
+  };
+  startPage(true);
+  body.forEach(r => { if (y - rowH(r) < M + 18) startPage(false); drawRow(r, false); });
+  const keyLines = pdfWrap(key, false, 7.5, W);
+  if (y - 10 - keyLines.length * 9.5 < M + 18) startPage(false);
+  y -= 12;
+  keyLines.forEach(l => { ops += pdfText(M, y, pdfRuns(l, false), 7.5); y -= 9.5; });
+  pages.push(ops);
+  /* the file: catalog, page tree, three standard fonts, then each page */
+  const objs = [], n = pages.length;
+  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objs[2] = "<< /Type /Pages /Count " + n + " /Kids [" + pages.map((_, i) => (6 + 2 * i) + " 0 R").join(" ") + "] >>";
+  objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+  objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+  objs[5] = "<< /Type /Font /Subtype /Type1 /BaseFont /ZapfDingbats >>";
+  pages.forEach((p, i) => {
+    const foot = pdfRuns("Page " + (i + 1) + " of " + n, false);
+    const content = p + pdfText(PW - M - pdfWidth(foot, 7.5), M - 14, foot, 7.5);
+    objs[6 + 2 * i] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + PW + " " + PH + "] /Resources << /Font << /FH 3 0 R /FB 4 0 R /FZ 5 0 R >> >> /Contents " + (7 + 2 * i) + " 0 R >>";
+    objs[7 + 2 * i] = "<< /Length " + content.length + " >>\nstream\n" + content + "endstream";
+  });
+  let out = "%PDF-1.4\n", xref = [];
+  for (let i = 1; i < objs.length; i++) { xref[i] = out.length; out += i + " 0 obj\n" + objs[i] + "\nendobj\n"; }
+  const at = out.length;
+  out += "xref\n0 " + objs.length + "\n0000000000 65535 f \n" + xref.slice(1).map(o => String(o).padStart(10, "0") + " 00000 n \n").join("") +
+    "trailer\n<< /Size " + objs.length + " /Root 1 0 R /Info << /Title " + pdfStr(pdfRuns(title, false)[0].codes) + " /Producer (Classroom suite) >> >>\nstartxref\n" + at + "\n%%EOF\n";
+  const bytes = new Uint8Array(out.length);
+  for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+  return bytes;
+}
+/* the file to the share sheet (Save to Files, AirDrop, Mail); where files
+   cannot be shared, a plain download */
+async function orfSharePdf() {
+  const html = orfSheetHTML();
+  if (!html) { toast("No ORF checks to save yet"); return; }
+  const name = "reading-progress-" + todayISO() + ".pdf";
+  const file = new File([orfPdfBytes(html)], name, { type: "application/pdf" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Reading progress" }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
 function printOrfSheet() {
+  if (pdfIsIosApp()) { orfSharePdf(); return; }   /* v135: no print screen there */
   const h = orfSheetHTML();
   if (!h) { toast("No ORF checks to print yet"); return; }
   document.getElementById("printsheet").innerHTML = h;
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
-  window.print();
+  suitePrint();
   if (t) t.style.display = "";
 }
 function orfAnalysisHTML(db) {
@@ -5507,7 +5686,7 @@ function printMissing() {
       "</table></div>";
   });
   document.getElementById("printsheet").innerHTML = h;
-  window.print();
+  suitePrint();
 }
 function missingSummary(sid) {
   const all = S.missing.filter(m => m.sid === sid && !m.excused);

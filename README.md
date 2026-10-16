@@ -183,7 +183,7 @@ The ORF tab's **Reading progress** is one table with a row per child: their late
 
 How they are doing is said in four words: **Exceeding goal** (▲), **On track** (✓), **Needs attention** (▼) or **First check** (○). On track means within the margin of error of the aim line, either way. The margin scales with the reader: 10% of their aim line, in whole words, at least 3 and at most the margin set under *How goals are set* (10). So a child aimed at 26 words is exceeding at +4 and needs attention at −4, and a child aimed at 115 is still on track at +6. The spring results judge the grade-level line with the margin as set. Children who need a change come first (three checks in a row under the aim line, then needs attention), or choose **A–Z**.
 
-Tap a name for that child's month-by-month goals with each month's check, a sentence that says where they are, the aim-line chart, their goals and every check. **Download PDF** opens the print dialog with the whole class on landscape Letter, black and white, every month's goal and check: choose *Save as PDF*.
+Tap a name for that child's month-by-month goals with each month's check, a sentence that says where they are, the aim-line chart, their goals and every check. **Download PDF** opens the print dialog with the whole class on landscape Letter, black and white, every month's goal and check: choose *Save as PDF*. In the iPhone home-screen app, where the print dialog never opens, it makes the PDF itself and opens the share sheet: *Save to Files*, AirDrop or Mail. The gradebook's other print buttons say so there rather than doing nothing; open the gradebook in Safari, or on the Mac, to print those.
 
 ---
 
