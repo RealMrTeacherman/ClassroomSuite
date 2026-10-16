@@ -570,7 +570,7 @@
   }
 
   /* ---------- v89: skill groups from the gradebook ----------
-     The gradebook publishes the skill groups its Groups & patterns tab
+     The gradebook publishes the skill groups its Skill groups tab
      shows (suite:suggest:v1: for Math, the standard, and each group as
      gradebook ids, lowest first). The board offers them in Setup; nothing
      is grouped here. "Use these groups" places each child in the group of
@@ -583,10 +583,10 @@
     box.textContent = "";
     var s = gbSuggest(), m = s && s.math;
     if (!m || !Array.isArray(m.groups) || !m.groups.length) {
-      box.appendChild(mk("p", "note", "Nothing from the gradebook yet. Its Groups & patterns tab makes skill groups from your math marks; open it once and they appear here."));
+      box.appendChild(mk("p", "note", "Nothing from the gradebook yet. Its Skill groups tab makes them from your math marks; open it once and they appear here."));
       return;
     }
-    box.appendChild(mk("p", "note", "From the gradebook\u2019s Groups & patterns, " + (m.label || "Math") + (s.at ? ", as of " + shortDate(s.at) : "") + ". Lowest first."));
+    box.appendChild(mk("p", "note", "From the gradebook\u2019s Skill groups, " + (m.label || "Math") + (s.at ? ", as of " + shortDate(s.at) : "") + ". Lowest first."));
     var list = mk("div", "gb-sug");
     m.groups.forEach(function (ids, i) {
       var names = ids.map(function (id) { var r = byId(id); return r ? r.label : null; }).filter(Boolean);

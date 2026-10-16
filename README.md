@@ -5,7 +5,7 @@ Three tools that share one roster and one origin:
 | Path | What it is |
 |---|---|
 | `/` | Launcher page with links to all three |
-| `/gradebook/` | Standards gradebook (entry, grouping, iReady, ORF, report card, conference sheets) |
+| `/gradebook/` | Standards gradebook (entry, skill groups, math goal, ORF reading progress, conference sheets; iReady comes in through Setup) |
 | `/planner/` | Lesson planner |
 | `/fluency/` | Oral reading fluency assessment |
 
@@ -171,21 +171,25 @@ iReady-derived marks are excluded from both the coverage count and the reteach l
 
 On a screen 1100px wide or wider (a laptop, the projector), the Enter tab has a **Recently graded** button above the roster, with **Next unfinished** and **New assignment** beside it. The button opens a list beside the roster: every assignment you have marked, newest first, each with its day, its name, its standard and how many students are done (each child counted once), with a bar. The one open is highlighted; tap any of them to open it, and **Hide** to give the roster its width back. **Show all** opens the list past the ten most recent. It starts shut each time the gradebook opens.
 
-Enter scores opens on today's date (and today's planned lesson), so the assignment it opens on is often empty. Then the line beside the button says so, *Nothing marked on this one yet. Earlier marks are in Recently graded.*, and in the list that one is drawn dashed and says *not started*, so a blank roster is never mistaken for marks gone missing.
+Enter marks opens on today's date (and today's planned lesson), so the assignment it opens on is often empty. Then the line beside the button says so, *Nothing marked on this one yet. Earlier marks are in Recently graded.*, and in the list that one is drawn dashed and says *not started*, so a blank roster is never mistaken for marks gone missing.
 
 On a narrower screen (a phone, an iPad upright) the same list is a dropdown above the roster, with arrows for newer and older; an unstarted assignment there says *nothing marked yet*. `Alt` with the left and right arrow keys steps through them at any width without leaving the roster.
 
 An assignment was never stored as its own record — it is simply the marks that share a standard, a date and a context ("exit ticket", "worksheet"). The list is rebuilt from that, so nothing needed migrating and everything you have already entered appears. Marks derived from iReady or the ORF tool are left out, since those are not assignments you graded. A student logged as not turning work in counts toward the assignment being finished, which is the point of logging them.
 
-## Reading goals
+## Reading progress
 
-The ORF tab's **Reading goals** draws each child as one line on the same scale of words correct per minute: a grey run from their first check to their goal, a dot at their latest check, an upright tick where the aim line was at that check, and a ring at the goal. Beside it, the same thing in words: how they are doing, how far ahead of or behind the aim line, and their start, now and goal. Children who need a change of plan (three checks in a row under the aim line) are listed first, then those under the line, one check only, on track, and at the goal. Tap a name for every check and the aim-line chart. On a phone each child's name, line and words stack.
+The ORF tab's **Reading progress** is one table with a row per child: their latest check and its percentile (Hasbrouck & Tindal grade 2, for that season), this month's goal with how they are doing, the mid-year goal and the end-of-year goal (each with the percentile it works out to, how far to go and the words a week it takes), and a line from their first check to their goal. Every goal comes from the child's own aim line.
+
+How they are doing is said in four words: **Exceeding goal** (▲), **On track** (✓), **Needs attention** (▼) or **First check** (○). On track means within the margin of error of the aim line, either way. The margin scales with the reader: 10% of their aim line, in whole words, at least 3 and at most the margin set under *How goals are set* (10). So a child aimed at 26 words is exceeding at +4 and needs attention at −4, and a child aimed at 115 is still on track at +6. The spring results judge the grade-level line with the margin as set. Children who need a change come first (three checks in a row under the aim line, then needs attention), or choose **A–Z**.
+
+Tap a name for that child's month-by-month goals with each month's check, a sentence that says where they are, the aim-line chart, their goals and every check. **Download PDF** opens the print dialog with the whole class on landscape Letter, black and white, every month's goal and check: choose *Save as PDF*.
 
 ---
 
 ## A class goal for math
 
-The gradebook's **Class goal** tab shows where the whole class most needs help in math. iReady's four domains sit in a strip at the top, lowest share on or above grade level first. Under it, daily classwork is a table of standards ranked by how many children are below 3 (using the report card's rule): each row has one bar for the whole class split by mark, with a grey part for children not marked yet, then how many are below 3, the share at 3 or higher, the three-week change, and the standard's iReady domain. The two are ranked separately rather than blended; a row whose domain is also among iReady's lowest is tagged **Both point here**, and a note under the table says it in full. Choose **Make this the goal** on any need to draft a goal with a baseline and a suggested target; once started, the tab tracks the class against a straight line to the target, nudges when no marks have gone in on the focus, and keeps your check-ins. **Print goal sheet** gives one black-and-white page for a PLC or administrator with class counts only, never a student's name.
+The gradebook's **Math goal** tab shows where the whole class most needs help in math. iReady's four domains sit in a strip at the top, lowest share on or above grade level first. Under it, daily classwork is a table of standards ranked by how many children are below 3 (using the term-mark rule in Setup): each row has one bar for the whole class split by mark, with a grey part for children not marked yet, then how many are below 3, the share at 3 or higher, the three-week change, and the standard's iReady domain. The two are ranked separately rather than blended; a row whose domain is also among iReady's lowest is tagged **Both point here**, and a note under the table says it in full. Choose **Make this the goal** on any need to draft a goal with a baseline and a suggested target; once started, the tab tracks the class against a straight line to the target, nudges when no marks have gone in on the focus, and keeps your check-ins. **Print goal sheet** gives one black-and-white page for a PLC or administrator with class counts only, never a student's name.
 
 Below it, **Group goals** puts every child in a group: with the first of the four focus strands they are below 3 on (place value, then adding and subtracting within 100, then extending the operations, then groundwork for multiplication), or in **Extend** when they are at 3 or higher on all of them, working toward 4 on their next skill. A child with no marks on these is placed by iReady. Each suggestion says where its children start (why they are together, and how they stand on iReady), and the number by each name is that child's mark on the group's standard, coloured like any mark. **Use these groups** keeps them; **Edit group** renames a group or moves a child. Each group can have its own goal, and its numbers always count whoever is in the group now, so a child's data moves with them. **Print group goals** gives every group's goal on paper, again with counts only.
 
@@ -237,3 +241,7 @@ The apps used to sit at the root. Their scopes changed when they moved into dire
 ## Data, plainly
 
 Student names and marks live in two places: your browser's local storage, and the JSON file you connect. Nothing is uploaded anywhere, and none of it passes through GitHub. Before relying on this, it is worth a conversation with the district about where student data is allowed to live — the answer is usually easier than people expect, and it is much easier asked first.
+
+## Term marks, and Synergy
+
+Grading is done in Synergy, so the gradebook has no report card tab (since v134). It still works out a mark per standard for each marking period, which the conference sheets, Math goal and Skill groups use; how (recent work counts more, most recent only, or a straight average, and whether to carry a mark forward) is set in **Setup › Term marks**. **Setup › Your data › Download all marks** saves every mark as a CSV. Exporting the calculated marks for Synergy's report card is kept ready for when grading day comes.
