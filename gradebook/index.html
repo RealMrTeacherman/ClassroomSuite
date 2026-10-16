@@ -27,7 +27,7 @@
   --accent-2:#0B4A43;
   --accent-soft:#E7F0EE;
   --s1:#B4472F; --s1-bg:#FBEDE9; --s1-line:#E9CFC7;
-  --s2:#A87621; --s2-bg:#FAF2E2; --s2-line:#E7D7B4;
+  --s2:#A87621; --s2-bg:#FAF2E2; --s2-line:#E7D7B4; --s2-ink:#7F5A14;
   --s3:#2F7A56; --s3-bg:#E9F3ED; --s3-line:#C6DECF;
   --s4:#35608C; --s4-bg:#E9EFF6; --s4-line:#C8D6E6;
   --warn:#A87621;
@@ -210,7 +210,7 @@ td.c,th.c{text-align:center}
 .group>h3{padding:10px 15px;background:transparent;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center}
 .group>h3 .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em}
 .tag.reteach{background:var(--s1-bg);color:#9A3B26}
-.tag.practice{background:var(--s2-bg);color:var(--s2)}
+.tag.practice{background:var(--s2-bg);color:var(--s2-ink)}
 .tag.extend{background:var(--s4-bg);color:var(--s4)}
 .tag.flag{background:var(--s2-bg);color:#7F5A14}
 .group .body{padding:12px 15px}
@@ -245,15 +245,13 @@ td.c,th.c{text-align:center}
 .stdrow .lbl{flex:1;font-size:13.5px}
 
 /* ---------- report card ---------- */
-.rcline{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line-2)}
 select.override{padding:3px 6px;font-size:13px}
 .pill{font-size:11.5px;border-radius:5px;padding:2px 7px;background:var(--accent-soft);color:var(--accent);font-weight:600}
 
 /* ---------- fluency bar ---------- */
-.wbar{position:relative;height:10px;background:rgba(16,24,32,.09);border-radius:5px;min-width:150px;overflow:visible}
+.wbar{display:block;position:relative;height:10px;background:rgba(16,24,32,.09);border-radius:5px;min-width:150px;overflow:visible}
 .wbar i{position:absolute;top:0;bottom:0;left:0;border-radius:5px}
 .wbar u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);text-decoration:none}
-.wbar b{position:absolute;right:-30px;top:-4px;font-size:11.5px;line-height:18px;color:var(--ink-3);font-weight:500}
 
 /* ---------- toast ---------- */
 /* The report card's column headers are rotated labels set on one line,
@@ -279,7 +277,6 @@ summary.tiny,summary.small{padding:4px 0}
   .card{box-shadow:none;border:0}
   table{font-size:11.5px}
   th{background:#EEE !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pgbreak{page-break-after:always}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 
@@ -326,7 +323,7 @@ summary.tiny,summary.small{padding:4px 0}
 .cg-unit{margin-left:auto;font-size:12px;color:var(--ink-2);white-space:nowrap}
 .cg-meter{height:8px;border-radius:4px;background:var(--s1-bg);border:1px solid var(--line);margin:6px 0 4px;overflow:hidden;display:flex}
 .cg-meter span{display:block;height:100%}
-.cg-at,.cg-on{background:var(--s3)}
+.cg-on{background:var(--s3)}
 .cg-one{background:var(--s2)}
 .cg-two{background:var(--s1)}
 .cg-stack{background:var(--line-2)}
@@ -417,7 +414,6 @@ summary.tiny,summary.small{padding:4px 0}
 .gg-draft textarea{width:100%;font:inherit;font-weight:400;padding:8px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--panel);color:var(--ink)}
 .gg-draft .fld,.gg-more .fld{flex-direction:column}
 .gg-draft .cg-statement{font-size:14.5px}
-.gg-rest{margin:8px 0 0}
 .gg-out{margin-top:12px}
 .gg-s-block{break-inside:avoid;page-break-inside:avoid;border-top:1px solid #000;padding-top:4px;margin-top:10px}
 .ggsheet .cg-s-goal{font-size:13px}
@@ -450,7 +446,7 @@ summary.tiny,summary.small{padding:4px 0}
 .cg-bar{display:flex;height:22px;border-radius:5px;overflow:hidden;background:var(--line)}
 .cg-bar>span{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:#fff;min-width:0}
 .cg-b1{background:var(--s1)}
-.cg-b2{background:var(--s2)}
+.cg-b2{background:var(--s2);color:#140D04 !important}
 .cg-b3{background:var(--s3)}
 .cg-b4{background:var(--s4)}
 .cg-bnone{background:var(--line-strong);color:var(--ink-2) !important}
@@ -488,6 +484,7 @@ summary.tiny,summary.small{padding:4px 0}
 .ot-ticks span{position:absolute;transform:translateX(-50%)}
 .ot-cell{min-width:260px}
 /* v130: goals at a glance */
+.ot-table tr.clickable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .og-table{min-width:680px}
 .og-table th,.og-table td{text-align:center;vertical-align:top;padding:6px 7px}
 .og-table thead th span{display:block;font-weight:400;font-size:11px;color:var(--ink-3)}
@@ -499,9 +496,9 @@ summary.tiny,summary.small{padding:4px 0}
 .og-table .og-now{box-shadow:inset 1.5px 0 0 var(--ink-3),inset -1.5px 0 0 var(--ink-3)}
 .og-table thead .og-now{box-shadow:inset 1.5px 0 0 var(--ink-3),inset -1.5px 0 0 var(--ink-3),inset 0 1.5px 0 var(--ink-3)}
 .og-table tbody tr:last-child .og-now{box-shadow:inset 1.5px 0 0 var(--ink-3),inset -1.5px 0 0 var(--ink-3),inset 0 -1.5px 0 var(--ink-3)}
-.og-g{display:block;font-weight:600;font-variant-numeric:tabular-nums}
+.og-g{display:block;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .og-comp{font-weight:400;font-size:11px;color:var(--ink-3)}
-.og-a{display:block;font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.og-a{display:block;margin-top:2px;font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
 .og-up{color:var(--s3)}.og-down{color:var(--s1)}.og-start{color:var(--ink-3)}
 .og-none{text-align:left !important}
 /* the theme makes a phone's tables scroll themselves; this one sits in its
@@ -632,8 +629,6 @@ summary.tiny,summary.small{padding:4px 0}
   .mg-cell{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;width:auto}
   .mg-cell .scale{margin-top:0;flex:none}
   .mg-all{padding:6px 0 0;border-left:0;border-top:1px dashed var(--line-strong)}
-  .rcline{grid-template-columns:1fr;gap:5px}
-  .rcline select.override{justify-self:start}
   .stdrow{flex-wrap:wrap}
   .sgrow .sgchip{width:100%}
 }
@@ -1540,16 +1535,6 @@ function buildNeedGroups(subject, days, lo) {
   }
   seeds.sort((a, b) => b.kids.length * b.stds.length - a.kids.length * a.stds.length);
   return seeds.slice(0, 8);
-}
-function placementRank(p) {
-  if (!p) return null;
-  const s = p.toLowerCase();
-  if (s.indexOf("3 or more") >= 0 || s.indexOf("three or more") >= 0) return -3;
-  if (s.indexOf("2 grade") >= 0 || s.indexOf("two grade") >= 0) return -2;
-  if (s.indexOf("1 grade") >= 0 || s.indexOf("one grade") >= 0) return -1;
-  if (s.indexOf("above") >= 0) return 1;
-  if (s.indexOf("grade level") >= 0 || s.indexOf("on level") >= 0) return 0;
-  return null;
 }
 function classroomAvg(sid, subject, days) {
   const codes = activeCodes(subject);
@@ -3246,7 +3231,7 @@ const CG_KEY = "Solid line: classroom marks at 3 or higher, each week. Dashed li
 function cgArrow(t) {
   if (t == null) return "";
   const a = t >= 10 ? "\u2191" : t <= -10 ? "\u2193" : "\u2192";
-  return '<span class="cg-trend" title="Change in the share at 3 or higher over the last 3 weeks">' + a + " " + (t > 0 ? "+" : "") + t + " in 3 wks</span>";
+  return '<span class="cg-trend" title="Change in the share at 3 or higher over the last 3 weeks, in percentage points">' + a + " " + (t > 0 ? "+" : "") + t + " pts in 3 wks</span>";
 }
 /* v127: one row of the classwork table. The bar is the whole class split by
    each child's mark (the report card's rule, rounded as the report card
@@ -4751,6 +4736,8 @@ function orfPeople(db) {
     return { o: o, st: st, name: nm, eld: st ? !!st.eld : (window.SuiteOrf ? window.SuiteOrf.stripEld(o.name).eld : false) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
+/* v131: text in the amber reads in --s2-ink (6.2:1); --s2 itself stays for fills */
+const ORF_STATUS_INK = c => c === "var(--s2)" ? "var(--s2-ink)" : c;
 const ORF_STATUS_COLOR = { start: "var(--muted)", met: "var(--s3)", metBoy: "var(--s4)", on: "var(--s3)", close: "var(--s2)",
   below: "var(--s1)", "r-green": "var(--s3)", "r-blue": "var(--s4)", "r-yellow": "var(--s2)", "r-red": "var(--s1)" };
 function orfDay(t) { const d = new Date(t); return window.SuiteOrf.goals.fmtShort(d); }
@@ -4848,7 +4835,7 @@ function orfGlanceHTML(rows, now) {
       return '<td class="og-c' + cls(c) + '"><span class="og-g">' + mo.target + (c.kind === "spring" && pl.comp ? '<span class="og-comp" title="with 3 of 3 comprehension questions"> 3/3</span>' : "") + "</span>" + a + "</td>";
     }).join("") + "</tr>";
   });
-  return h + '</tbody></table></div><p class="hint" style="margin-top:6px">\u2713 at or above the aim line on the day of the check; \u2717 below it. Outlined: this month. Blank: before the child\u2019s first check.</p></div>';
+  return h + '</tbody></table></div><p class="hint" style="margin-top:6px">In each month, the goal on top; under it in bold, that month\u2019s latest check. \u2713 at or above the aim line on the day it was read, \u2717 below it, so a check early in the month can have a \u2713 under a higher month-end goal. Outlined: this month. Blank: before the child\u2019s first check.</p></div>';
 }
 function orfAnalysisHTML(db) {
   if (!db || !orfGoalsReady()) return "";
@@ -4896,7 +4883,7 @@ function orfAnalysisHTML(db) {
       const detail = (pace ? pace + " \u00b7 " : "") + nums + (pl.latestComp == null ? "" : " \u00b7 comp. " + pl.latestComp + "/3");
       const lo = Math.min(pl.base, pl.latestY), hi = Math.max(pl.base, pl.latestY);
       const aimAt = !first && !pl.result ? pl.aim(pl.latest.t) : null;
-      h += '<tr class="clickable' + (sel ? " sel" : "") + '" onclick="orfPickGoal(\'' + esc(p.o.id) + '\')" style="cursor:pointer' + (sel ? ";background:var(--s4-bg)" : "") + '">' +
+      h += '<tr class="clickable' + (sel ? " sel" : "") + '" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}" onclick="orfPickGoal(\'' + esc(p.o.id) + '\')" style="cursor:pointer' + (sel ? ";background:var(--s4-bg)" : "") + '">' +
         '<td class="ot-name">' + who + "</td>" +
         '<td class="ot-cell"><span class="ot-track" role="img" aria-label="' + esc(nums + (pace ? ", " + pace : "")) + '">' +
           '<span class="ot-span" style="left:' + P(pl.base) + ";width:" + P(Math.max(pl.goal, pl.latestY) - pl.base) + '"></span>' +
@@ -4905,7 +4892,7 @@ function orfAnalysisHTML(db) {
           '<span class="ot-goal" style="left:' + P(pl.goal) + '"></span>' +
           '<span class="ot-now" style="left:' + P(pl.latestY) + ";background:" + col + '"></span>' +
         "</span></td>" +
-        '<td class="ot-where"><span style="color:' + col + ';font-weight:600">' + esc(G.statusLabel(pl)) + "</span>" +
+        '<td class="ot-where"><span style="color:' + ORF_STATUS_INK(col) + ';font-weight:600">' + esc(G.statusLabel(pl)) + "</span>" +
         (flag ? ' <span class="tag reteach" title="' + (pl.flagged ? "below the grade-level line, within the margin of error" : pl.belowRun + " checks in a row below the aim line") + '">\u2691 ' +
           (pl.flagged ? "flagged" : pl.belowRun + " in a row below: change the plan") + "</span>" : "") +
         '<span class="ot-detail">' + esc(detail) + "</span></td></tr>";
@@ -4934,7 +4921,7 @@ function orfAnalysisHTML(db) {
         const v = comp.records[c.rec.id], nt = notesAll.records[c.rec.id], NT = window.SuiteOrf.notes;
         const said = nt && nt.notes.length ? '<tr class="orf-said"><td colspan="4" class="small" style="border-top:0;padding-top:0"><span class="muted">What they said:</span> ' +
           nt.notes.map(x => esc(NT.text(x))).join(" \u00b7 ") + "</td></tr>" : "";
-        const paused = nt && nt.paused ? ' <span class="tiny" style="display:inline-block;padding:1px 7px;border-radius:5px;background:var(--s2-bg);color:var(--s2);font-weight:600" title="The timer was paused for an interruption. The norms assume one unbroken minute, so read this score with that in mind.">paused ' + esc(NT.paused(nt.paused)) + "</span>" : "";
+        const paused = nt && nt.paused ? ' <span class="tiny" style="display:inline-block;padding:1px 7px;border-radius:5px;background:var(--s2-bg);color:var(--s2-ink);font-weight:600" title="The timer was paused for an interruption. The norms assume one unbroken minute, so read this score with that in mind.">paused ' + esc(NT.paused(nt.paused)) + "</span>" : "";
         return "<tr><td>" + esc(orfDay(c.t)) + (c.rec.passageTitle ? ' <span class="tiny muted">' + esc(c.rec.passageTitle) + "</span>" : "") + paused + '</td><td class="c num">' + c.y +
           '</td><td class="c num">' + (c.t === pl.baseDate.getTime() ? "start" : (Math.round(c.y - pl.aim(c.t)) > 0 ? "+" : "") + Math.round(c.y - pl.aim(c.t))) +
           '</td><td class="c"><select aria-label="Comprehension for ' + esc(orfDay(c.t)) + '" onchange="orfSetComp(\'' + esc(c.rec.id) + '\',this.value)"><option value="">\u2014</option>' +
@@ -5152,8 +5139,11 @@ function renderORF() {
   /* v86: goals, aim line, groups, patterns, read live */
   html += orfAnalysisHTML(db);
 
+  /* v131: the file import and the 1-4 settings are drawn here but placed
+     after the class's data, so the data cards read together */
+  const setupAt = html.length;
   /* import card */
-  html += '<div class="card pad"><h2>Or bring in a file</h2>' +
+  html += '<div class="card pad"><h2>Bring in a file</h2>' +
     '<p class="hint" style="margin-top:6px">Drop in the backup file your ORF tool saves, or a CSV with a name, a date, and a WCPM column. The shape of the file does not matter \u2014 the fields are detected and you confirm them before anything is imported.</p>' +
     '<div class="row" style="margin-top:10px"><input type="file" id="orf-file" accept=".json,.csv,.tsv,.txt"><span class="hint">or paste below</span></div>' +
     '<textarea id="orf-paste" rows="4" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:12px" placeholder="Paste JSON or CSV rows here"></textarea>' +
@@ -5211,6 +5201,8 @@ function renderORF() {
     '<label class="fld">These marks land on<select id="orf-std">' +
     CATALOG.filter(s => s.s === "ELA" && s.d === "Foundational Skills").map(s => '<option value="' + s.c + '"' + (S.settings.orfStandard === s.c ? " selected" : "") + ">" + esc(s.c + " \u2014 " + s.lbl) + "</option>").join("") +
     "</select></label></div></div>";
+  const setupHTML = html.slice(setupAt);
+  html = html.slice(0, setupAt);
 
   /* current fluency picture */
   if (S.orf.length && S.students.length) {
@@ -5226,9 +5218,12 @@ function renderORF() {
       return { st: st, r: r, se: se, target: target, gap: Math.round(r.wcpm - target), mark: wcpmToMark(r.wcpm, se), band: pctBand(r.wcpm, se) };
     });
     const below = rows.filter(x => !x.none && x.gap <= -10);
+    /* v131: the 50th's value goes in the heading (once), not beside every bar
+       where it ran into the Gap column */
+    const targets = [...new Set(rows.filter(x => !x.none).map(x => x.target))];
     html += '<div class="divider"></div><div class="card pad"><div class="sectionhead"><h2>Where the class sits</h2><span class="spacer"></span>' +
       '<span class="hint">Bar shows the latest WCPM against the 50th percentile for that season.</span></div>';
-    html += '<table style="margin-top:6px"><thead><tr><th>Student</th><th class="c">WCPM</th><th>Against the 50th</th><th class="c">Gap</th><th class="c">Percentile band</th><th class="c">Mark</th><th>Checked</th></tr></thead><tbody>';
+    html += '<table style="margin-top:6px"><thead><tr><th>Student</th><th class="c">WCPM</th><th>Against the 50th' + (targets.length === 1 ? ' <span class="muted" style="font-weight:400">(' + targets[0] + ' WCPM, the line)</span>' : "") + '</th><th class="c">Gap</th><th class="c">Percentile band</th><th class="c">Mark' + (orfBasis() === "eoy" ? ' <span class="muted" style="font-weight:400" title="Marked against end-of-year expectations, so fall and winter marks run lower by design">(end of year)</span>' : "") + '</th><th>Checked</th></tr></thead><tbody>';
     rows.forEach(x => {
       if (x.none) {
         html += "<tr><td>" + esc(fullName(x.st)) + '</td><td colspan="6" class="muted small">no readings yet</td></tr>';
@@ -5238,8 +5233,8 @@ function renderORF() {
       const col = x.gap >= 0 ? "var(--s3)" : (x.gap <= -10 ? "var(--s1)" : "var(--s2)");
       html += "<tr><td>" + esc(fullName(x.st)) + (x.st.eld ? ' <span class="chip eld tiny">ELD</span>' : "") + "</td>" +
         '<td class="c num"><strong>' + x.r.wcpm + "</strong></td>" +
-        '<td><span class="wbar"><i style="width:' + pctW.toFixed(1) + "%;background:" + col + '"></i><u style="left:' + (100 / 1.6).toFixed(1) + '%"></u><b>' + x.target + "</b></span></td>" +
-        '<td class="c num" style="color:' + col + ';font-weight:650">' + (x.gap > 0 ? "+" : "") + x.gap + "</td>" +
+        '<td><span class="wbar" title="' + x.r.wcpm + " against the " + SEASON_NAME[x.se].toLowerCase() + " 50th percentile, " + x.target + '"><i style="width:' + pctW.toFixed(1) + "%;background:" + col + '"></i><u style="left:' + (100 / 1.6).toFixed(1) + '%"></u></span></td>' +
+        '<td class="c num" style="color:' + ORF_STATUS_INK(col) + ';font-weight:650">' + (x.gap > 0 ? "+" : "") + x.gap + "</td>" +
         '<td class="c small">' + (x.band ? x.band + "th+" : "below 10th") + "</td>" +
         '<td class="c">' + markHTML(x.mark) + "</td>" +
         '<td class="tiny muted">' + esc(x.r.date) + " \u00b7 " + SEASON_NAME[x.se] + "</td></tr>";
@@ -5266,6 +5261,7 @@ function renderORF() {
       }).join("") + "</tbody></table></div></div>";
   }
 
+  html += '<div class="divider"></div>' + setupHTML;
   html += "</div>";
   el.innerHTML = html;
 
@@ -6092,9 +6088,6 @@ function reloadFromStorage() {
     syncIreadyScores();
   } catch (e) { }
 }
-function pushToFile(now) {
-  if (window.SuiteSync) window.SuiteSync.push(!!now);
-}
 
 function plannerDayCount() {
   try {
@@ -6503,90 +6496,6 @@ function stopMapPrompts() {
   dismissMapPrompt();
 }
 
-/* ---------- Reveal Math pacing ----------
-   The twelve units against what the planner recorded: the guide's days for
-   each (flex days included), the days actually spent, and for the unit in
-   hand every lesson with its standards and how many students have a mark
-   on them since it was taught. Nothing here is stored. */
-function revealPacingHTML(lp) {
-  const R = window.RevealPacing;
-  const sb = lp && lp.subjects.find(x => x.id === "math");
-  if (!R || !R.on(sb)) return "";
-  const days = lp.days || {}, per = {}, lessonDate = {};
-  let here = null, hereDate = "";
-  Object.keys(days).sort().forEach(k => {
-    const r = days[k];
-    if (!r || !r.saved || r.noSchool || !r.entries) return;
-    const e = r.entries.math;
-    if (!e || !e.taught || !e.pos || !R.unit(e.pos.unit)) return;
-    const u = Number(e.pos.unit);
-    const o = per[u] = per[u] || { n: 0, from: k, to: k };
-    o.n++; o.to = k;
-    const st = R.find(e.pos);
-    if (st) { if (!lessonDate[st.i]) lessonDate[st.i] = k; here = st; hereDate = k; }
-  });
-  let html = '<div class="card pad"><div class="sectionhead"><h2>Reveal Math pacing</h2><span class="spacer"></span>' +
-    '<span class="hint">' + R.TOTAL + " days in the guide</span></div>";
-  html += '<div style="overflow-x:auto"><table><thead><tr><th>Unit</th><th class="c">Guide</th><th class="c">Taught</th><th>When</th></tr></thead><tbody>' +
-    R.UNITS.map(u => {
-      const a = per[u.u], mine = here && here.u === u.u;
-      const over = a ? a.n - u.total : 0;
-      return "<tr" + (mine ? ' style="font-weight:650"' : "") + "><td>" + u.u + " \u00b7 " + esc(u.title) + (mine ? ' <span class="chip tiny">now</span>' : "") + "</td>" +
-        '<td class="c num">' + u.total + '</td><td class="c num">' + (a ? a.n : "\u2014") +
-        (over > 0 ? ' <span class="tiny muted">+' + over + "</span>" : "") + "</td>" +
-        '<td class="tiny muted">' + (a ? esc(a.from.slice(5) + " \u2013 " + a.to.slice(5)) : "") + "</td></tr>";
-    }).join("") + "</tbody></table></div>";
-  if (here) {
-    const U = R.unit(here.u);
-    html += '<h3 style="margin-top:14px">Unit ' + U.u + " \u00b7 " + esc(U.title) + '</h3><p class="hint">Last recorded: ' + esc(R.name(here)) + " on " + esc(hereDate) + ".</p>";
-    html += '<div style="overflow-x:auto"><table><thead><tr><th>Lesson</th><th>Standards</th><th class="c">Marked</th></tr></thead><tbody>' +
-      U.steps.filter(s => s.k === "L" || s.k === "assess").map(s => {
-        const codes = R.oregon(s).filter(c => byCode[c]);
-        const since = lessonDate[s.i];
-        const n = since && S.students.length ? new Set(S.scores.filter(x => !x.source && codes.includes(x.std) && x.date >= since).map(x => x.sid)).size : null;
-        return "<tr><td>" + (s.k === "L" ? '<span class="num">' + s.u + "-" + s.n + "</span> " : "") + esc(s.k === "L" ? s.t : "Unit assessment") +
-          (s.tg && s.tg.length ? '<div class="tiny muted">' + s.tg.map(esc).join(" ") + "</div>" : "") + "</td>" +
-          "<td>" + (codes.length ? codes.map(c => codeHTML(c)).join(" ") : '<span class="tiny muted">grade 1 review</span>') + "</td>" +
-          '<td class="c num">' + (n == null ? '<span class="tiny muted">' + (since ? "" : "not yet") + "</span>" : n + " of " + S.students.length) + "</td></tr>";
-      }).join("") + "</tbody></table></div>";
-  } else {
-    html += '<p class="hint">Once the planner has a saved day of Math, the unit in hand shows here lesson by lesson.</p>';
-  }
-  return html + "</div>";
-}
-
-/* ---------- Benchmark Advance: the unit in hand ----------
-   The latest saved Reading position's unit, its three weeks, and for each
-   the standards and how many students have a mark on them. */
-function benchmarkHTML(lp) {
-  const B = window.BenchmarkScope;
-  const sb = lp && lp.subjects.find(x => x.id === "reading");
-  if (!B || !B.on(sb)) return "";
-  let at = null;
-  Object.keys(lp.days || {}).sort().forEach(k => {
-    const w = benchmarkWeekOn(k, lp);
-    if (w && lp.days[k].saved) at = { k: k, w: w };
-  });
-  let html = '<div class="card pad"><div class="sectionhead"><h2>Benchmark Advance</h2><span class="spacer"></span>' +
-    '<span class="hint">standards matched from the skill names</span></div>';
-  if (!at) return html + '<p class="hint">Once the planner has a saved day of Reading, the unit in hand shows here week by week.</p></div>';
-  const U = at.w.unit;
-  html += "<h3>Unit " + U.u + " \u00b7 " + esc(U.title) + '</h3><p class="hint">' + esc(U.eq) + " Last recorded: Week " + at.w.week.w + " on " + esc(at.k) + ".</p>";
-  html += '<div style="overflow-x:auto"><table><thead><tr><th>Week</th><th>Reading</th><th>Writing and grammar</th><th class="c">Marked</th></tr></thead><tbody>' +
-    U.weeks.map(w => {
-      const P = B.parts(U.u, w), rc = [], wc = [];
-      P.reading.forEach(x => x.codes.forEach(c => { if (byCode[c] && rc.indexOf(c) < 0) rc.push(c); }));
-      P.writing.forEach(x => x.codes.forEach(c => { if (byCode[c] && wc.indexOf(c) < 0) wc.push(c); }));
-      const all = rc.concat(wc);
-      const n = S.students.length ? new Set(S.scores.filter(x => !x.source && all.includes(x.std)).map(x => x.sid)).size : null;
-      return "<tr" + (w.w === at.w.week.w ? ' style="font-weight:650"' : "") + "><td>" + w.w + '<div class="tiny muted">' + esc((w.anchor || []).map(a => a.t).join(" \u00b7 ")) + "</div></td>" +
-        "<td>" + rc.map(c => codeHTML(c)).join(" ") + "</td><td>" + wc.map(c => codeHTML(c)).join(" ") +
-        '<div class="tiny muted">' + esc(w.writing) + "</div></td>" +
-        '<td class="c num">' + (n == null ? "" : n + " of " + S.students.length) + "</td></tr>";
-    }).join("") + "</tbody></table></div>";
-  return html + "</div>";
-}
-
 /* ============================================================
    TAB — PLANNING
    ============================================================ */
@@ -6632,7 +6541,7 @@ function planningAnalysisHTML() {
       html += '<table style="margin-top:6px"><thead><tr><th>Unit</th><th>Standard</th><th class="c">Students with a mark</th></tr></thead><tbody>' +
         thin.slice(0, 25).map(x => "<tr><td>" + esc((x.sb ? x.sb.name : x.t.sbId) + " \u00b7 Unit " + x.t.unit) +
           '</td><td>' + codeHTML(x.code) + " " + esc(byCode[x.code].lbl) +
-          '</td><td class="c num" style="color:' + (x.n ? "var(--s2)" : "var(--s1)") + ';font-weight:650">' +
+          '</td><td class="c num" style="color:' + (x.n ? "var(--s2-ink)" : "var(--s1)") + ';font-weight:650">' +
           x.n + " of " + S.students.length + "</td></tr>").join("") + "</tbody></table>";
     }
     if (gaps.length) {

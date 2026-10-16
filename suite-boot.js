@@ -367,53 +367,9 @@
   } catch (e) { }
 })();
 
-/* ---- v87: the ORF tool is for taking checks ----
-   Its Growth, Reports, Gradebook and Students tabs are the gradebook's ORF
-   tab now (goals, aim line, groups, patterns: v86) and its roster (the
-   gradebook's, pushed one way: v87). The tool's file is the teacher's own
-   and is not edited: this takes those four tab buttons out of its nav, so
-   nothing can open them, and moves the one thing on them that belongs to
-   taking checks, the Records card (the saved checks, with Delete, and the
-   CSV, backup and restore buttons), onto Assess. The card keeps its own
-   listeners, and the tool already redraws it after every save. A line under
-   the tabs says where the rest went. Runs after the tool's script (this
-   file is deferred), before its first paint of data (that waits on an
-   async load), so the tabs never flash. */
-(function () {
-  if (location.pathname.indexOf("fluency") < 0) return;
-  var GONE = ["growth", "reports", "gradebook", "students"];
-  function run() {
-    var nav = document.querySelector("nav.tabs");
-    if (!nav) return;
-    var wasOpen = false;
-    GONE.forEach(function (t) {
-      var b = nav.querySelector('button[data-tab="' + t + '"]');
-      if (b) { if (b.getAttribute("aria-selected") === "true") wasOpen = true; b.remove(); }
-    });
-    var list = document.getElementById("recordList"), assess = document.getElementById("tab-assess");
-    var card = list && list.closest(".panel");
-    if (card && assess && card.parentNode !== assess) {
-      var h = card.querySelector("h2");
-      if (h) h.textContent = "Saved checks";
-      card.setAttribute("data-suite-moved", "records");
-      assess.appendChild(card);
-    }
-    if (!document.getElementById("suite-orf-where")) {
-      var p = document.createElement("p");
-      p.id = "suite-orf-where";
-      p.className = "hint";
-      p.style.cssText = "margin:6px 0 0";
-      p.innerHTML = 'Goals, growth, groups, patterns and the class list are in the <a href="../gradebook/#orf" style="color:var(--accent)">gradebook\u2019s ORF tab</a>.';
-      nav.parentNode.insertBefore(p, nav.nextSibling);
-    }
-    var first = nav.querySelector('button[data-tab="assess"]');
-    if (wasOpen && first) first.click();
-    GONE.forEach(function (t) { var sec = document.getElementById("tab-" + t); if (sec) sec.classList.add("hidden"); });
-    if (first && !nav.querySelector('button[aria-selected="true"]')) first.click();
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
-})();
+/* (v87's block that hid the ORF tool's Growth, Reports, Gradebook and
+   Students tabs and moved its Records card onto Assess is gone: since v132
+   the page has only Assess and Passages, with Saved checks on Assess.) */
 
 /* Starts sync and the service worker on the tools that have no boot code of
    their own. The gradebook does both itself and does not load this file.

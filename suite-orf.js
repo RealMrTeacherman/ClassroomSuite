@@ -4,14 +4,14 @@
 
    Before v82 the norms table lived in four files and the name parsing in
    five, and they had started to disagree. Everything below is used by the
-   gradebook (its ORF bridge and marks), fluency-extras.js (goals, aim
-   line, roster) and groups/orf-suggest.js + groups/index.html (suggested
+   gradebook (its ORF bridge, goals and marks), fluency-extras.js
+   (comprehension on Assess) and groups/index.html (suggested
    reading groups). Loaded by a plain <script> tag before any of them.
 
-   The running-records tool (fluency/index.html) is the teacher's own file
-   and keeps its own NORMS, windowFor and nameParts inside it. They are not
-   called from here and cannot be. test-orf-shared.js loads that page and
-   fails if its copies ever stop matching these.
+   The ORF tool (fluency/index.html) keeps only its own nameParts, for
+   sorting its student list; since v132 it has no norms or seasons of its
+   own. test-orf-shared.js holds these to the tool's v131 copies, kept in
+   tests/fixtures/.
 
    Nothing here reads or writes storage. It is data and pure functions.
 
@@ -164,6 +164,78 @@
      v86: the reading goals (moved from fluency-extras.js, unchanged) and
      the missed-word patterns (the ORF tool's own rules), so the gradebook
      and the ORF page read one copy. Pure: no storage, no page.
+
+     v132: how the goals are set, moved here with the engine when
+     fluency-extras.js lost its Growth tab (the ORF app was spun off).
+
+     ---- How goals are set: the H&T table, the way Creslane set them -------
+     This is last year's hand-set method, reproduced exactly — the same winter
+     and spring goal as every one of the 23 rows on last year's sheet, and the
+     same mid-year revision as 20 of its 21 (test-orf-goals.js holds them all).
+     It works for any grade 1-6 (Grade, on the whole-class view); the sheet
+     was grade 2, so the examples are.
+
+       1. Take the student's first check of the year (the median, if several
+          passages were read that day).
+       2. Find the grade's FALL value it is closest to — for grade 2: 23, 36,
+          50, 84 or 111 — and that is the student's row (10th ... 90th).
+          "Closest" is by proportion, not by words: 29 is 26% above 23 but
+          only 24% below 36, so it goes on the 25th row, as the sheet did.
+       3. The winter goal is that row's WINTER value, the spring goal its
+          SPRING value. 82 -> 109 / 124. 90 -> 109 / 124. 101 -> 131 / 148.
+
+     Off the ends of the grade's table the row continues into the next
+     grade's norms, read as a timeline in which one grade's spring and the
+     next grade's fall are the same moment (summer):
+
+       ... grade 1 winter, [grade 1 spring | grade 2 fall], grade 2 winter,
+           [grade 2 spring | grade 3 fall], grade 3 winter, ...
+
+     The student is placed on the rung they are closest to and the goals are
+     the next two rungs; at a merged summer rung the winter goal takes the
+     lower value and the spring goal the higher:
+
+       8   -> placed at grade 1 winter (9)   -> 18 (gr 1 spring) / 35 (gr 2 winter)
+       2   -> placed below grade 1 winter    ->  9 (gr 1 winter) / 23 (gr 2 fall)
+       128 -> placed at grade 2 winter (131) -> 134 (gr 3 fall) / 161 (gr 3 winter)
+       140 -> placed at grade 3 fall (134)   -> 161 (gr 3 winter) / 166 (gr 3 spring)
+
+     Only a score below the rung under the grade's own (grade 2: below grade
+     1 winter's 10th, 9) steps down — last year 9 and 10 both got 35 / 43.
+     Grade 1 has no fall norms, so a grade 1 fall start uses the 1.5-a-week
+     pace below.
+
+     Since v59 a student whose row is the 10th (below the 25th percentile)
+     starts ONE ROW UP, on the 25th: 18 -> 59 / 72 rather than 35 / 43. It is
+     a setting (on by default) so last year's sheet can still be reproduced
+     with it off. Students stepped down into the grade below are not moved.
+
+     ---- The mid-year review ---------------------------------------------------
+     At the winter benchmark (the last reading from December 1 to two weeks
+     past the winter due date):
+       - below the spring goal: the goal stands
+       - past it, goal on the grade's own table: the winter reading is placed
+         on the WINTER values the same way and the goal becomes that row's
+         spring value, never lower. 69 -> 72, 73 -> 100, 124 -> 148, 150 -> 161.
+       - past it, goal already above grade level: the number stays and the
+         goal adds "all 3 comprehension questions correct" (161+, 166+).
+     The one row this does not reproduce is 37 -> 94 at winter, which the
+     rule puts on 100 and the sheet raised to 124.
+
+     Two pace-based methods are kept as alternatives, for a student the
+     table sells short: 1.5 ("realistic") or 2.0 ("ambitious") words a week,
+     the grade 2 rates from Fuchs, Fuchs, Hamlett, Walz & Germann (1993),
+     counted over instructional weeks (H&T's 32 between fall and spring,
+     which is 34.6 calendar weeks). Every goal can be overwritten by typing.
+
+     ---- How the monthly goals are spaced -------------------------------------
+     Table method: a straight line from the first check to the winter goal
+     (Winter benchmark due, default January 15), and another on to the
+     spring goal (Spring benchmark due, default May 14). A goal the mid-year
+     review raised restarts the second line from the winter reading. Because the table
+     itself front-loads the year (50th row: +34 fall to winter, +16 winter
+     to spring), so do the months. Pace methods follow the same H&T curve
+     for the student's starting percentile, stretched to end on the goal.
      ============================================================ */
   var DAY = 86400000;
   var WIN = ["fall", "winter", "spring"];

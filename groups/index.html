@@ -310,7 +310,6 @@
 <script src="../suite-orf.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
-<script src="sub-deck-template.js" defer></script>
 <script src="sub-slides.js" defer></script>
 <script src="win.js" defer></script>
 </head>
@@ -1075,6 +1074,18 @@
       document.head.appendChild(s);
     });
   }
+  /* v131: the deck's template (about 400 KB) is fetched when a deck is made,
+     not on every open of the board; the service worker keeps it offline */
+  function loadDeckTemplate() {
+    if (window.SUB_DECK_TEMPLATE) return Promise.resolve();
+    return new Promise(function (res, rej) {
+      var s = document.createElement("script");
+      s.src = "sub-deck-template.js";
+      s.onload = function () { window.SUB_DECK_TEMPLATE ? res() : rej(new Error("The slide template is missing.")); };
+      s.onerror = function () { rej(new Error("The slide template did not load. Open this page once while online, then try again.")); };
+      document.head.appendChild(s);
+    });
+  }
   /* v91: the colors look's medallion pictures, only when a colors deck is made */
   function loadColorMedallions() {
     if (M().look !== "colors" || window.SUB_DECK_COLORS) return Promise.resolve();
@@ -1091,7 +1102,7 @@
     out.classList.remove("warn");
     out.textContent = "Making the deck\u2026";
     var loose = unplaced().length;
-    Promise.all([loadJSZip(), loadColorMedallions()]).then(function (got) {
+    Promise.all([loadJSZip(), loadColorMedallions(), loadDeckTemplate()]).then(function (got) {
       return window.SubSlides.build(slideModel(), got[0]);
     }).then(function (r) {
       var stamp = new Date();
