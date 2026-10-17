@@ -672,9 +672,9 @@
       for (var i = 0; i < tpl.length - 1; i++) {
         var a = tpl[i], b = tpl[i + 1];
         if (!a || !b || a.t !== "8:15" || a.l !== "Phonics" || b.t !== "8:30" || b.s !== "reading") continue;
-        if (b.l === "Reading small groups" && (a.n || "") === "ECRI slides on the carpet" && (b.n || "") === "Blue chart \u00b7 Build Automaticity packets") {
-          tpl.splice(i, 2, { t: "8:15", l: "Phonics, then small groups", s: "reading", n: "ECRI slides on the carpet \u00b7 Blue chart \u00b7 Build Automaticity packets" }); touched = true;
-        } else if (b.l === "Reading" && !b.n && /^ECRI/.test(a.n || "")) {
+        /* v136: the Mon/Tue/Thu/Fri pair (Phonics, Reading small groups) is
+           the schedule again and is no longer merged; Wednesday's still is. */
+        if (b.l === "Reading" && !b.n && /^ECRI/.test(a.n || "")) {
           tpl.splice(i, 2, { t: "8:15", l: "Reading", s: "reading", n: "Starts with ECRI phonics" }); touched = true;
         }
       }
@@ -687,6 +687,128 @@
       sp.blocks.forEach(function (r) { if (r && r.subject === "phonics") { r.subject = "reading"; hit = true; } });
       if (hit) try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
     }
+  }
+
+
+  /* v136: Reading on Mon, Tue, Thu and Fri is four parts again:
+       8:15 Phonics · 8:30 Reading small groups · 8:50 Whole-group
+       comprehension · 9:10 Reading small groups.
+     v120 had merged the first two into "Phonics, then small groups"
+     (8:15-8:50), and the sub plan then printed the whole Reading lesson
+     there, at phonics.
+
+     Converging for the untouched merged default (an older build can sync
+     one back, and its phonicsGone() would make one); once (flag
+     `reading-four-parts-2026`) for a merged 8:15 Reading block he had
+     renamed, since he asked for this shape on these days. Either way only
+     a morning that is still all Reading from 8:15 to 9:30, with nothing at
+     8:30, is touched; one with any other block in it is his and is left.
+     The 8:15 block is renamed "Phonics", so what was written on the old
+     block (a sub's "What to do", a day's block note) moves with it to the
+     new key; nothing is dropped. */
+  var R4 = {
+    merged: "Phonics, then small groups",
+    mergedNote: "ECRI slides on the carpet \u00b7 Blue chart \u00b7 Build Automaticity packets",
+    parts: [
+      { t: "8:15", l: "Phonics", s: "reading", n: "ECRI slides on the carpet" },
+      { t: "8:30", l: "Reading small groups", s: "reading", n: "Blue chart \u00b7 Build Automaticity packets" },
+      { t: "8:50", l: "Whole-group comprehension", s: "reading", n: "Benchmark Teacher\u2019s Guide \u00b7 anchor chart skill" },
+      { t: "9:10", l: "Reading small groups", s: "reading", n: "Colors shift one slot down" }
+    ]
+  };
+  function readingFourParts() {
+    var st;
+    try { st = JSON.parse(localStorage.getItem(S_KEY) || "null"); } catch (e) { return; }
+    if (!st || !st.templates || typeof st.templates !== "object") return;   /* nothing saved yet: the defaults are already four parts */
+    var once = !done()["reading-four-parts-2026"];
+    var renames = {}, touched = false;
+    var T815 = clock("8:15"), T930 = clock("9:30");
+    [1, 2, 4, 5].forEach(function (d) {
+      var tpl = st.templates[d];
+      if (!Array.isArray(tpl)) return;
+      var first = tpl.filter(function (b) { return b && clock(b.t) === T815; });
+      if (first.length !== 1 || first[0].s !== "reading") return;
+      var a = first[0];
+      var untouched = a.l === R4.merged && (a.n || "") === R4.mergedNote;
+      if (!untouched && !once) return;
+      if (/^phonics$/i.test(String(a.l || "").trim())) return;              /* already its own block */
+      var inside = tpl.filter(function (b) { return b && clock(b.t) > T815 && clock(b.t) < T930; });
+      var allowed = [clock("8:50"), clock("9:10")];
+      if (inside.some(function (b) { return b.s !== "reading" || allowed.indexOf(clock(b.t)) < 0; })) return;
+      var oldKey = String(a.t || "") + "|" + String(a.l || "");
+      var defaultNote = (a.n || "") === R4.mergedNote || !a.n;
+      a.l = "Phonics";
+      a.n = defaultNote ? R4.parts[0].n : a.n;
+      renames[oldKey] = String(a.t || "") + "|Phonics";
+      R4.parts.slice(1).forEach(function (p) {
+        if (tpl.some(function (b) { return b && clock(b.t) === clock(p.t); })) return;
+        var add = { t: p.t, l: p.l, s: p.s, n: (p.t === "8:30" && !defaultNote) ? "" : p.n };
+        var at = tpl.length;
+        for (var i = 0; i < tpl.length; i++) if (tpl[i] && clock(tpl[i].t) > clock(p.t)) { at = i; break; }
+        tpl.splice(at, 0, add);
+      });
+      touched = true;
+    });
+    if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { return; } }
+    if (Object.keys(renames).length) r4Rekey(renames);
+    r4SubRows();
+    if (once) mark("reading-four-parts-2026");
+  }
+  function r4Join(a, b) {
+    a = String(a || "").trim(); b = String(b || "").trim();
+    if (!a) return b; if (!b || a.indexOf(b) >= 0) return a;
+    return a + "\n\n" + b;
+  }
+  /* what was written on the old 8:15 block follows it to "8:15|Phonics" */
+  function r4Rekey(renames) {
+    var sp = null;
+    try { sp = JSON.parse(localStorage.getItem("suite:subplan:v1") || "null"); } catch (e) { sp = null; }
+    if (sp && sp.details && typeof sp.details === "object") {
+      var hit = false;
+      Object.keys(renames).forEach(function (from) {
+        var to = renames[from], x = sp.details[from];
+        if (!x || from === to) return;
+        var y = sp.details[to] || { detail: "", emergency: "" };
+        y.detail = r4Join(y.detail, x.detail); y.emergency = r4Join(y.emergency, x.emergency);
+        sp.details[to] = y; delete sp.details[from]; hit = true;
+      });
+      if (hit) try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
+    }
+    [D_KEY, "lp:pending:v1"].forEach(function (key) {
+      var all;
+      try { all = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return; }
+      if (!all || typeof all !== "object") return;
+      var hit = false;
+      Object.keys(all).forEach(function (dk) {
+        var rec = all[dk], o = rec && rec.blockNotes;
+        if (!o || typeof o !== "object") return;
+        Object.keys(renames).forEach(function (from) {
+          var to = renames[from];
+          if (from === to || !String(o[from] || "").trim()) return;
+          o[to] = r4Join(o[to], o[from]); delete o[from]; hit = true;
+        });
+      });
+      if (hit) try { localStorage.setItem(key, JSON.stringify(all)); } catch (e) { }
+    });
+  }
+  /* The sub plan's own block list (printed only with no planner schedule):
+     its merged 8:15-8:50 row becomes the two rows, its text on Phonics. */
+  function r4SubRows() {
+    var sp = null;
+    try { sp = JSON.parse(localStorage.getItem("suite:subplan:v1") || "null"); } catch (e) { return; }
+    if (!sp || !Array.isArray(sp.blocks)) return;
+    var out = [], hit = false;
+    sp.blocks.forEach(function (b) {
+      if (b && b.start === "8:15" && b.end === "8:50" && b.title === R4.merged && b.subject === "reading") {
+        out.push({ start: "8:15", end: "8:30", title: "Phonics", days: b.days || "MTRF", subject: "reading", detail: String(b.detail || ""), emergency: String(b.emergency || "") });
+        out.push({ start: "8:30", end: "8:50", title: "Reading small groups", days: b.days || "MTRF", subject: "reading", detail: "", emergency: "" });
+        hit = true; return;
+      }
+      out.push(b);
+    });
+    if (!hit) return;
+    sp.blocks = out;
+    try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
   }
 
 
@@ -708,6 +830,7 @@
     subPlanWalkToWin();
     standingNotes2026();                 /* after mondayShoutouts(), which can add the old Shoutouts note */
     phonicsGone();                       /* v120 (v100 switched it off) */
+    readingFourParts();                  /* v136: after phonicsGone(), which relinks any Phonics block first */
     repairDays();
     skipUnscheduled();
   }

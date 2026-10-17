@@ -202,6 +202,10 @@ They live in the **planner**, on the *Sub plan* button in the bottom corner. Pic
 
 Both are generated fresh from the planner each time, so a plan is never out of step with where you actually are in a unit. Blocks carry a days field (M T W R F) so a Monday-only block stays off a Friday plan, and a block linked to a planner subject fills its own lesson in.
 
+A subject with several blocks prints its lesson, learning targets and materials once, on the block where the lesson is taught: Reading's on *Whole-group comprehension* (8:50), Math's on *Math core lesson*. Phonics and the small-group blocks print their own notes. On Monday, Tuesday, Thursday and Friday Reading is Phonics 8:15–8:30, small groups 8:30–8:50, whole-group comprehension 8:50–9:10 and small groups 9:10–9:30.
+
+**This day's lessons**, in the Sub plan panel, shows each lesson's learning targets and materials as they will print, one per line. Change them there for that day only (the curriculum is not changed); *Use the curriculum's* puts them back. If the day's lesson is changed in the planner afterwards, the edit stops printing and the panel offers to clear it.
+
 `sub-plans.js` is injected into the planner rather than built into it, the same way the switcher is — the planner's own code is untouched, and deleting one `<script>` tag removes the feature cleanly. The notes live under their own key, `suite:subplan:v1`, which syncs with everything else.
 
 **The published files contain no standing notes at all** — no names, no behaviour notes, no phone number, only the empty time blocks. This site is served from a public repository, and children's behavioural information must never be committed to one. Load yours from a private JSON file (Planning → Sub plan → *Load standing notes*) and it lives in this browser and your synced `classroom.json`, which is where the roster already is. Keep that seed file out of the repo folder.

@@ -33,10 +33,12 @@
     return {
       intro: "", contact: "", signal: "", trusted: "",
       incentives: "", consequences: "", arrival: "", closing: "",
-      watch: [], specials: {},
+      watch: [], specials: {}, lessons: {},
       blocks: [
         { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "MTRF", subject: "", detail: "", emergency: "" },
-        { start: "8:15", end: "8:50", title: "Phonics, then small groups", days: "MTRF", subject: "reading", detail: "", emergency: "" },   /* v120: one Reading block */
+        /* v136: Reading in four parts again (v120 had merged the first two) */
+        { start: "8:15", end: "8:30", title: "Phonics", days: "MTRF", subject: "reading", detail: "", emergency: "" },
+        { start: "8:30", end: "8:50", title: "Reading small groups", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "8:50", end: "9:10", title: "Whole-group comprehension", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "9:10", end: "9:30", title: "Reading small groups (rotate)", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "9:30", end: "9:45", title: "Recess", days: "MTRF", subject: "", detail: "", emergency: "" },
@@ -130,6 +132,15 @@
         return { title: String(x.title || ""), start: String(x.start || ""), end: String(x.end || ""), days: String(x.days || ""),
           subject: String(x.subject || ""), detail: String(x.detail || ""), emergency: String(x.emergency || ""), partly: !!x.partly };
       });
+    /* v136: a day's learning targets and materials as he edited them */
+    if (src.lessons && typeof src.lessons === "object") {
+      Object.keys(src.lessons).forEach(function (k) {
+        var x = src.lessons[k];
+        if (!x || typeof x !== "object") return;
+        var list = function (a) { return Array.isArray(a) ? a.map(function (v) { return String(v == null ? "" : v).trim(); }).filter(Boolean) : []; };
+        b.lessons[k] = { where: String(x.where || ""), targets: list(x.targets), materials: list(x.materials) };
+      });
+    }
     if (Array.isArray(src.blocks) && src.blocks.length) {
       b.blocks = src.blocks.map(function (x) {
         return {
@@ -403,6 +414,45 @@
       free: free
     };
   }
+  /* v136: the learning targets and materials are the curriculum's, and he
+     can change them for one day in the panel ("This day's lessons"). The
+     edit is kept by day and subject, with the lesson it was made for: if
+     the day's lesson changes in the planner, the edit no longer applies and
+     the curriculum's print again (the panel says so). */
+  function lkey(iso, subjectId) { return iso + "|" + subjectId; }
+  function editOf(iso, subjectId, l) {
+    var o = (S.lessons || {})[lkey(iso, subjectId)];
+    return o && l && o.where === l.where ? o : null;
+  }
+  function lessonOut(iso, subjectId) {
+    var l = lessonFor(iso, subjectId);
+    if (!l) return l;
+    var o = editOf(iso, subjectId, l);
+    if (o) { l.baked = { targets: l.targets, materials: l.materials }; l.targets = o.targets.slice(); l.materials = o.materials.slice(); l.edited = true; }
+    return l;
+  }
+  /* v136: a subject with several blocks (Reading: Phonics, small groups,
+     whole-group comprehension, small groups) has one where its lesson is
+     taught. The lesson, its targets and its materials print there, not on
+     whichever block comes first: the comprehension lesson printed at 8:15,
+     under phonics. The block whose name says it is the lesson
+     ("comprehension", "whole group", "core", "lesson"); else the first. */
+  var LESSON_BLOCK = /comprehension|whole[\s-]*group|\bcore\b|\blesson\b/i;
+  function lessonBlocks(blocks) {
+    var first = {}, named = {};
+    blocks.forEach(function (b, i) {
+      if (!b.subject) return;
+      if (!(b.subject in first)) first[b.subject] = i;
+      if (!(b.subject in named) && LESSON_BLOCK.test(b.title)) named[b.subject] = i;
+    });
+    var out = {};
+    Object.keys(first).forEach(function (sid) { out[sid] = sid in named ? named[sid] : first[sid]; });
+    return out;
+  }
+  function targetsHTML(list) {
+    if (list.length === 1) return "<p><b>Learning targets:</b> " + esc(list[0]) + "</p>";
+    return "<p><b>Learning targets:</b></p><ul>" + list.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>";
+  }
   function dayNote(iso) {
     var lp = planner();
     if (!lp) return "";
@@ -500,6 +550,7 @@
     "#subprint .blk .h{font-size:13pt;font-weight:600;margin:1pt 0 3pt}" +
     "#subprint .blk .w{display:inline-block;padding:1.5pt 6pt;border:1px solid #C9D1D8;border-radius:4pt;font-size:10pt;margin-bottom:4pt}" +
     "#subprint .blk p{margin:3pt 0}" +
+    "#subprint .blk ul{margin:2pt 0 4pt;padding-left:16pt}#subprint .blk li{margin:1pt 0}" +
     "#subprint .em{background:#FAF2E2;border:1px solid #E7D7B4;border-radius:4pt;padding:5pt 8pt;font-size:10.5pt;margin-top:5pt}" +
     "#subprint .em b{color:#8A5E14}" +
     "#subprint .box{border:1px solid #C9D1D8;border-radius:5pt;padding:8pt 10pt;margin:0 0 9pt}" +
@@ -595,9 +646,9 @@
     /* A subject note is written once per day but Reading has three blocks,
        so it printed three times. It goes on the first block for the subject,
        the way the planner's own timeline does it. */
-    var noted = {};
-    blocks.forEach(function (b) {
-      var l = lessonFor(iso, b.subject), sp = specialFor(iso, b.title);
+    var noted = {}, home = lessonBlocks(blocks);
+    blocks.forEach(function (b, bi) {
+      var l = lessonOut(iso, b.subject), sp = specialFor(iso, b.title), isHome = home[b.subject] === bi;
       h += '<div class="blk"><div class="t">' + when(b) + "</div>";
       h += '<div class="h">' + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</div>";
       if (l && !l.taught) {
@@ -605,17 +656,16 @@
           (today ? " &mdash; see Just for this day." : ".") + "</p></div>";
         return;
       }
-      if (l && l.where) h += '<span class="w"><b>' + esc(l.label) + "</b> &middot; " + esc(l.where) + "</span>";
+      if (l && l.where && isHome) h += '<span class="w"><b>' + esc(l.label) + "</b> &middot; " + esc(l.where) + "</span>";
       var tnote = blockNoteFor(iso, b);                                        /* v94 */
       if (tnote) h += '<p class="today"><b>Today:</b> ' + nl(tnote) + "</p>";
       if (b.standing) h += "<p>" + nl(b.standing) + "</p>";
-      if (l && !noted["rv|" + b.subject]) {
-        noted["rv|" + b.subject] = true;
-        if (l.targets && l.targets.length) h += "<p><b>Learning targets:</b> " + esc(l.targets.join(" ")) + "</p>";
+      if (l && isHome) {
+        if (l.targets && l.targets.length) h += targetsHTML(l.targets);
         if (l.materials && l.materials.length) h += "<p><b>Materials:</b> " + esc(l.materials.join(", ")) + "</p>";
       }
       if (l && l.note && !noted[b.subject]) { noted[b.subject] = true; h += "<p><b>My note:</b> " + nl(l.note) + "</p>"; }
-      if (l && l.free && !l.where && !l.note) h += '<p class="muted">Nothing is written for this block today.</p>';
+      if (l && isHome && l.free && !l.where && !l.note) h += '<p class="muted">Nothing is written for this block today.</p>';
       if (b.detail) h += "<p>" + nl(b.detail) + "</p>";
       if (b.emergency) h += '<div class="em"><b>If you cannot find it:</b> ' + nl(b.emergency) + "</div>";
       h += "</div>";
@@ -642,11 +692,15 @@
     h += '<p class="lede">' + esc(who || "Grade 2") + (S.contact ? " &middot; " + esc(S.contact) : "") + " &middot; the full plan has the detail</p>";
     if (S.signal) h += '<div class="box"><b>To get their attention:</b> <span class="sig">' + esc(S.signal).replace(/\n/g, " ") + "</span></div>";
     h += '<h2>The day</h2><table><thead><tr><th style="width:15%">Time</th><th style="width:32%">What</th><th>Where it is</th></tr></thead><tbody>';
-    blocksFor(iso).forEach(function (b) {
-      var l = lessonFor(iso, b.subject), sp = specialFor(iso, b.title);
+    var gb = blocksFor(iso), ghome = lessonBlocks(gb);
+    gb.forEach(function (b, bi) {
+      var l = lessonOut(iso, b.subject), sp = specialFor(iso, b.title);
       var off = !!(l && !l.taught);
+      /* v136: the lesson on its own block; the subject's other blocks
+         (phonics, small groups) say what they are instead */
       var cell = off ? '<span class="muted">Not happening today</span>'
-        : l && l.where ? esc(l.label + " · " + l.where)
+        : l && l.where && ghome[b.subject] === bi ? esc(l.label + " · " + l.where)
+        : l && b.standing ? '<span class="muted">' + esc(firstSentence(b.standing)) + "</span>"
         : '<span class="muted">—</span>';
       h += "<tr><td>" + (b.end ? esc(b.start) + "–" + esc(b.end) : esc(b.start)) + "</td><td><b>" + esc(b.title) + (sp ? ": " + esc(sp) : "") + "</b></td><td>" +
         cell + (blockNoteFor(iso, b) && !off ? "<br><b>Today:</b> " + esc(firstSentence(blockNoteFor(iso, b))) : "") +
@@ -762,6 +816,7 @@
       "#subpanel .blkrow{border:1px solid rgba(16,24,32,.09);border-radius:10px;padding:10px 12px;margin-top:9px}" +
       "#subpanel .warn{background:#FAF2E2;border:1px solid #E7D7B4;border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:12px}" +
       "#subpanel .hint{font-size:12.5px;color:#626D78}" +
+      "#subpanel .tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E3F1EF;color:#0C5850;font-size:12px;font-weight:600}" +
       "#subpanel table{width:100%;border-collapse:collapse;font-size:13.5px}" +
       "#subpanel th,#subpanel td{border-bottom:1px solid rgba(16,24,32,.09);padding:5px 6px;text-align:left}" +
       "@media print{#subbtn,#subwrap{display:none !important}}";
@@ -823,6 +878,49 @@
     });
     return h;
   }
+  /* v136: this day's lessons, their targets and materials editable for the
+     day. Filled with what will print (the curriculum's, or his edit). */
+  function lessonsHTML(blocks) {
+    var seen = {}, rows = [];
+    blocks.forEach(function (b) {
+      if (!b.subject || seen[b.subject]) return;
+      seen[b.subject] = true;
+      var l = lessonOut(curDate, b.subject);
+      if (l && l.taught) rows.push({ sid: b.subject, l: l });
+    });
+    if (!rows.length) return "";
+    var h = "<h3>This day\u2019s lessons</h3><p class=\"hint\">The learning targets and materials that print with each lesson. " +
+      "Change them here for this day only, one per line; the planner\u2019s curriculum is not changed.</p>";
+    rows.forEach(function (r) {
+      var l = r.l, o = (S.lessons || {})[lkey(curDate, r.sid)];
+      var stale = o && !l.edited;
+      h += '<div class="blkrow" data-lesson="' + esc(r.sid) + '"><div class="row" style="justify-content:space-between">' +
+        "<div><b>" + esc(l.name) + "</b>" + (l.where ? ' <span class="hint" style="display:inline">\u00b7 ' + esc(l.label + " \u00b7 " + l.where) + "</span>" : "") +
+        (l.edited ? ' <span class="tag">Edited for this day</span>' : "") + "</div>" +
+        (l.edited || stale ? '<button class="b" data-lreset="' + esc(r.sid) + '">' + (stale ? "Clear the old edit" : "Use the curriculum\u2019s") + "</button>" : "") + "</div>" +
+        (stale ? '<p class="hint" style="margin:5px 0 0">Your edit was for ' + esc(o.where || "another lesson") + ". This day now has " + esc(l.where || "a different lesson") + ", so the curriculum\u2019s print instead.</p>" : "") +
+        '<div class="g2" style="margin-top:7px">' +
+        '<label class="f">Learning targets<textarea data-ls="' + esc(r.sid) + '" data-lf="targets" rows="' + rowsFor(l.targets) + '" placeholder="One per line">' + esc((l.targets || []).join("\n")) + "</textarea></label>" +
+        '<label class="f">Materials<textarea data-ls="' + esc(r.sid) + '" data-lf="materials" rows="' + rowsFor(l.materials) + '" placeholder="One per line">' + esc((l.materials || []).join("\n")) + "</textarea></label>" +
+        "</div></div>";
+    });
+    return h;
+  }
+  /* as tall as what is in it, two lines when empty, never more than six */
+  function rowsFor(list) { return Math.max(2, Math.min(6, (list || []).length + 1)); }
+  function lines(v) { return String(v || "").split(/\n/).map(function (x) { return x.trim(); }).filter(Boolean); }
+  function same(a, b) { return JSON.stringify(a || []) === JSON.stringify(b || []); }
+  function saveLesson(sid, field, value) {
+    var l = lessonFor(curDate, sid);
+    if (!l) return;
+    if (!S.lessons) S.lessons = {};
+    var k = lkey(curDate, sid), o = editOf(curDate, sid, l);
+    var next = { where: l.where, targets: o ? o.targets.slice() : l.targets.slice(), materials: o ? o.materials.slice() : l.materials.slice() };
+    next[field] = lines(value);
+    if (same(next.targets, l.targets) && same(next.materials, l.materials)) delete S.lessons[k];
+    else S.lessons[k] = next;
+    persist();
+  }
   function panelHTML() {
     var blocks = blocksFor(curDate);
     var lp = planner();
@@ -875,6 +973,8 @@
           return "<b>" + esc(c.name) + "</b> still shows what you wrote on " + esc(pretty(c.from));
         }).join("; ") + " &mdash; the planner carries open blocks forward. Change it in the planner if today is different.</p>";
     }
+
+    h += lessonsHTML(blocks);                                     /* v136 */
 
     if (!hasContent()) {
       h += '<div class="warn"><b>Nothing standing yet.</b> The published files carry the time blocks and nothing else — no names, no notes, no phone number, because this site is served from a public repository. Load yours from a private file above, or type them in below.</div>';
@@ -957,6 +1057,13 @@
         persist();
       };
     });
+    /* v136 */
+    panel.querySelectorAll("[data-ls]").forEach(function (el) {
+      el.onchange = function () { saveLesson(el.dataset.ls, el.dataset.lf, el.value); paint(); };
+    });
+    panel.querySelectorAll("[data-lreset]").forEach(function (el) {
+      el.onclick = function () { if (S.lessons) delete S.lessons[lkey(curDate, el.dataset.lreset)]; persist(); paint(); };
+    });
     panel.querySelectorAll("[data-wd]").forEach(function (el) {
       el.onclick = function () { editDay = +el.dataset.wd; paint(); };
     });
@@ -1025,7 +1132,11 @@
       rd.onload = function () {
         try {
           var obj = JSON.parse(rd.result);
-          S = normalise(obj.sub || obj);
+          /* v136: a standing-notes file says nothing about a day's lesson
+             edits unless it carries some; keep this browser's */
+          var keep = S.lessons, src = obj.sub || obj;
+          S = normalise(src);
+          if (!src.lessons) S.lessons = keep || {};
           persist(); paint();
         } catch (err) { alert("That file could not be read."); }
       };
