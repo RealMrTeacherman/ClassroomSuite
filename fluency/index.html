@@ -136,6 +136,22 @@
   #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;
     background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;pointer-events:none;z-index:50;transition:.18s}
   #toast.on{opacity:1;transform:translateX(-50%)}
+  #toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px}
+  #toast .toast-act{font:inherit;font-size:14px;font-weight:600;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.5);border-radius:6px;padding:4px 10px;cursor:pointer}
+  /* v138: a saved check's student, tap to move the check */
+  .who{font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:3px}
+  .who:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+  .mv-back{position:fixed;inset:0;background:rgba(16,24,32,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
+  .mv-box{background:var(--panel);color:var(--ink);border-radius:var(--radius);padding:18px;max-width:440px;width:100%;max-height:calc(100% - 32px);overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.22)}
+  .mv-box h2{font-size:16px;margin:0 0 4px}
+  .mv-what{color:var(--ink-2);font-size:13.5px;margin:0 0 12px}
+  .mv-route{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .mv-from{border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:14px;white-space:nowrap}
+  .mv-route select{flex:1 1 160px;width:auto}
+  .mv-box p{font-size:14px;margin:0 0 10px}
+  .mv-warn{background:#FBF1DE;color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13.5px;margin:0 0 10px}
+  .mv-err{color:var(--err);font-size:13px;margin:-4px 0 10px}
+  .mv-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   .hidden{display:none !important}
   @media (max-width:520px){
     .passage{font-size:21px;line-height:1.95}
@@ -374,9 +390,16 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 let toastT=null;
-function toast(msg){
-  const t=$("#toast"); t.textContent=msg; t.classList.add("on");
-  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2400);
+function toast(msg, act){
+  const t=$("#toast"); t.textContent=msg; t.classList.toggle("act", !!act);
+  /* v138: an optional button (Undo), with longer to reach it */
+  if(act){
+    const b=document.createElement("button"); b.className="toast-act"; b.textContent=act.label;
+    b.addEventListener("click", ()=>{ t.classList.remove("on","act"); clearTimeout(toastT); act.fn(); });
+    t.appendChild(b);
+  }
+  t.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on","act"), act?7000:2400);
 }
 function nameParts(n){
   n=String(n||"").trim();
@@ -685,11 +708,13 @@ function showResults(){
         ${r.passes>1?`<div class="score"><b>${r.passes}</b><span>passes</span></div>`:""}
       </div>
       ${breakdown}${lapPicker}
+      <div id="lastCompare"></div>
       <div class="row">
         <button class="btn" id="btnSaveRec" style="flex:0 0 auto">Save this check</button>
         <button class="btn quiet small" id="btnRestop" style="flex:0 0 auto;align-self:center">Change last word</button>
       </div>
     </div>`;
+  drawCompare(r);
   $("#btnSaveRec").addEventListener("click", saveRecord);
   $("#btnRestop").addEventListener("click", ()=>{
     S.editLap=S.laps.length-1;
@@ -699,6 +724,17 @@ function showResults(){
   $$("#results [data-lap]").forEach(c=>c.addEventListener("click", ()=>{
     S.editLap=+c.dataset.lap; paintMarks(); showResults();
   }));
+}
+/* v137: this read beside the student's last check and their goals
+   (fluency-compare.js), worked out before Save the way the scorecard will */
+function drawCompare(r){
+  const box=$("#lastCompare"); if(!box) return;
+  if(!window.FluencyCompare){ box.innerHTML=""; return; }
+  r=r||computeScores();
+  const pass=currentPassage();
+  box.innerHTML=window.FluencyCompare.html(DB, $("#selStudent").value, {
+    wcpm:r.wcpm, accuracy:+r.accuracy.toFixed(1), errors:r.errors,
+    passageId:pass?pass.id:null, passageTitle:pass?pass.title:"" });
 }
 function saveRecord(){
   const sid=$("#selStudent").value;
@@ -745,6 +781,7 @@ $("#btnEndOfPass").addEventListener("click", ()=>{
 $("#btnUndoRestart").addEventListener("click", undoRestart);
 $("#btnReset").addEventListener("click", resetSession);
 $("#selPassage").addEventListener("change", ()=>{ renderSelectors(); resetSession(); });
+$("#selStudent").addEventListener("change", ()=>{ if(S.phase==="done") drawCompare(); });
 $("#selDur").addEventListener("change", ()=>{ if(S.phase==="idle") resetSession(); });
 
 /* ---------- passages ---------- */
@@ -961,7 +998,7 @@ function renderRecords(){
     ${rows.map(r=>{
       const n=(DB.students.find(s=>s.id===r.studentId)||{}).name||"—";
       return `<tr>
-        <td>${fmtDate(r.date)}</td><td>${esc(n)}</td><td>${esc(r.passageTitle||"—")}</td>
+        <td>${fmtDate(r.date)}</td><td><button class="who" data-move-rec="${r.id}" title="Move this check to a different student">${esc(n)}</button></td><td>${esc(r.passageTitle||"—")}</td>
         <td class="num">${r.wcpm}</td><td class="num">${r.accuracy}%</td><td class="num">${r.errors}</td>
         <td class="num">${r.passes||1}</td>
         <td class="num"><button class="btn danger small" data-del-rec="${r.id}">Delete</button></td>
@@ -970,11 +1007,103 @@ function renderRecords(){
   </table>`;
 }
 $("#recordList").addEventListener("click", e=>{
+  const mv=e.target.closest("[data-move-rec]"); if(mv){ openMove(mv.dataset.moveRec, mv); return; }
   const b=e.target.closest("[data-del-rec]"); if(!b) return;
   if(!confirm("Delete this check?")) return;
   DB.records=DB.records.filter(r=>r.id!==b.dataset.delRec);
   saveDB(); renderRecords();
 });
+
+/* ---------- v138: move a saved check to a different student ----------
+   For a check saved under the wrong name. The box says whose record it
+   leaves and whose it joins, and when it was one of their first check of
+   the year (the start their goals are set from). Only studentId changes:
+   the comprehension answer and the notes are filed under the check's id,
+   so they go with it; the gradebook's copy follows (syncFromOrf). */
+const firstOf=n=>{ const p=nameParts(n); return p.first||p.last||n; };
+function nameOf(sid){ return (DB.students.find(s=>s.id===sid)||{}).name||"—"; }
+function startWarn(recId, fromSid, toSid){
+  const FC=window.FluencyCompare; if(!FC||!FC.planOf) return [];
+  const out=[], rec=DB.records.find(r=>r.id===recId); if(!rec) return out;
+  const pf=FC.planOf(DB, fromSid);
+  if(pf){
+    const day=pf.baseDate.getTime(), sameDay=pf.checks.filter(c=>c.t===day);
+    if(sameDay.some(c=>c.rec.id===recId)){
+      const who=esc(firstOf(nameOf(fromSid))), rest=pf.checks.filter(c=>c.rec.id!==recId);
+      out.push(!rest.length
+        ? `This is ${who}’s only check this year, so ${who} will have no goals until the next one.`
+        : sameDay.length>1
+          ? `This is one of ${who}’s first checks of the year, so ${who}’s starting point and goals will be worked out again from the others that day.`
+          : `This is ${who}’s first check of the year, so ${who}’s goals will be set again from the next one (${esc(fmtDate(rest[0].rec.date))}, ${rest[0].y} WCPM).`);
+    }
+  }
+  if(toSid){
+    const moved={ records: DB.records.map(r=>r.id===recId?Object.assign({},r,{studentId:toSid}):r), students:DB.students, settings:DB.settings };
+    const pt=FC.planOf(moved, toSid), before=FC.planOf(DB, toSid);
+    if(pt && pt.checks.filter(c=>c.t===pt.baseDate.getTime()).some(c=>c.rec.id===recId) &&
+       (!before || before.baseDate.getTime()!==pt.baseDate.getTime() || before.base!==pt.base))
+      out.push(`It becomes ${esc(firstOf(nameOf(toSid)))}’s first check of the year, so ${esc(firstOf(nameOf(toSid)))}’s goals will be set from it.`);
+  }
+  return out;
+}
+let moveBack=null;
+function closeMove(){ if(!moveBack) return; const f=moveBack._from; moveBack.remove(); moveBack=null; if(f&&f.isConnected) f.focus(); }
+function openMove(recId, fromEl){
+  closeMove();
+  const rec=DB.records.find(r=>r.id===recId); if(!rec) return;
+  const others=DB.students.filter(s=>!s.demo && s.id!==rec.studentId);
+  const from=nameOf(rec.studentId);
+  /* say what travels with it only when there is something */
+  const has=k=>{ try{ const c=JSON.parse(localStorage.getItem(k)||"null"); return !!(c&&c.records&&c.records[recId]!=null); }catch(e){ return false; } };
+  const goes=[has("suite:orfcomp:v1")?"comprehension answer":"", has("suite:orfnotes:v1")?"notes":""].filter(Boolean);
+  const withIt=goes.length?`, with its ${goes.join(" and ")}`:"";
+  const back=document.createElement("div"); back.className="mv-back"; back._from=fromEl;
+  back.innerHTML=`<div class="mv-box" role="dialog" aria-modal="true" aria-labelledby="mvTitle">
+    <h2 id="mvTitle">Move this check to a different student?</h2>
+    <p class="mv-what">${esc(fmtDate(rec.date))} · ${esc(rec.passageTitle||"—")} · ${rec.wcpm} WCPM, ${rec.accuracy}%</p>
+    <div class="mv-route"><span class="mv-from">${esc(from)}</span><span aria-hidden="true">→</span>
+      <select id="mvTo" aria-label="Move it to"><option value="">Choose a student…</option>${others.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>
+    <p id="mvSays">It comes off ${esc(firstOf(from))}’s record and goes on the student you choose${withIt}. Both students’ goals, status and gradebook marks update.</p>
+    <div id="mvWarn"></div><div id="mvErr" class="mv-err" role="alert"></div>
+    <div class="mv-btns"><button class="btn" id="mvGo">Move it</button><button class="btn quiet" id="mvCancel">Cancel</button></div>
+  </div>`;
+  document.body.appendChild(back); moveBack=back;
+  const sel=back.querySelector("#mvTo"), go=back.querySelector("#mvGo");
+  const draw=()=>{
+    const to=sel.value;
+    back.querySelector("#mvErr").textContent="";
+    go.textContent = to ? "Move to "+nameOf(to) : "Move it";
+    back.querySelector("#mvSays").innerHTML = `It comes off ${esc(firstOf(from))}’s record and goes on ${to?esc(firstOf(nameOf(to)))+"’s":"the student you choose"}${withIt}. Both students’ goals, status and gradebook marks update.`;
+    back.querySelector("#mvWarn").innerHTML = startWarn(recId, rec.studentId, to).map(w=>`<p class="mv-warn">${w}</p>`).join("");
+  };
+  draw();
+  sel.addEventListener("change", draw);
+  back.querySelector("#mvCancel").addEventListener("click", closeMove);
+  back.addEventListener("click", e=>{ if(e.target===back) closeMove(); });
+  back.addEventListener("keydown", e=>{
+    if(e.key==="Escape"){ e.preventDefault(); closeMove(); }
+    if(e.key==="Tab"){ const f=[...back.querySelectorAll("select,button")]; const i=f.indexOf(document.activeElement);
+      if(e.shiftKey && i<=0){ e.preventDefault(); f[f.length-1].focus(); } else if(!e.shiftKey && i===f.length-1){ e.preventDefault(); f[0].focus(); } }
+  });
+  go.addEventListener("click", ()=>{
+    const to=sel.value;
+    if(!to){ back.querySelector("#mvErr").textContent="Choose who this check belongs to."; sel.focus(); return; }
+    moveRecord(recId, to);
+    closeMove();
+  });
+  sel.focus();
+}
+function moveRecord(recId, toSid){
+  const rec=DB.records.find(r=>r.id===recId); if(!rec || rec.studentId===toSid) return false;
+  const was=rec.studentId;
+  rec.studentId=toSid;
+  saveDB(); renderRecords();
+  toast(`Moved to ${nameOf(toSid)}.`, { label:"Undo", fn:()=>{
+    const r=DB.records.find(x=>x.id===recId); if(!r || r.studentId!==toSid) return;
+    r.studentId=was; saveDB(); renderRecords(); toast(`Back on ${nameOf(was)}.`);
+  } });
+  return true;
+}
 
 /* ---------- export ---------- */
 function download(name, content, type){
@@ -1042,6 +1171,7 @@ function renderAll(){
 <script src="../suite-sync.js"></script>
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
+<script src="../fluency-compare.js"></script>
 <script src="../suite-orf.js"></script>
 <script src="../fluency-extras.js"></script>
 <script src="../fluency-assess.js"></script>

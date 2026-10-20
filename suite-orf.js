@@ -673,6 +673,36 @@
     return STATUS_LABELS[pl.status] || "";
   }
 
+  /* v137: the scorecard's words for where a child is, moved here from the
+     gradebook so the Assess tab's comparison and the scorecard can never
+     disagree. Exceeding goal = more than the margin above the aim line, or
+     already at the goal; on track = within the margin either way; needs
+     attention = further below. The margin scales with the reader: 10% of
+     the aim line that day in whole words, at least BAND_FLOOR, at most the
+     margin setting. After the spring check the result words stay. Colours
+     are each tool's own; this gives the kind, label, gap and symbol. */
+  var BAND_FLOOR = 3, BAND_SHARE = 0.10;
+  var CARD_KINDS = {
+    exceeding: { label: "Exceeding goal", sym: "\u25B2", rank: 3 },
+    on: { label: "On track", sym: "\u2713", rank: 2 },
+    attention: { label: "Needs attention", sym: "\u25BC", rank: 0 },
+    start: { label: "First check", sym: "\u25CB", rank: 1 }
+  };
+  function band(pl, t) {
+    return Math.min(pl.margin, Math.max(BAND_FLOOR, Math.round(BAND_SHARE * pl.aim(t))));
+  }
+  function cardStatus(pl) {
+    var kind, b = pl.status === "start" || pl.result ? null : band(pl, pl.latest.t);
+    if (pl.result) kind = pl.result === "green" || pl.result === "blue" ? "exceeding" : "attention";
+    else if (pl.status === "start") kind = "start";
+    else if (pl.status === "met" || pl.status === "metBoy" || pl.diff > b) kind = "exceeding";
+    else if (pl.diff >= -b) kind = "on";
+    else kind = "attention";
+    var k = CARD_KINDS[kind];
+    var gap = pl.result || kind === "start" || !pl.diff ? "" : " (" + (pl.diff > 0 ? "+" : "\u2212") + Math.abs(pl.diff) + ")";
+    return { kind: kind, label: pl.result ? statusLabel(pl) : k.label, gap: gap, sym: k.sym, rank: k.rank, band: b };
+  }
+
   /* ---- the missed-word patterns: copied from the ORF tool's file, which
      keeps its own; test-orf-analysis.js fails if the two ever differ ---- */
   function clean(raw){ return String(raw).toLowerCase().replace(/[^a-z0-9']/g,""); }
@@ -897,7 +927,8 @@
       tableGoals: tableGoals, midYearReview: midYearReview, springResult: springResult,
       localDay: localDay, yearStart: yearStart, dueIn: dueIn, benchDates: benchDates, instrWeeks: instrWeeks,
       fmtShort: fmtShort, fmtLong: fmtLong, along: along, rowAt: rowAt, standing: standing, curveFor: curveFor,
-      ordinal: ordinal, planFor: planFor, normGoals: normGoals, normComp: normComp
+      ordinal: ordinal, planFor: planFor, normGoals: normGoals, normComp: normComp,
+      BAND_FLOOR: BAND_FLOOR, BAND_SHARE: BAND_SHARE, CARD_KINDS: CARD_KINDS, band: band, cardStatus: cardStatus
     }),
     miscues: Object.freeze({ clean: clean, features: features, syllables: syllables, patterns: patterns }),
     suggest: Object.freeze(SUGGEST),

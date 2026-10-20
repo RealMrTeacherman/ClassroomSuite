@@ -4504,6 +4504,11 @@ function syncFromOrf(silent) {
          the tool's version of it is the true one from now on */
       had.link = true;
       if (had.gone) { had.gone = false; changed = true; }
+      /* v138: a check moved to a different student in the tool (saved under
+         the wrong name) moves here too. The tool says whose it is, as it
+         says the numbers; a child it cannot match here leaves the copy be. */
+      const owner = orfStudentToLocal(rec.studentId, db);
+      if (owner && had.sid !== owner.id) { had.sid = owner.id; changed = true; }
       const v = orfCopyValues(rec);
       Object.keys(v).forEach(k => {
         const was = had[k] == null ? null : had[k];
@@ -4750,33 +4755,14 @@ function orfIso(t) { const d = new Date(t); return d.getFullYear() + "-" + Strin
    words stay (Made the goal, Goal not made...), sorted with the nearest kind.
    The margin scales with the reader (orfBand): a flat 10 words is about 10%
    of a 100-word reader and half of a 20-word one. */
-const ORF_KIND = {
-  exceeding: { label: "Exceeding goal", sym: "\u25B2", color: "var(--s4)", rank: 3 },
-  on: { label: "On track", sym: "\u2713", color: "var(--s3)", rank: 2 },
-  attention: { label: "Needs attention", sym: "\u25BC", color: "var(--s1)", rank: 0 },
-  start: { label: "First check", sym: "\u25CB", color: "var(--ink-3)", rank: 1 }
-};
-/* the margin of error around a child's aim line on a day: 10% of the line
-   in whole words, at least ORF_BAND_FLOOR, at most the margin setting (How
-   goals are set). Whole words, because the gap it is compared with is
-   whole words: a +4 is on track at a margin of 4, never by a fraction. The spring results keep the flat setting: they are judged at the
-   grade-level line, 100 in grade 2, where 10 words is the 10%. */
-const ORF_BAND_FLOOR = 3, ORF_BAND_SHARE = 0.10;
-function orfBand(pl, t) {
-  return Math.min(pl.margin, Math.max(ORF_BAND_FLOOR, Math.round(ORF_BAND_SHARE * pl.aim(t))));
-}
+const ORF_KIND_COLOR = { exceeding: "var(--s4)", on: "var(--s3)", attention: "var(--s1)", start: "var(--ink-3)" };
+/* v137: the margin and the kinds live in suite-orf.js (goals.band,
+   goals.cardStatus), shared with the Assess tab's last-check comparison */
+const ORF_BAND_FLOOR = window.SuiteOrf ? window.SuiteOrf.goals.BAND_FLOOR : 3;
+function orfBand(pl, t) { return window.SuiteOrf.goals.band(pl, t); }
 function orfCardStatus(pl) {
-  let kind;
-  const band = pl.status === "start" || pl.result ? null : orfBand(pl, pl.latest.t);
-  if (pl.result) kind = pl.result === "green" || pl.result === "blue" ? "exceeding" : "attention";
-  else if (pl.status === "start") kind = "start";
-  else if (pl.status === "met" || pl.status === "metBoy" || pl.diff > band) kind = "exceeding";
-  else if (pl.diff >= -band) kind = "on";
-  else kind = "attention";
-  const k = ORF_KIND[kind];
-  const label = pl.result ? window.SuiteOrf.goals.statusLabel(pl) : k.label;
-  const gap = pl.result || kind === "start" || !pl.diff ? "" : " (" + (pl.diff > 0 ? "+" : "\u2212") + Math.abs(pl.diff) + ")";
-  return { kind: kind, label: label, gap: gap, sym: k.sym, color: k.color, rank: k.rank, band: band };
+  const st = window.SuiteOrf.goals.cardStatus(pl);
+  return Object.assign(st, { color: ORF_KIND_COLOR[st.kind] });
 }
 /* the columns every child's months fall into: each month (the aim line at
    its end), the mid-year checkpoint where it falls, the end-of-year goal */
