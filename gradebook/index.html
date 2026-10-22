@@ -413,6 +413,46 @@ summary.tiny,summary.small{padding:4px 0}
 .gg-draft .fld,.gg-more .fld{flex-direction:column}
 .gg-draft .cg-statement{font-size:14.5px}
 .gg-out{margin-top:12px}
+/* v139: names drag between groups; on a phone, press and hold first */
+.gg-kid[data-drag]{cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.gg-kid.gg-lift{opacity:.35}
+.gg-ghost{position:fixed;z-index:1000;pointer-events:none;margin:0;cursor:grabbing;border-color:var(--accent);box-shadow:0 6px 18px rgba(16,24,32,.2)}
+.gg-ghost .gg-move{display:none}
+body.gg-dragging,body.gg-dragging *{cursor:grabbing !important;-webkit-user-select:none;user-select:none}
+.gg-drop-over{outline:2px dashed var(--accent);outline-offset:2px;background:var(--accent-soft)}
+.gg-moved{font-size:11.5px;font-weight:600;color:var(--accent-2)}
+.gg-sugbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+/* v139: Year goals, the submitted end-of-year groups */
+.yg-list{display:flex;flex-direction:column;gap:8px}
+.yg-g{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+.yg-g>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;padding:10px 14px}
+.yg-g>summary::-webkit-details-marker{display:none}
+.yg-g>summary::after{content:"\25BE";color:var(--ink-3);font-size:12px}
+.yg-g[open]>summary::after{content:"\25B4"}
+.yg-name{font-weight:600;font-size:15px;min-width:0}
+.yg-name span{font-weight:400;font-size:12.5px;color:var(--ink-3)}
+.yg-prog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.yg-bar{display:block;width:120px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.yg-bar i{display:block;height:100%;background:var(--accent)}
+.yg-body{padding:0 14px 12px;display:flex;flex-direction:column;gap:8px}
+.yg-goal{margin:0;font-size:14px;line-height:1.5;background:var(--accent-soft);border-radius:var(--radius-sm);padding:8px 12px;color:var(--ink)}
+.yg-wrap{overflow-x:auto}
+.yg-table{border-collapse:collapse;font-size:13.5px}
+.yg-table th{font-size:12px;font-weight:500;color:var(--ink-2);text-align:center;padding:4px 14px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+.yg-table th:first-child,.yg-table td:first-child{text-align:left}
+.yg-table td{padding:5px 14px;text-align:center;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.yg-from{display:block;font-size:11px;color:var(--ink-3)}
+.yg-cw{font-size:12px;color:var(--ink-3)}
+.yg-met{font-weight:600;color:var(--accent-2)}
+.yg-miss{color:var(--ink-3);font-style:italic}
+@media (max-width:760px){
+  .yg-g>summary{grid-template-columns:minmax(0,1fr) auto}
+  .yg-prog{grid-column:1/2}
+  .yg-bar{width:80px}
+  .yg-body{padding:0 10px 10px}
+  .yg-table th,.yg-table td{padding:4px 5px}
+  .yg-table td:first-child{white-space:normal;min-width:84px}
+}
 .gg-s-block{break-inside:avoid;page-break-inside:avoid;border-top:1px solid #000;padding-top:4px;margin-top:10px}
 .ggsheet .cg-s-goal{font-size:13px}
 @media (max-width:760px){
@@ -1049,6 +1089,9 @@ function hydrate(p) {
   if (!Array.isArray(out.goals)) out.goals = [];   /* v122: class goals */
   if (!Array.isArray(out.ggroups)) out.ggroups = [];   /* v123: group goals */
   if (!out.ggPlace || typeof out.ggPlace !== "object" || Array.isArray(out.ggPlace)) out.ggPlace = {};
+  /* v139: moves made on the suggestion before it is used; the year goals */
+  if (!out.ggSugMoves || typeof out.ggSugMoves !== "object" || Array.isArray(out.ggSugMoves)) out.ggSugMoves = {};
+  if (!out.yearGoals || typeof out.yearGoals !== "object" || !Array.isArray(out.yearGoals.groups)) out.yearGoals = null;
   if (!Array.isArray(out.missing)) out.missing = [];
   if (!Array.isArray(out.terms) || !out.terms.length) out.terms = defTerms;
   if (!Array.isArray(out.rc)) out.rc = defRc;
@@ -1113,6 +1156,8 @@ function blankState() {
     goals: [],
     ggroups: [],
     ggPlace: {},
+    ggSugMoves: {},
+    yearGoals: null,
     orfLink: {},
     missing: [],
     mergeLog: null,
@@ -3352,9 +3397,10 @@ function renderClassGoal() {
     (UI.subject !== "Math" ? '<p class="hint" style="margin-top:6px">This tab looks at Math whatever the subject switch says.</p>' : "") + "</div>";
   if (g) h += cgGoalHTML(g) + '<div class="divider"></div>' + cgNeedsHTML(nd, false);
   else h += cgNeedsHTML(nd, true) + '<div class="divider"></div>' + cgDraftHTML();
-  h += '<div class="divider"></div>' + ggHTML() + cgPastHTML() + "</div>";
+  h += '<div class="divider"></div>' + ygHTML() + '<div class="divider"></div>' + ggHTML() + cgPastHTML() + "</div>";
   el.innerHTML = h;
   cgWire(g);
+  ygWire();
   ggWire();
 }
 function cgWire(g) {
@@ -3618,6 +3664,142 @@ function ggSuggest(win) {
   }
   return { groups: groups, codes: codes, marks: marks, why: why, targets: targets };
 }
+/* v139: the suggestion with the moves he dragged in before using it. A
+   move is kept by the group it went to, so the children he did not touch
+   still follow their marks; a move to a group the suggestion no longer has
+   waits, unused, until that group comes back or he resets. */
+function ggSugKey(x) { return x.kind === "extend" ? "extend" : "std:" + x.std; }
+function ggSugName(x) { return x.kind === "extend" ? "Extend" : byCode[x.std] ? byCode[x.std].lbl : x.std; }
+function ggSuggestMoved(win) {
+  const sug = ggSuggest(win), mv = S.ggSugMoves || {}, moved = {}, at = {};
+  sug.groups.forEach(x => x.kids.forEach(sid => { at[sid] = x; }));
+  Object.keys(mv).forEach(sid => {
+    const from = at[sid], to = sug.groups.find(x => ggSugKey(x) === mv[sid]);
+    if (!from || !to || from === to) return;
+    from.kids = from.kids.filter(k => k !== sid); to.kids.push(sid); at[sid] = to; moved[sid] = true;
+    if (to.kind === "extend") to.targets[sid] = to.targets[sid] || ggExtendTarget(sid, sug.codes, sug.marks[sid]);
+  });
+  sug.groups = sug.groups.filter(x => x.kids.length);
+  sug.moved = moved;
+  return sug;
+}
+
+/* ---- v139: dragging names between groups ----
+   Mouse: press and move. Touch: press and hold, then move, so an ordinary
+   swipe still scrolls. Any card with data-drop takes a name; Escape or
+   letting go anywhere else puts it back. The Move menu under Edit group
+   stays, for a keyboard or a drag that will not cooperate. */
+let GGD = null;
+function ggDragWire(P) {
+  P.querySelectorAll(".gg-kid[data-drag]").forEach(chip => chip.addEventListener("pointerdown", e => ggDragStart(e, chip, P)));
+}
+function ggDragStart(e, chip, P) {
+  if (GGD || (e.button != null && e.button > 0) || e.target.closest("select")) return;
+  const home = chip.closest("[data-drop]");
+  const d = GGD = { chip: chip, P: P, sid: chip.dataset.sid, from: home ? home.dataset.drop : "", x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
+    id: e.pointerId, touch: e.pointerType === "touch", on: false, over: null };
+  if (d.touch) d.hold = setTimeout(() => { if (GGD === d) ggDragBegin(d); }, 350);
+  window.addEventListener("pointermove", ggDragMove, { passive: false });
+  window.addEventListener("pointerup", ggDragEnd);
+  window.addEventListener("pointercancel", ggDragCancel);
+  window.addEventListener("touchmove", ggTouchMove, { passive: false });
+  window.addEventListener("keydown", ggDragKey);
+  window.addEventListener("contextmenu", ggNoMenu);
+}
+function ggNoMenu(e) { if (GGD && GGD.touch) e.preventDefault(); }
+function ggTouchMove(e) { if (GGD && GGD.on && e.cancelable) e.preventDefault(); }
+function ggDragKey(e) { if (e.key === "Escape") ggDragCancel(); }
+function ggDragBegin(d) {
+  d.on = true;
+  const r = d.chip.getBoundingClientRect(), g = d.ghost = d.chip.cloneNode(true);
+  g.classList.add("gg-ghost"); g.removeAttribute("data-drag");
+  g.style.width = r.width + "px"; d.dx = d.x0 - r.left; d.dy = d.y0 - r.top;
+  document.body.appendChild(g);
+  d.chip.classList.add("gg-lift"); document.body.classList.add("gg-dragging");
+  ggDragPlace(d);
+  const edge = () => {
+    if (GGD !== d) return;
+    const h = window.innerHeight || 800, band = 70;
+    if (d.y < band) window.scrollBy(0, -Math.ceil((band - d.y) / 4));
+    else if (d.y > h - band) window.scrollBy(0, Math.ceil((d.y - (h - band)) / 4));
+    ggDragPlace(d);
+    d.raf = requestAnimationFrame(edge);
+  };
+  d.raf = requestAnimationFrame(edge);
+}
+function ggDragPlace(d) {
+  if (!d.ghost) return;
+  d.ghost.style.left = (d.x - d.dx) + "px"; d.ghost.style.top = (d.y - d.dy) + "px";
+  /* every layer under the finger, so a floating bar (the corner switcher,
+     the update notice) over a card does not hide the card from the drop */
+  let els = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(d.x, d.y) : [];
+  if (!els || !els.length) els = document.elementFromPoint ? [document.elementFromPoint(d.x, d.y)] : [];
+  const over = els.map(el => el && el.closest ? el.closest("[data-drop]") : null).find(x => x && d.P.contains(x)) || null;
+  const ok = over && over.dataset.drop !== d.from ? over : null;
+  if (ok !== d.over) { if (d.over) d.over.classList.remove("gg-drop-over"); if (ok) ok.classList.add("gg-drop-over"); d.over = ok; }
+}
+function ggDragMove(e) {
+  const d = GGD;
+  if (!d || e.pointerId !== d.id) return;
+  d.x = e.clientX; d.y = e.clientY;
+  const far = Math.hypot(d.x - d.x0, d.y - d.y0);
+  if (!d.on) {
+    if (d.touch) { if (far > 10) ggDragCancel(); return; }   /* a swipe: let it scroll */
+    if (far > 5) ggDragBegin(d); else return;
+  }
+  if (e.cancelable) e.preventDefault();
+  ggDragPlace(d);
+}
+function ggDragStop() {
+  const d = GGD; GGD = null;
+  if (!d) return null;
+  clearTimeout(d.hold); if (d.raf) cancelAnimationFrame(d.raf);
+  window.removeEventListener("pointermove", ggDragMove, { passive: false });
+  window.removeEventListener("pointerup", ggDragEnd);
+  window.removeEventListener("pointercancel", ggDragCancel);
+  window.removeEventListener("touchmove", ggTouchMove, { passive: false });
+  window.removeEventListener("keydown", ggDragKey);
+  window.removeEventListener("contextmenu", ggNoMenu);
+  if (d.ghost) d.ghost.remove();
+  if (d.over) d.over.classList.remove("gg-drop-over");
+  d.chip.classList.remove("gg-lift"); document.body.classList.remove("gg-dragging");
+  if (d.on) {   /* the press was a drag, not a tap on the name */
+    const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+    window.addEventListener("click", eat, true);
+    setTimeout(() => window.removeEventListener("click", eat, true), 400);
+  }
+  return d;
+}
+function ggDragCancel() { ggDragStop(); }
+function ggDragEnd(e) {
+  if (!GGD || (e && e.pointerId !== GGD.id)) return;
+  /* where it was let go is where the last move left it: a lifted finger's
+     own coordinates are not always reliable (some report 0,0) */
+  const d = ggDragStop();
+  if (d && d.on && d.over) ggDrop(d.sid, d.over.dataset.drop);
+}
+/* where a name was let go: "sug:<key>" on the suggestion, "g:<id>" a group, "out" */
+function ggDrop(sid, to) {
+  const st = S.students.find(s => s.id === sid);
+  if (!st || !to) return;
+  let where = "";
+  if (to.indexOf("sug:") === 0) {
+    const key = to.slice(4), natural = ggSuggest(UI.cgWin).groups.find(x => x.kids.indexOf(sid) >= 0);
+    const x = ggSuggestMoved(UI.cgWin).groups.find(x => ggSugKey(x) === key);
+    if (!x) return;
+    S.ggSugMoves = S.ggSugMoves || {};
+    if (natural && ggSugKey(natural) === key) delete S.ggSugMoves[sid]; else S.ggSugMoves[sid] = key;
+    where = ggSugName(x);
+  } else if (to.indexOf("g:") === 0) {
+    const gr = ggGroup(to.slice(2));
+    if (!gr) return;
+    S.ggPlace = S.ggPlace || {}; S.ggPlace[sid] = gr.id; where = gr.name;
+  } else if (to === "out") {
+    if (S.ggPlace) delete S.ggPlace[sid]; where = "Not in a group";
+  } else return;
+  save(); renderClassGoal(); toast(fullName(st) + " \u2192 " + where);
+}
+
 /* the suggestion uses the needs window; kept separate so a test can see it */
 function cgSuggestSince(win) { return cgSince(win); }
 
@@ -3626,13 +3808,14 @@ function ggUse(sug) {
     x.kind === "extend" ? { kind: "extend" } : {}));
   S.ggPlace = {};
   sug.groups.forEach((x, i) => x.kids.forEach(sid => { S.ggPlace[sid] = S.ggroups[i].id; }));
+  S.ggSugMoves = {};
   save(); renderClassGoal(); toast(S.ggroups.length + " groups made");
 }
 function ggRegroup() {
   const open = (S.goals || []).filter(g => g.group && !g.done);
   if (!confirm("Start the groups over?" + (open.length ? " Their " + open.length + " open goal" + (open.length > 1 ? "s are" : " is") + " finished and kept under Past goals." : ""))) return;
   open.forEach(g => { const now = cgGoalNow(g); g.groupName = ggName(g); g.done = { date: todayISO(), pct: now.st.pct, irPct: now.ir && now.ir.n ? now.ir.pct : null }; });
-  S.ggroups = []; S.ggPlace = {};
+  S.ggroups = []; S.ggPlace = {}; S.ggSugMoves = {};
   save(); renderClassGoal();
 }
 function ggStart(gid) {
@@ -3660,15 +3843,15 @@ function ggStart(gid) {
 
 /* codeFor (v129): an Extend child's own next skill; why: how a suggested
    child was placed, when it was not by their marks */
-function ggMemberChips(gid, sids, std, canMove, codeFor, why) {
+function ggMemberChips(gid, sids, std, canMove, codeFor, why, moved) {
   const others = (S.ggroups || []).filter(x => x.id !== gid);
   return '<div class="gg-kids">' + sids.map(sid => {
     const st = S.students.find(s => s.id === sid), c = codeFor ? codeFor(sid) : std, m = cgMark(sid, [c], null, null);
     const w = why && why[sid];
-    return '<span class="gg-kid" data-sid="' + esc(sid) + '">' + nameLink(st, fullName(st)) +
+    return '<span class="gg-kid" data-drag data-sid="' + esc(sid) + '">' + nameLink(st, fullName(st)) +
       (m != null ? ' <span class="mark v' + roundMark(m) + ' gg-mk" title="Mark on ' + esc(dispCode(c)) + ' by the term-mark rule">' + m.toFixed(1) + "</span>" : "") +
       (codeFor ? ' <span class="tiny muted gg-next">' + esc(dispCode(c)) + "</span>" : "") +
-      (w === "iready" ? ' <span class="tiny muted gg-why">by iReady</span>' : w === "none" ? ' <span class="tiny muted gg-why">no marks or iReady yet</span>' : "") +
+      (moved && moved[sid] ? ' <span class="gg-moved">moved</span>' : w === "iready" ? ' <span class="tiny muted gg-why">by iReady</span>' : w === "none" ? ' <span class="tiny muted gg-why">no marks or iReady yet</span>' : "") +
       (canMove ? '<select class="gg-move" data-sid="' + esc(sid) + '" aria-label="Move ' + esc(fullName(st)) + '"><option value="">Move\u2026</option>' +
         others.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") +
         '<option value="-">Out of groups</option></select>' : "") + "</span>";
@@ -3686,9 +3869,14 @@ function ggSideBySide(gr, sids) {
    on its standard in the window the suggestion used, which is why they are
    together; said that way rather than as "0 of 3". The all-year figure can
    differ when a shorter window is chosen, and then the count is shown. */
-function ggStartHTML(gr, sids, why) {
+function ggStartHTML(gr, sids, why, moved) {
   if (typeof gr === "string") gr = { std: gr };
-  const std = gr.std, ext = ggIsExtend(gr), st = ggStat(gr, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, sids);
+  /* v139: a child he moved is not here because of their marks, so the
+     reason is said of the rest and the moves are counted on their own */
+  const all0 = sids, mv = moved ? all0.filter(s => moved[s]).length : 0;
+  sids = moved ? all0.filter(s => !moved[s]) : all0;
+  const byYou = mv ? " " + mv + " moved here by you." : "";
+  const std = gr.std, ext = ggIsExtend(gr), st = ggStat(gr, sids), dom = cgDomainOf(std), ir = cgIrStat(dom, null, all0);
   const n = sids.length, all = n === 2 ? "both" : n === 1 ? "this child" : "all " + n;
   const byIr = sids.filter(sid => why && why[sid] === "iready").length, none = sids.filter(sid => why && why[sid] === "none").length;
   const placed = (byIr ? " " + byIr + " placed by iReady, with no marks on these skills yet." : "") + (none ? " " + none + " with no marks or iReady yet, starting here." : "");
@@ -3699,25 +3887,27 @@ function ggStartHTML(gr, sids, why) {
       (st.marked === 1 ? " is" : " are") + " below 3 on this standard. That is why they are together." + placed
     : (st.marked ? st.at + " of " + st.marked + " at 3 or higher on this standard, all year" : "no marks on this standard yet") +
       (st.at > 0 ? "; below 3 in the window chosen above" : "") + "." + placed;
+  const said = !n ? (mv === 1 ? "moved here by you." : "all " + mv + " moved here by you.") : cw + byYou;
   return '<div class="gg-start"><span class="hint">Where they start</span><div class="gg-sides">' +
-    "<div><b>Classwork:</b> " + esc(cw) + "</div>" +
+    "<div><b>Classwork:</b> " + esc(said) + "</div>" +
     "<div><b>iReady, " + esc(cgDom(dom).name) + ":</b> " + (ir.n ? ir.on + " of " + ir.n + " on or above grade level." : "no diagnostic yet.") + "</div></div></div>";
 }
 function ggSuggestHTML() {
-  const sug = ggSuggest(UI.cgWin);
+  const sug = ggSuggestMoved(UI.cgWin), nMoved = Object.keys(sug.moved).length;
   let h = '<div class="card pad gg-suggest" id="gg-suggest"><p class="hint" style="margin-top:0">Every child is in a group. Each goes with the first skill they are below 3 on, in the order these skills build: ' +
     GG_FOCUS.map(t => esc(t[0].toLowerCase())).join(", then ") + '. Children at 3 or higher on all of them go to <b>Extend</b>, working toward 4 on their next skill. With no marks on these yet, iReady places them; with neither, they start at the first skill.</p>' +
-    '<p class="gg-legend"><span class="mark v2 gg-mk">2.0</span> beside a name is that child\u2019s mark on the group\u2019s standard, by the term-mark rule (Setup).</p>';
+    '<p class="gg-legend"><span class="mark v2 gg-mk">2.0</span> beside a name is that child\u2019s mark on the group\u2019s standard, by the term-mark rule (Setup). Drag a name to move a child (on a phone, press and hold first); nothing is kept as groups until you use them.</p>';
   if (!sug.codes.length) return h + '<div class="cg-empty">None of the focus skills are switched on in Setup, so there are no groups to suggest.</div></div>';
   h += '<div class="grid2">' + sug.groups.map(x => {
     const ext = x.kind === "extend", gr = { std: x.std, kind: x.kind, targets: x.targets };
-    return '<div class="gg-card gg-sug" data-std="' + esc(x.std) + '" data-kind="' + x.kind + '"><h3>' + (ext ? "Extend" : esc(byCode[x.std].lbl)) +
+    return '<div class="gg-card gg-sug" data-drop="sug:' + esc(ggSugKey(x)) + '" data-std="' + esc(x.std) + '" data-kind="' + x.kind + '"><h3>' + (ext ? "Extend" : esc(byCode[x.std].lbl)) +
       ' <span class="tiny muted">' + x.kids.length + (x.kids.length === 1 ? " child" : " children") + "</span></h3>" +
       '<div class="tiny muted gg-tier">' + esc(ext ? "At 3 or higher on every focus skill" : x.tier) + "</div>" +
       (ext ? "" : "<div>" + codeHTML(x.std) + "</div>") +
-      ggMemberChips(null, x.kids, x.std, false, ext ? (sid => x.targets[sid]) : null, sug.why) + ggStartHTML(gr, x.kids, sug.why) + "</div>";
+      ggMemberChips(null, x.kids, x.std, false, ext ? (sid => x.targets[sid]) : null, sug.why, sug.moved) + ggStartHTML(gr, x.kids, sug.why, sug.moved) + "</div>";
   }).join("") + "</div>";
-  if (sug.groups.length) h += '<div class="row" style="margin-top:10px"><button class="btn primary" id="gg-use">Use these groups</button></div>';
+  if (sug.groups.length) h += '<div class="gg-sugbar"><button class="btn primary" id="gg-use">Use these groups</button>' +
+    (nMoved ? '<span class="hint" style="margin:0">' + nMoved + (nMoved === 1 ? " child" : " children") + ' moved by you</span><button class="btn ghost" id="gg-sugreset">Reset to suggested</button>' : "") + "</div>";
   return h + "</div>";
 }
 function ggDraftHTML(gr) {
@@ -3761,7 +3951,7 @@ function ggGoalHTML(g) {
 function ggCardHTML(gr) {
   const sids = ggMembers(gr.id), g = ggOpenGoal(gr.id), editing = UI.ggEdit === gr.id;
   const lbl = byCode[gr.std] ? byCode[gr.std].lbl : gr.std;
-  let h = '<div class="gg-card' + (editing ? " gg-editing" : "") + '" data-gid="' + esc(gr.id) + '"><div class="gg-head">' +
+  let h = '<div class="gg-card' + (editing ? " gg-editing" : "") + '" data-gid="' + esc(gr.id) + '" data-drop="g:' + esc(gr.id) + '"><div class="gg-head">' +
     (editing ? '<input class="gg-name" value="' + esc(gr.name) + '" aria-label="Group name">'
       : '<h3 class="gg-title">' + esc(gr.name) + ' <span class="tiny muted">' + sids.length + "</span></h3>") +
     '<button class="btn sm ' + (editing ? "primary" : "ghost") + ' gg-edit">' + (editing ? "Done" : "Edit group") + "</button></div>" +
@@ -3781,11 +3971,12 @@ function ggHTML() {
      they are until he starts over; nothing is regrouped behind his back */
   if (S.ggroups.some(g => !(g.v >= 129)))
     h += '<div class="notice gg-oldrule"><b>Made by the old rule</b><span>These groups came from each child\u2019s lowest mark on any standard. <b>Start groups over</b> to regroup everyone by the first focus skill they\u2019re missing, with an Extend group.</span></div>';
+  h += '<p class="hint gg-draghint">Drag a name to another group to move a child (on a phone, press and hold first).</p>';
   h += '<div class="gg-cards">' + S.ggroups.map(ggCardHTML).join("") + "</div>";
   const out = S.students.filter(st => !ggGroup((S.ggPlace || {})[st.id]));
   if (out.length) {
-    h += '<div class="card pad gg-out"><h3>Not in a group <span class="tiny muted">' + out.length + '</span></h3><div class="gg-kids">' +
-      out.map(st => '<span class="gg-kid" data-sid="' + esc(st.id) + '">' + nameLink(st, fullName(st)) +
+    h += '<div class="card pad gg-out" data-drop="out"><h3>Not in a group <span class="tiny muted">' + out.length + '</span></h3><div class="gg-kids">' +
+      out.map(st => '<span class="gg-kid" data-drag data-sid="' + esc(st.id) + '">' + nameLink(st, fullName(st)) +
         (ggFit(st.id) ? ' <span class="tiny muted gg-fit">\u2192 ' + esc(ggFit(st.id).name) + "</span>" : "") +
         '<select class="gg-move" data-sid="' + esc(st.id) + '" aria-label="Add ' + esc(fullName(st)) + '"><option value="">Add to\u2026</option>' +
         S.ggroups.map(o => '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>").join("") + "</select></span>").join("") + "</div>" +
@@ -3796,7 +3987,9 @@ function ggHTML() {
 function ggWire() {
   const P = document.getElementById("panel-goal");
   const q = s => P.querySelector(s), qa = s => P.querySelectorAll(s);
-  if (q("#gg-use")) q("#gg-use").onclick = () => ggUse(ggSuggest(UI.cgWin));
+  if (q("#gg-use")) q("#gg-use").onclick = () => ggUse(ggSuggestMoved(UI.cgWin));
+  if (q("#gg-sugreset")) q("#gg-sugreset").onclick = () => { S.ggSugMoves = {}; save(); renderClassGoal(); toast("Back to the suggested groups"); };
+  ggDragWire(P);
   if (q("#gg-place")) q("#gg-place").onclick = ggPlaceOut;
   if (q("#gg-regroup")) q("#gg-regroup").onclick = ggRegroup;
   if (q("#gg-print")) q("#gg-print").onclick = printGroupGoals;
@@ -3867,6 +4060,122 @@ function ggWire() {
       };
     }
   });
+}
+
+/* ============================================================
+   YEAR GOALS (v139)
+   The end-of-year math goals he submitted: four groups, each with its own
+   children for the whole year and its goal in his own words, exactly as
+   submitted. They come from a file he loads, never from this page's code
+   (the site is public; names stay on his devices). Unlike the groups below,
+   nothing here regroups: membership is the one he submitted.
+
+   A child has met their group's goal when every standard the goal names is
+   at the goal's bar on end-of-unit Reveal tests, the marks named "Unit 2
+   test" (or "assessment", or "end of unit"). Daily classwork is shown in
+   grey for context and does not count, because the goals say "as
+   demonstrated by end-of-unit Reveal assessments". The marks he submitted
+   with the goals are kept and shown as where each child started.
+   ============================================================ */
+const YG_UNIT = /\bunit\s*\d+\s*(test|assessment)\b|end[\s-]+of[\s-]+unit/i;
+function ygIsUnit(x) { return cgIsClasswork(x) && YG_UNIT.test(x.ctx || ""); }
+function ygNorm(t) { return String(t || "").replace(/\([^)]*\)/g, " ").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+/* who a submitted name is on this roster: the child it was matched to
+   when loaded, else by full name or a name they are also called */
+function ygSid(m) {
+  if (m.sid && S.students.some(st => st.id === m.sid)) return m.sid;
+  const n = ygNorm(m.name);
+  const st = S.students.find(st => ygNorm(fullName(st)) === n) ||
+    S.students.find(st => akaOf(st).some(a => ygNorm(a + " " + st.last) === n));
+  return st ? st.id : null;
+}
+function ygUnitMark(sid, c) {
+  const vals = S.scores.filter(x => x.sid === sid && x.std === c && x.date && ygIsUnit(x)).sort((a, b) => a.date.localeCompare(b.date)).map(x => x.v);
+  return computeMark(vals);
+}
+function ygChild(gr, sid) {
+  const bar = gr.bar || 3, cells = {};
+  gr.codes.forEach(c => { cells[c] = { u: sid ? ygUnitMark(sid, c) : null, cw: sid ? cgMark(sid, [c], null, null) : null }; });
+  return { cells: cells, met: !!sid && gr.codes.length > 0 && gr.codes.every(c => cells[c].u != null && roundMark(cells[c].u) >= bar) };
+}
+function ygStat(gr) {
+  const kids = gr.members.map(m => ({ m: m, sid: ygSid(m) }));
+  kids.forEach(k => { k.r = ygChild(gr, k.sid); });
+  return { kids: kids, met: kids.filter(k => k.r.met).length, n: kids.length, missing: kids.filter(k => !k.sid) };
+}
+function ygBarWords(gr) {
+  return (gr.bar || 3) + (gr.bar === 4 ? "" : " or higher") + " on " + gr.codes.map(dispCode).join(gr.codes.length > 2 ? ", " : " and ").replace(/, ([^,]*)$/, ", and $1");
+}
+function ygHTML() {
+  const Y = S.yearGoals;
+  let h = '<div class="sectionhead" id="yg"><h2>Year goals</h2><span class="spacer"></span>' +
+    (Y ? '<button class="btn ghost" id="yg-load">Load a new file</button>' : "") +
+    '<input type="file" id="yg-file" accept=".json,application/json" hidden></div>';
+  if (!Y) return h + '<div class="card pad yg-empty"><p class="hint" style="margin-top:0">The end-of-year goals you submitted, each with its own children all year. They come from a year goals file, so the names stay on your devices.</p>' +
+    '<div class="row"><button class="btn primary" id="yg-load">Load year goals file</button></div></div>';
+  h += '<p class="hint" style="margin-top:0">Submitted' + (Y.year ? " for " + esc(Y.year) : "") + '. A child has met their goal when every standard it names is at the goal\u2019s mark on end-of-unit Reveal tests (marks named like \u201cUnit 2 test\u201d). Daily classwork is shown in grey and does not count. These groups stay as submitted; the groups below can change.</p>';
+  const lost = [];
+  h += '<div class="yg-list">' + Y.groups.map(gr => {
+    const r = ygStat(gr), pct = r.n ? Math.round(100 * r.met / r.n) : 0;
+    r.missing.forEach(k => lost.push(k.m.name));
+    const open = (UI.ygOpen || {})[gr.id];
+    return '<details class="yg-g" data-yg="' + esc(gr.id) + '"' + (open ? " open" : "") + '><summary><span class="yg-name">' + esc((gr.n ? gr.n + ". " : "") + gr.name) +
+      ' <span>' + r.n + (r.n === 1 ? " child" : " children") + "</span></span>" +
+      '<span class="yg-prog"><span class="yg-count">' + r.met + " of " + r.n + ' met</span><span class="yg-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span></span></summary>' +
+      '<div class="yg-body"><p class="yg-goal">' + esc(gr.goal) + "</p>" +
+      (gr.need ? '<div class="hint" style="margin:0">' + esc(gr.need) + "</div>" : "") +
+      '<div class="tiny muted">Met: ' + esc(ygBarWords(gr)) + " on unit tests.</div>" +
+      '<div class="yg-wrap"><table class="yg-table"><thead><tr><th>Student</th>' + gr.codes.map(c => '<th title="' + esc(byCode[c] ? byCode[c].lbl : c) + '">' + esc(dispCode(c)) + "</th>").join("") + "<th>Met</th></tr></thead><tbody>" +
+      r.kids.map(k => {
+        const st = k.sid ? S.students.find(x => x.id === k.sid) : null, from = (k.m.start || {});
+        return "<tr><td>" + (st ? nameLink(st, fullName(st)) : '<span class="yg-miss">' + esc(k.m.name) + " (not on your roster)</span>") + "</td>" +
+          gr.codes.map(c => {
+            const cl = k.r.cells[c], f = from[c] != null ? '<span class="yg-from">started ' + esc(from[c]) + "</span>" : "";
+            const v = cl.u != null ? '<span class="mark v' + roundMark(cl.u) + ' gg-mk" title="End-of-unit tests">' + cl.u.toFixed(1) + "</span>"
+              : cl.cw != null ? '<span class="yg-cw" title="Daily classwork only; no unit test yet, so it does not count">' + cl.cw.toFixed(1) + "</span>" : '<span class="muted">\u2013</span>';
+            return "<td>" + v + f + "</td>";
+          }).join("") + "<td>" + (k.r.met ? '<span class="yg-met">Met</span>' : "") + "</td></tr>";
+      }).join("") + "</tbody></table></div></div></details>";
+  }).join("") + "</div>";
+  if (lost.length) h += '<div class="notice warn yg-lost"><b>Not matched</b><span>' + esc(lost.join(", ")) + (lost.length === 1 ? " is" : " are") + " in the file but not on your roster by that name. Fix the spelling in Setup, or add it under Also called, and they will match.</span></div>";
+  return h;
+}
+/* the file: { kind: "classroom-suite/year-goals", subject, year, groups:
+   [{ n, name, goal, need, codes, bar, students: [{ name, start: {code: mark} }] }] } */
+function ygFromFile(o) {
+  if (!o || o.kind !== "classroom-suite/year-goals" || !Array.isArray(o.groups) || !o.groups.length) return null;
+  const groups = o.groups.map((g, i) => ({
+    id: uid(), n: Number(g.n) || i + 1, name: String(g.name || "Group " + (i + 1)), goal: String(g.goal || ""), need: String(g.need || ""),
+    codes: (Array.isArray(g.codes) ? g.codes : []).filter(c => byCode[c]), bar: Number(g.bar) === 4 ? 4 : 3,
+    members: (Array.isArray(g.students) ? g.students : []).map(x => typeof x === "string" ? { name: x } : { name: String(x.name || ""), start: x.start && typeof x.start === "object" ? x.start : undefined })
+      .filter(m => m.name)
+  })).filter(g => g.codes.length && g.members.length);
+  if (!groups.length) return null;
+  groups.forEach(g => g.members.forEach(m => { const sid = ygSid(m); if (sid) m.sid = sid; }));
+  return { subject: String(o.subject || "Math"), year: String(o.year || ""), loaded: todayISO(), groups: groups };
+}
+function ygWire() {
+  const f = document.getElementById("yg-file");
+  if (!f) return;
+  document.querySelectorAll("#panel-goal #yg-load").forEach(b => b.onclick = () => f.click());
+  f.onchange = () => {
+    const file = f.files && f.files[0];
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      let y = null;
+      try { y = ygFromFile(JSON.parse(rd.result)); } catch (e) { y = null; }
+      f.value = "";
+      if (!y) { toast("That isn\u2019t a year goals file"); return; }
+      if (S.yearGoals && !confirm("Replace the year goals you have with the ones in this file?")) return;
+      S.yearGoals = y; UI.ygOpen = {}; save(); renderClassGoal();
+      toast(y.groups.length + (y.groups.length === 1 ? " year goal" : " year goals") + " loaded");
+    };
+    rd.readAsText(file);
+  };
+  document.querySelectorAll("#panel-goal .yg-g").forEach(d => d.addEventListener("toggle", () => {
+    UI.ygOpen = UI.ygOpen || {}; UI.ygOpen[d.dataset.yg] = d.open;
+  }));
 }
 
 /* ---- printed: every group's goal, counts only, never names ---- */
