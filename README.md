@@ -1,253 +1,105 @@
 # Classroom suite
 
-Three tools that share one roster and one origin:
+Five tools for one second-grade classroom, sharing one origin and one roster:
 
 | Path | What it is |
 |---|---|
-| `/` | Launcher page with links to all three |
-| `/gradebook/` | Standards gradebook (entry, skill groups, math goal, ORF reading progress, conference sheets; iReady comes in through Setup) |
-| `/planner/` | Lesson planner |
-| `/fluency/` | Oral reading fluency assessment |
+| `/` | Launcher |
+| `/gradebook/` | Standards gradebook: Enter marks, Skill groups, Math goal, Students, ORF reading progress, Conferences, Setup (iReady comes in there) |
+| `/planner/` | Lesson planner: Today, Week, Settings, sub plans, and files and links on each lesson |
+| `/fluency/` | Oral reading fluency: Assess and Passages |
+| `/groups/` | Small groups: the math rotation board, reading cards, Walk to WIN slides |
 
-Plus `sw.js`, `suite-theme.css`, `suite-sync.js`, `suite-nav.js`, `suite-boot.js` and the icons at the root, shared by all three.
+They install together as one app ("Classroom"), work offline, and keep their
+data in the browser. Shared files sit at the root: `sw.js`, `suite-theme.css`,
+`suite-sync.js`, `suite-planner-sync.js`, `suite-nav.js`, `suite-boot.js` and
+the icons.
 
 ## The look
 
-`suite-theme.css` holds the palette, type and spacing for all three tools. Saturated colour is reserved for the 1–4 marks, so a row of scores reads at a glance with nothing else competing; everything else is type, spacing and one hairline. Blur appears on exactly two things — the sticky header and the corner switcher — because that is the one job it does well, and because blurring a 24-row roster is slow on a classroom Chromebook.
-
-The planner and the running-records tool are retoned through **their own CSS variables**, which they already had. That means neither tool's rules or markup were rewritten to restyle them, and removing the one `<link>` to `suite-theme.css` from a page restores it exactly as it was.
-
-Type is IBM Plex Sans with IBM Plex Serif for titles and reading passages, loaded from Google Fonts and cached by the service worker after the first visit. If the very first load is offline it falls back to Segoe UI or the system sans and everything still lays out correctly.
-
-Print flattens completely: no glass, no tint, no shadows, so Synergy entry sheets and student records stay black on white.
-
-**Each app lives in its own directory on purpose.** A web app manifest claims a *scope*, and a browser will not install a second app whose start page falls inside an already-installed app's scope — it offers to open it in the existing app instead. When all three sat at the root they shared one scope, so only the first could ever be installed. One directory per app gives each a scope of its own.
-
----
-
-## Why these have to be hosted together
-
-Two things depend on it.
-
-**A service worker will not run from `file://`.** Installing to a home screen and working offline both require the app to be served over HTTPS (or localhost). That is the whole reason this is a folder rather than a single file you double-click.
-
-**The live link between the gradebook and the running-records tool is an origin-scoped thing.** The gradebook reads the ORF tool's data straight out of browser storage. That only works when both are the same origin. Right now, as local files, they share the `file://` origin. Once the gradebook is hosted and the ORF tool is not, that link silently breaks. Keeping both in this folder keeps them on one origin and the link keeps working.
-
----
-
-## Portability
-
-Nothing in these files assumes a particular address. Every path is relative and each manifest uses `"scope": "./"`, so the same folder works unchanged at a domain root, in a subfolder such as `user.github.io/classroom/`, or opened straight off disk. The service worker is registered as `../sw.js` from each app directory, which gives it the suite root as its scope without needing any special response header — so hosts that cannot set headers, GitHub Pages among them, work fine.
-
-### If your school blocks the host
-
-Managed Chrome profiles often block `*.pages.dev` and `*.workers.dev` wholesale, because free instant subdomains are a common phishing and proxy vector. The block follows the profile, so it applies on personal hardware too.
-
-Check `chrome://policy` and search for `URLBlocklist`. That is the actual list, and picking a host that is not on it is faster than any appeal. `github.io` is often allowed where the free-subdomain hosts are not, since it is not usable as an open redirect in the same way. Others worth testing on the school profile: `netlify.app`, `vercel.app`, `web.app`.
-
-Because the suite is path-independent, moving hosts means re-uploading the same folder. Nothing inside changes.
-
-**Last resort that always works:** open `index.html` from a folder on disk. All three tools run, they share one origin so the roster and fluency links still work, and Chrome treats `file://` as a secure context so watching the sync folder still works too. You lose only installation and the service worker — and offline was never a question for files already on your machine. Keep the folder in Google Drive and both the tools and `classroom.json` follow you between computers.
-
----
+`suite-theme.css` holds the palette, type and spacing for every tool.
+Saturated colour is kept for the 1–4 marks; everything else is type, spacing
+and one hairline. IBM Plex Sans, with Plex Serif for titles and reading
+passages, cached by the service worker after the first visit. Print is black
+on white.
 
 ## Putting it online
 
-Any HTTPS static host works. Three routes, all free.
-
-### Option A — Cloudflare Pages, no repository at all (simplest)
-
-1. Make a free Cloudflare account.
-2. Workers & Pages → Create → Pages → **Upload assets**.
-3. Drag this whole folder in. Name the project, deploy.
-4. You get `https://<project>.pages.dev`, on HTTPS, in about a minute.
-
-To update, drag the folder in again as a new deployment. No git, no build step, no command line.
-
-One thing to decide up front: if you think you will later want version history and deploys on push, connect a Git repository from the start instead of uploading. Cloudflare does not let a Git-connected project switch to direct upload afterwards.
-
-### Option B — Cloudflare Pages from a private GitHub repository
-
-Cloudflare Pages builds from **private** repositories on the free plan, which is the specific thing GitHub Pages will not do. Push the folder to a private repo, then in Cloudflare choose Connect to Git, pick the repo, leave the framework as None and the output directory as `/`. Every push redeploys.
-
-### Option C — GitHub Pages with a public repository
-
-Often the one that survives a school filter. The repository has to be public on a free account, which is acceptable here — none of these files contain student data, and the data itself never leaves your browser and your own synced file. The only thing on display is the code.
-
-1. Repo → Settings → General → bottom of the page → **Change visibility** → Public.
-2. Repo → Settings → **Pages** → Source: *Deploy from a branch*, branch `main`, folder `/ (root)`. Save. Pages is off by default; making the repo public does not switch it on.
-3. Make sure `.nojekyll` is in the repo root. Without it GitHub runs the files through Jekyll, which skips anything beginning with an underscore and can mangle a static site in ways that are tedious to debug.
-4. Wait a minute or two, then open `https://<username>.github.io/<repo>/`.
-
-Your site is at `/<repo>/`, not the domain root. That is fine — every path in these files is relative. If you would rather have the root, rename the repository to `<username>.github.io`; you get one of those per account.
-
-**Do not run two hosts at once.** `username.github.io` and `project.pages.dev` are different origins, so each has its own copy of everything: roster, marks, plans, and the permission for your sync folder. Work on one, and export a backup from the other before you stop using it. Deleting the Cloudflare Pages project, or at least your bookmark to it, is the reliable way to avoid entering marks into the wrong one for a week.
-
-The `_headers` file is Cloudflare-specific and simply ignored by GitHub Pages. Nothing depends on it.
-
-### Putting a login in front of it
-
-None of the above hides the site itself. The URL is unguessable and the app is empty until data is loaded into it, so an accidental visitor sees a blank gradebook — but if you would rather it be properly gated:
-
-Cloudflare Zero Trust → Access → Applications → self-hosted, pointed at your `pages.dev` hostname, with a policy allowing your email address and an email one-time-PIN login. Free for up to 50 users. Cloudflare's own docs have a short procedure for enabling Access on a `pages.dev` domain; the extra steps in it only apply if you have added a custom domain, which you have not.
-
-**Set the session duration long** — a month rather than the default — or the installed app will keep bouncing you to a login screen. Offline use is unaffected either way, since the service worker serves the cached copy without asking the network.
-
-### About repository privacy, corrected
-
-An earlier version of this file said a private repository would work on GitHub Pages. It will not on a free account: GitHub Pages only publishes from public repositories unless you are on Pro, Team or Enterprise, and even then the published site stays public unless you are on Enterprise Cloud with Pages access control. If you want a private source and a gated site without paying, Cloudflare is the route.
-
----
-
-### Installing it
-
-**Three installable apps.** Open `/gradebook/`, `/planner/` or `/fluency/` and install each one you want. Each has its own manifest, scope, icon and start page, so they sit side by side in your dock or on your home screen. They are the same cached files underneath, the corner switcher moves between them, and any of them can set up sync.
-
-If an app offers **Open in Gradebook** rather than **Install**, its start page is inside another app's scope — check that each manifest's `scope` matches its own directory.
-
-An **Install** button appears in the corner switcher whenever the browser considers the page installable, which saves hunting for the browser's own control. If it is not showing, the browser is telling you something — work down this list:
-
-1. **Reload once.** The service worker registers on first visit; the install offer usually only appears on a later load.
-2. **Are you already in the installed app?** The button hides itself in standalone mode.
-3. **Which browser?** Chrome and Edge on desktop and Android support this. Firefox desktop does not install web apps at all. On iPhone and iPad use Safari → Share → *Add to Home Screen*. On macOS Safari it is File → *Add to Dock*.
-4. **Use the menu instead of the address bar.** Chrome: ⋮ → *Cast, save and share* → *Install page as app*. Edge: ⋯ → *Apps* → *Install this site as an app*. Chrome on Android: ⋮ → *Add to home screen*.
-5. **Ask the browser what is wrong.** F12 → Application → Manifest. Chrome lists installability errors there in plain language, which beats guessing.
-6. **School-managed device?** Chrome policy can disable web app installation entirely, and nothing in the page can override that. The site still works perfectly in a normal tab, including offline.
-
-Installation is a convenience, not a requirement. Everything — offline use, sync, storage — works the same in an ordinary bookmarked tab.
-
-The running-records tool is reached through the switcher rather than installed separately, since it is always opened in the middle of doing something else.
-
-### Updating it
-
-Redeploy the changed file, then **bump `CACHE` in `sw.js`** (for example `classroom-suite-v7` → `-v8`). Next time you open the app it notices the new version and offers a reload link.
-
-Page loads go to the network first and fall back to the cache, so a page that moves can never keep serving from a stale cache. Scripts and icons stay cache-first, which is why the version bump still matters for them. The install step caches each file separately rather than as one batch: a single missing path costs that one file instead of stopping the new worker from taking over at all.
-
-### When a change does not appear
-
-1. Hard reload: Ctrl+Shift+R, or Cmd+Shift+R on a Mac.
-2. F12 → Application → Service Workers → **Unregister**, then reload. This only clears cached app files; your data is untouched.
-3. Check the URL in a private window. That has no service worker and no cache, so whatever it shows is what the server is really sending.
-4. If a page 404s in a private window, the problem is the deploy, not the cache — check the paths in the repo and the build log in Cloudflare.
-
----
-
-## The three tools as one app
-
-A small switcher sits in the bottom corner of every page, so you move between the gradebook, the planner and the running-records tool the way you'd move between tabs. It is injected by `suite-nav.js`; delete the one script tag at the bottom of a file to remove it from that page.
-
-They stay three separate files on purpose. Each can fail, be edited, or be rolled back without touching the other two, and the assessment tool in particular is used in a moment where a mis-tap into a different screen matters. What they share is an origin, a roster link, a sync file, and now navigation — which is most of what being "one app" actually buys.
-
-### The planner now syncs on its own
-
-It no longer depends on the gradebook being open. `suite-boot.js` starts sync and registers the service worker on the planner and the running-records tool, which have no boot code of their own.
-
-### One caveat about the planner's Team view
-
-The planner's team sharing was written against Claude's published-artifact storage. That does not exist on GitHub Pages, so once hosted here, Team will not sync with colleagues. Everything else in the planner works normally, and its data is now covered by the sync file below. If team sharing matters more than offline install, keep using the planner as a published artifact and treat the copy here as read-only.
-
----
-
-## Connecting the planner to the gradebook
-
-Gradebook → **Planning**.
-
-The planner records where you are in a curriculum (Reveal U2 L5, Benchmark U1 W3 D2). The gradebook records standards. Nothing bridges those two on its own, so the Planning tab is where you say what each unit covers — at unit level, not per lesson. Roughly a dozen rows per subject.
-
-Nothing is filled in by default, deliberately. Only you know what your Reveal and Benchmark units actually cover, and a wrong guess here would quietly corrupt the coverage and reteach views.
-
-Once units are mapped, three things start working:
-
-- **Entry gets faster.** The Enter tab shows a row of buttons for the standards the planner says you taught that day, so you stop hunting in the dropdown.
-- **Coverage gaps surface.** Units you have taught where fewer than half the class has a mark on the standards, and units taught with no standards attached at all.
-- **Reteach prompts.** For the most recent unit in each subject, who is still sitting at 1 or 2 on its standards — before you move on rather than after.
-
-iReady-derived marks are excluded from both the coverage count and the reteach list, since neither question is about a screener.
-
----
-
-## Moving between assignments
-
-On a screen 1100px wide or wider (a laptop, the projector), the Enter tab has a **Recently graded** button above the roster, with **Next unfinished** and **New assignment** beside it. The button opens a list beside the roster: every assignment you have marked, newest first, each with its day, its name, its standard and how many students are done (each child counted once), with a bar. The one open is highlighted; tap any of them to open it, and **Hide** to give the roster its width back. **Show all** opens the list past the ten most recent. It starts shut each time the gradebook opens.
-
-Enter marks opens on today's date (and today's planned lesson), so the assignment it opens on is often empty. Then the line beside the button says so, *Nothing marked on this one yet. Earlier marks are in Recently graded.*, and in the list that one is drawn dashed and says *not started*, so a blank roster is never mistaken for marks gone missing.
-
-On a narrower screen (a phone, an iPad upright) the same list is a dropdown above the roster, with arrows for newer and older; an unstarted assignment there says *nothing marked yet*. `Alt` with the left and right arrow keys steps through them at any width without leaving the roster.
-
-An assignment was never stored as its own record — it is simply the marks that share a standard, a date and a context ("exit ticket", "worksheet"). The list is rebuilt from that, so nothing needed migrating and everything you have already entered appears. Marks derived from iReady or the ORF tool are left out, since those are not assignments you graded. A student logged as not turning work in counts toward the assignment being finished, which is the point of logging them.
-
-## Reading progress
-
-The ORF tab's **Reading progress** is one table with a row per child: their latest check and its percentile (Hasbrouck & Tindal grade 2, for that season), this month's goal with how they are doing, the mid-year goal and the end-of-year goal (each with the percentile it works out to, how far to go and the words a week it takes), and a line from their first check to their goal. Every goal comes from the child's own aim line.
-
-How they are doing is said in four words: **Exceeding goal** (▲), **On track** (✓), **Needs attention** (▼) or **First check** (○). On track means within the margin of error of the aim line, either way. The margin scales with the reader: 10% of their aim line, in whole words, at least 3 and at most the margin set under *How goals are set* (10). So a child aimed at 26 words is exceeding at +4 and needs attention at −4, and a child aimed at 115 is still on track at +6. The spring results judge the grade-level line with the margin as set. Children who need a change come first (three checks in a row under the aim line, then needs attention), or choose **A–Z**.
-
-Tap a name for that child's month-by-month goals with each month's check, a sentence that says where they are, the aim-line chart, their goals and every check. **Download PDF** opens the print dialog with the whole class on landscape Letter, black and white, every month's goal and check: choose *Save as PDF*. In the iPhone home-screen app, where the print dialog never opens, it makes the PDF itself and opens the share sheet: *Save to Files*, AirDrop or Mail. The gradebook's other print buttons say so there rather than doing nothing; open the gradebook in Safari, or on the Mac, to print those.
-
----
-
-## A class goal for math
-
-The gradebook's **Math goal** tab shows where the whole class most needs help in math. iReady's four domains sit in a strip at the top, lowest share on or above grade level first. Under it, daily classwork is a table of standards ranked by how many children are below 3 (using the term-mark rule in Setup): each row has one bar for the whole class split by mark, with a grey part for children not marked yet, then how many are below 3, the share at 3 or higher, the three-week change, and the standard's iReady domain. The two are ranked separately rather than blended; a row whose domain is also among iReady's lowest is tagged **Both point here**, and a note under the table says it in full. Choose **Make this the goal** on any need to draft a goal with a baseline and a suggested target; once started, the tab tracks the class against a straight line to the target, nudges when no marks have gone in on the focus, and keeps your check-ins. **Print goal sheet** gives one black-and-white page for a PLC or administrator with class counts only, never a student's name.
-
-**Year goals**, above Group goals, keeps the end-of-year goals you submitted: each group's children for the whole year and its goal in your words. They load from a year goals file (names never go in the app's code). A child has met their goal when every standard it names is at the goal's mark on Reveal unit tests (marks named like "Unit 2 test"); daily classwork is shown grey and does not count, and the marks you submitted show where each child started.
-
-Below it, **Group goals** puts every child in a group: with the first of the four focus strands they are below 3 on (place value, then adding and subtracting within 100, then extending the operations, then groundwork for multiplication), or in **Extend** when they are at 3 or higher on all of them, working toward 4 on their next skill. A child with no marks on these is placed by iReady. Each suggestion says where its children start (why they are together, and how they stand on iReady), and the number by each name is that child's mark on the group's standard, coloured like any mark. Drag a name to move a child (on a phone, press and hold first): on a suggestion the move waits, tagged, until **Use these groups** keeps it, and **Reset to suggested** undoes it; on saved groups it moves them straight away. **Edit group** renames a group, and its Move menu works without dragging. Each group can have its own goal, and its numbers always count whoever is in the group now, so a child's data moves with them. **Print group goals** gives every group's goal on paper, again with counts only.
-
-## Sub plans
-
-They live in the **planner**, on the *Sub plan* button in the bottom corner. Pick a day and print either document:
-
-- **Full plan** — block by block, with what the planner says you are teaching in each one, your note for that lesson, the day's note, and an "if you cannot find it" fallback for every block. Ends with a page for the sub to write back to you.
-- **The one-pager** — a single table of times, what happens and where to find it, plus the attention signal, the students to keep an eye on, and the behaviour ladder in one line each. For a sub who will not read three pages.
-
-Both are generated fresh from the planner each time, so a plan is never out of step with where you actually are in a unit. Blocks carry a days field (M T W R F) so a Monday-only block stays off a Friday plan, and a block linked to a planner subject fills its own lesson in.
-
-A subject with several blocks prints its lesson, learning targets and materials once, on the block where the lesson is taught: Reading's on *Whole-group comprehension* (8:50), Math's on *Math core lesson*. Phonics and the small-group blocks print their own notes. On Monday, Tuesday, Thursday and Friday Reading is Phonics 8:15–8:30, small groups 8:30–8:50, whole-group comprehension 8:50–9:10 and small groups 9:10–9:30.
-
-**This day's lessons**, in the Sub plan panel, shows each lesson's learning targets and materials as they will print, one per line. Change them there for that day only (the curriculum is not changed); *Use the curriculum's* puts them back. If the day's lesson is changed in the planner afterwards, the edit stops printing and the panel offers to clear it.
-
-`sub-plans.js` is injected into the planner rather than built into it, the same way the switcher is — the planner's own code is untouched, and deleting one `<script>` tag removes the feature cleanly. The notes live under their own key, `suite:subplan:v1`, which syncs with everything else.
-
-**The published files contain no standing notes at all** — no names, no behaviour notes, no phone number, only the empty time blocks. This site is served from a public repository, and children's behavioural information must never be committed to one. Load yours from a private JSON file (Planning → Sub plan → *Load standing notes*) and it lives in this browser and your synced `classroom.json`, which is where the roster already is. Keep that seed file out of the repo folder.
-
-### Science and Social Studies
-
-That block is free text in the planner rather than a lesson number, because "Lesson 4" says nothing useful about what it actually is. `suite-migrate.js` makes the switch once, before the planner boots, and rewrites anything already recorded as text ("Lesson 3") so no history is lost.
-
----
+It is hosted on **GitHub Pages** from a public repository. The contents of
+this folder go at the repository root, `.nojekyll` included. Every path is
+relative and every manifest's scope is the suite root, so the folder works at
+a domain root or in a subfolder such as `user.github.io/classroom/`.
+
+Some school networks block whole hosts (`*.pages.dev`, for one). Check
+`chrome://policy` → URLBlocklist before moving it anywhere else.
+
+**Updating.** `npm run build` stamps `sw.js` with a name computed from the
+files, so a changed site always reaches devices; `npm test` fails if the
+stamp is stale. Open the app and it offers a reload. To see what a device is
+running: Gradebook → Setup → This device. If a change does not appear,
+DevTools → Application → Service Workers → Unregister, then reload (your
+data is untouched).
+
+## Installing it
+
+Open any tool and choose **Install** in the corner switcher (Chrome or Edge),
+or Safari → Share → *Add to Home Screen* on an iPhone or iPad. It installs
+once, as one app, at the suite root. On iOS each home-screen app keeps its
+own storage, so a new icon means removing and re-adding the app: back up
+first. Installing is a convenience: everything works in a bookmarked tab too.
 
 ## Syncing your data
 
-One route, set up once per device (v96).
+**A computer (Chrome or Edge)** watches one folder: Sync → **Choose the sync
+folder**, one your phone also reaches (iCloud Drive, kept downloaded). It
+merges what lands there within seconds and keeps a current `classroom.json`.
 
-**On a computer (Chrome or Edge):** tap **Sync** in the corner switcher → **Choose the sync folder**, or Gradebook → Setup → Sync. Pick a folder your phone can also reach: one in iCloud Drive, or in Google Drive with Google Drive for desktop installed. While any tool is open, the computer merges whatever lands in that folder within seconds and keeps a current `classroom.json` there. Set the folder to stay downloaded, or the cloud app may leave only a placeholder the browser cannot read. A second computer can watch the same folder; each writes a file of its own, so neither overwrites the other.
+**A phone or iPad** taps: **Send** after changes (Save to Files, into that
+folder) and **Get the latest** when starting (pick `classroom.json`). Getting
+merges and can be undone.
 
-**On a phone or iPad:** no iOS browser can watch a folder (they are all Safari underneath), so it is a tap each way. **Sync → Send** after you change something: Save to Files, into that folder. **Sync → Get the latest** when you start: pick `classroom.json`. Getting merges, so nothing on the phone is lost, and it can be undone. Opened after a while away, the app offers the Get as one tap.
+**A computer that can reach neither:** **Email the sync file** from any
+device; saved into a watched Downloads folder, it merges on its own.
 
-**For a computer that can reach neither:** **Email the sync file**, from any device. If the suite there watches its Downloads folder, the downloaded attachment merges on its own; otherwise drop the file on any page.
+**Live, through Firebase:** Sync → **Planner sync**, signed in with your
+Firebase email and password. The planner, the math board, the reading cards,
+the Walk to WIN slides and lesson files reach your other devices within
+seconds; the boards carry children by id only, and everything typed is checked
+for a child's name before it leaves the device. A computer that only projects
+signs in as the display user and changes nothing. Security rules:
+`tools/firestore.rules`.
 
-Every tool shares one origin, so on any one device the gradebook, the planner and the running-records tool already share storage; the folder and the files are only the transport between devices, and they merge rather than overwrite. Files written by earlier versions are read correctly.
+Merges are three-way: whichever device actually changed a thing wins. **Back
+up anyway** (Setup → *Save a backup file*): a mistake syncs too.
 
-**Live, through Firebase:** Sync → **Planner sync**, then sign in with the email and password you made in your Firebase project; changes reach your other devices within a second or two. It carries the planner, the math board, the reading cards and the Walk to WIN slides, the boards by student id only (never children's names), and every write is checked for a child's name first. On a computer that only projects, sign in as the display user and tick **This computer only displays**: it shows everything live and changes nothing. Setup steps are in UPDATE.md (v105) and the security rules in `tools/firestore.rules`. (A private GitHub repository did this until v113.)
+## Lesson files and links
 
-**Back up anyway.** Setup → *Save a backup file*, once a week. Sync is not a backup: a mistake syncs too.
+On a lesson card, **Add files & links** (or **Files & links**). Drop, paste or
+choose files, or paste a link or a note, for this lesson, this week, or every
+lesson in the unit. They belong to the curriculum lesson (Reveal U3 L4,
+Benchmark U2 W3 D1), not the date, so they move with the lesson and are there
+next year. With Planner sync on they reach every device, and the display opens
+them; without it they stay on this device. Up to 20 MB a file. Curriculum
+resources only: file names, links and notes are checked for children's names,
+but a file's contents are not.
 
----
+## Sub plans
 
-## If you installed an earlier layout
-
-The apps used to sit at the root. Their scopes changed when they moved into directories, so an app installed from the old layout should be uninstalled and installed again from `/gradebook/` or `/planner/`. Update your bookmarks to the directory URLs too.
-
-**Your data is untouched.** Local storage, the IndexedDB handle for the sync folder and the files in it are all tied to the origin, not the path, and the origin has not changed.
-
----
-
-## Data, plainly
-
-Student names and marks live in two places: your browser's local storage, and the JSON file you connect. Nothing is uploaded anywhere, and none of it passes through GitHub. Before relying on this, it is worth a conversation with the district about where student data is allowed to live — the answer is usually easier than people expect, and it is much easier asked first.
+In the planner, the **Sub plan** button. A full plan (block by block, from the
+planner's schedule and lessons) or a one-pager. Each day's lesson targets and
+materials can be edited for that day. **The published files hold no standing
+notes**: names and behaviour notes load from a private JSON kept outside the
+repository (Sub plan → *Load standing notes*).
 
 ## Term marks, and Synergy
 
-Grading is done in Synergy, so the gradebook has no report card tab (since v134). It still works out a mark per standard for each marking period, which the conference sheets, Math goal and Skill groups use; how (recent work counts more, most recent only, or a straight average, and whether to carry a mark forward) is set in **Setup › Term marks**. **Setup › Your data › Download all marks** saves every mark as a CSV. Exporting the calculated marks for Synergy's report card is kept ready for when grading day comes.
+Grading is done in Synergy. The gradebook works out a mark per standard for
+each marking period (Setup › Term marks) for conferences, Math goal and Skill
+groups. **Setup › Your data › Download all marks** saves every mark as a CSV.
+
+## Data, plainly
+
+Rosters, marks, plans and running records live in your browser and your own
+sync file. With Planner sync on, the planner, the boards (by id) and lesson
+files also sit in your own Firebase project. No student name is ever in this
+repository: it is public.

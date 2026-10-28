@@ -1,78 +1,51 @@
 /* ==========================================================================
-   suite-planner-sync.js (v99) — the planner, kept in step on its own.
+   suite-planner-sync.js (v99; Firebase since v105, the only store since
+   v113) — the planner and the projected boards, kept in step live.
 
    The folder route needs a computer to watch a folder and a phone to tap
    Send and Get. The planner holds no student records, so it alone also
-   travels through a PRIVATE GitHub repository: one file, planner.json,
-   pulled when a page opens or comes back into view and pushed about ten
-   seconds after the last planner change. It works the same in Safari on a
-   phone as in Chrome on a computer.
+   travels through his private Firebase project: two Firestore documents,
+   suite/planner and suite/boards, each { text, rev, at, from, note }. Every
+   page listens to both and runs a round ~300 ms after another device
+   writes; planner changes push 10 s after the last edit, board changes 3 s.
+   A transaction refuses a stale `rev`, and the round re-reads, merges three
+   ways against this device's base and tries again.
 
-   It carries these keys and no others (PLANNER_KEYS). They stay on the
-   folder route too, so Send, Get and Email still carry the planner to a
-   device that has not set this up (the school computer, a colleague).
-   Each route merges against its own base, so the two never disagree about
-   what the other changed; see "Planner sync" in HANDOFF.md.
+   It carries these keys and no others (PLANNER_KEYS), plus the boards
+   (BOARD_KEYS) and the Walk to WIN summary (LIVE_KEY). They stay on the
+   folder route too, so Send, Get and Email still reach a device that has
+   not set this up. Each route merges against its own base.
 
    What keeps it safe is not the transport:
-   - Only PLANNER_KEYS ever reach the repository, and a test holds the list
-     to keys that hold no student record. A new key stays off it.
-   - Before every push, every piece of text in those keys (notes, what we
-     did, block labels and notes, even object keys) is checked against the
-     names this device knows: the gradebook roster and each child's other
-     names, the ORF tool's roster, and the Walk to WIN lists, which name
-     children in other rooms. A first name or another name matches in any
-     case; a surname only when capitalised, so "long vowels" is not a
-     child called Long. Any match holds the WHOLE push and says where.
+   - Only these keys ever reach the store, and a test holds the list to keys
+     that hold no student record. A new key stays off it.
+   - Before every push, every piece of text (notes, what we did, block labels
+     and notes, even object keys) is checked against the names this device
+     knows: the gradebook roster and each child's other names, the ORF
+     tool's roster, and the Walk to WIN lists. A first name or another name
+     matches in any case; a surname only when capitalised, so "long vowels"
+     is not a child called Long. Any match holds that file and says where.
    - With no class list on the device there is nothing to check against,
      so it holds rather than send unchecked.
-   - A repository that is not private is refused.
    - A word marked "Not a student here" is passed for that one note only,
      and only until the note's text changes. That mark stays on this device.
+   - The boards carry children by random gradebook id. Each board's `guests`
+     (visiting children, typed by name) never leave the device; a device
+     that receives boards lays its own guests back around the placements.
+   - The WIN summary (win.js) carries this class's matches by id, with the
+     teachers' names and rooms (his call); the newest `at` wins.
 
-   v101 adds the projected boards, by id only. boards.json carries the math
-   board (suite:groups:v1) and the reading cards (suite:readgroups:v1),
-   where a child is a random gradebook id, never a name. Each board's
-   `guests` (visiting children, typed by name) is taken out before it
-   leaves the device, and every piece of typed text gets the same name
-   check, holding boards.json on its own. A device that receives boards
-   keeps its own guests and lays the placements around them. Names come
-   from each device's own gradebook; the Walk to WIN lists, which store
-   names, stay on the folder route.
-
-   v102 adds the Walk to WIN slides (LIVE_KEY): not the pasted lists, which
-   name the whole grade, but win.js's summary of this class's matches by
-   gradebook id, with the teachers' names and rooms on the cards (his call),
-   the line notes and the days. The newest summary wins (its `at`); a device
-   re-summarises only when its own lists or roster change.
-
-   A device can be set up as a DISPLAY (the school computer that projects):
-   read-only, it never writes either file, takes the repository's copy as
-   it is, and checks every 25 seconds while on screen, so the projector
-   follows the Mac and the phone with no tap. Board changes go out 3
-   seconds after they are made.
-
-   v105: FIREBASE can stand in for GitHub as the store. The same two
-   files travel, each as one Firestore document (collection "suite", docs
-   "planner" and "boards": { text, rev, at, from }), so every rule above
-   holds unchanged: the merge, the name check, the guests, the newest WIN
-   summary. `rev` plays the sha (a transaction refuses a stale one). Instead
-   of polling, each page listens to both documents and runs a round the
-   moment another device writes. Sign-in is a Firebase email and password,
-   not a Google account; the security rules (tools/firestore.rules) let the
+   A DISPLAY (the school computer that projects) signs in as a read-only
+   user: it never writes, takes the store's copy as it is, and listens, with
+   a safety round every few minutes while on screen. Sign-in is a Firebase
+   email and password, not a Google account; tools/firestore.rules lets the
    display's account read and only the owner's write. The SDK is vendored
    (vendor/firebase/, Apache-2.0) and loads only on a device set up for it.
-   Everything Firebase-specific is the FB object below; the rest is shared.
+   Everything Firebase-specific is the FB object below.
 
-   v113: GitHub is gone. Firebase is the store; a device still set up for
-   GitHub sees a note to sign in with Firebase, and nothing it holds is lost.
-   (The GitHub text above is its history; CHANGELOG v99-v112 has it all.)
-
-   Nothing waits on GitHub: every request has a timeout and the first round
-   starts after the page is up (v95 hung on a GitHub call at startup).
-   Every request skips the browser cache, because GitHub lets a browser keep
-   a file for a minute, and a pull straight after another device's push
-   would otherwise read the old copy.
+   Nothing waits on the network: every request has a 15 s timeout, and the
+   first round starts after the page is up. Reads ask the server, never a
+   cached copy. The GitHub route this began as (v99-v112) is in CHANGELOG.
    ========================================================================== */
 (function () {
   "use strict";
@@ -97,14 +70,17 @@
 
   /* ---------- this device's settings ---------- */
   function conf() {
-    try { var c = JSON.parse(localStorage.getItem(CONF_KEY) || "null"); return c && typeof c === "object" ? c : null; }
-    catch (e) { return null; }
+    try {
+      var c = JSON.parse(localStorage.getItem(CONF_KEY) || "null");
+      if (!c || typeof c !== "object") return null;
+      /* v113: a device set up for GitHub before it was removed was told so in
+         the panel; v140 clears that setting (its token too) silently instead */
+      if (c.token && !c.fb) { localStorage.removeItem(CONF_KEY); return null; }
+      return c;
+    } catch (e) { return null; }
   }
   function saveConf(c) { try { localStorage.setItem(CONF_KEY, JSON.stringify(c)); } catch (e) { } }
-  function viaFirebase() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
   function configured() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
-  /* v113: set up for GitHub before it was removed */
-  function leftoverGitHub() { var c = conf(); return !!(c && c.repo && c.token && !c.fb); }
   function display() { var c = conf(); return !!(c && c.readonly); }
   /* v107: sync covers everything it can, so a connected device always keeps the
      boards (and the WIN summary) in step; the per-device switch is gone */
@@ -303,7 +279,6 @@
 
   /* ---------- the store: Firebase (v105; GitHub removed, v113) ---------- */
   function err(code, msg) { var e = new Error(msg || code); e.code = code; e.suite = true; return e; }
-  function checkRepo() { return FB.ready(); }
   /* one file: { sha, text }, or { sha: null, text: null } if it is not there yet ("sha" is Firebase's rev) */
   function fetchFile(name) { return FB.get(name); }
   function putFile(name, text, sha, message) {
@@ -423,6 +398,101 @@
       FB.unsub = []; FB.listening = false; FB.seen = {};
     }
   };
+  /* ---------- v140: lesson materials ----------
+     planner/materials.js keeps files, links and notes on curriculum lessons.
+     In the store: suite/materials is the index ({text: JSON {v, items}, rev,
+     at, from}), changed only inside a transaction so two devices' edits both
+     land; a file's bytes are suite/mf_<id>_<n>, chunks of CHUNK bytes as
+     Firestore Blobs (a document holds at most 1 MiB). Both sit under the
+     suite/ rule already published: the owner writes, the display reads.
+     Cloud Storage would be the usual home, but a project made since late
+     2024 needs the paid plan for it. Nothing here touches PLANNER_KEYS, the
+     folder route or the sync file: materials travel only live. */
+  var MAT_DOC = "materials", CHUNK = 700 * 1024;
+  function matIndex(text) {
+    var v = parse(text || "") || {};
+    var items = v.items && typeof v.items === "object" ? v.items : {};
+    return { v: 1, items: items };
+  }
+  function chunkId(id, n) { return "mf_" + String(id).replace(/[^A-Za-z0-9_-]/g, "") + "_" + n; }
+  var MAT = {
+    ready: function () { return configured() ? FB.ready() : Promise.reject(err("off")); },
+    get: function () {
+      return MAT.ready().then(function () { return withTimeout(FB.doc(MAT_DOC).get({ source: "server" })); })
+        .then(function (snap) { return matIndex(snap.exists ? (snap.data() || {}).text : ""); }, function (e) { throw fbError(e); });
+    },
+    /* fn(index) edits the index in place; the transaction re-runs it on fresh
+       data if another device wrote first, so neither change is lost */
+    change: function (fn) {
+      if (display()) return Promise.reject(err("display"));
+      return MAT.ready().then(function () {
+        var ref = FB.doc(MAT_DOC);
+        return withTimeout(FB.db.runTransaction(function (tx) {
+          return tx.get(ref).then(function (snap) {
+            var d = snap.exists ? (snap.data() || {}) : {};
+            var idx = matIndex(d.text);
+            fn(idx);
+            tx.set(ref, { text: JSON.stringify(idx), rev: (Number(d.rev) || 0) + 1, from: SS.device || "",
+              at: window.firebase.firestore.FieldValue.serverTimestamp() });
+            return idx;
+          });
+        }));
+      }).then(null, function (e) { throw fbError(e); });
+    },
+    /* a file's bytes, one chunk at a time, so a slow connection never has to
+       carry the whole file in one request; resolves to the chunk count */
+    putFile: function (id, bytes, onStep) {
+      if (display()) return Promise.reject(err("display"));
+      var n = Math.max(1, Math.ceil(bytes.length / CHUNK)), i = 0;
+      function next() {
+        if (i >= n) return Promise.resolve(n);
+        var part = bytes.subarray(i * CHUNK, Math.min(bytes.length, (i + 1) * CHUNK)), at = i;
+        return withTimeout(FB.doc(chunkId(id, at)).set({ data: window.firebase.firestore.Blob.fromUint8Array(part), n: at, of: n }))
+          .then(function () { i++; if (onStep) onStep(i, n); return next(); }, function (e) { throw fbError(e); });
+      }
+      return MAT.ready().then(next);
+    },
+    getFile: function (id, n) {
+      return MAT.ready().then(function () {
+        var parts = [];
+        for (var i = 0; i < n; i++) parts.push(withTimeout(FB.doc(chunkId(id, i)).get({ source: "server" })));
+        return Promise.all(parts);
+      }).then(function (snaps) {
+        var arrs = snaps.map(function (s) {
+          if (!s.exists) throw err("gone", "A piece of this file is missing from Firebase.");
+          return s.data().data.toUint8Array();
+        });
+        var len = arrs.reduce(function (a, b) { return a + b.length; }, 0), out = new Uint8Array(len), o = 0;
+        arrs.forEach(function (a) { out.set(a, o); o += a.length; });
+        return out;
+      }, function (e) { throw fbError(e); });
+    },
+    dropFile: function (id, n) {
+      if (display()) return Promise.reject(err("display"));
+      return MAT.ready().then(function () {
+        var all = [];
+        for (var i = 0; i < n; i++) all.push(withTimeout(FB.doc(chunkId(id, i)).delete()).then(null, function () { }));
+        return Promise.all(all);
+      });
+    },
+    /* the index, now and on every change from any device */
+    listen: function (cb) {
+      var off = null, stopped = false;
+      MAT.ready().then(function () {
+        if (stopped) return;
+        off = FB.doc(MAT_DOC).onSnapshot(function (snap) {
+          cb(matIndex(snap.exists ? (snap.data() || {}).text : ""));
+        }, function () { });
+      }, function () { });
+      return function () { stopped = true; if (off) try { off(); } catch (e) { } };
+    }
+  };
+  /* the name check, for one piece of text (a file's name, a link, a note) */
+  function namesInText(text) {
+    var known = knownNames();
+    return { roster: known.roster, hits: known.roster ? namesIn(String(text || ""), known.words) : [] };
+  }
+
   /* v106: this copy's own project, from suite-edition.js, if it has one */
   function editionFirebase() {
     var e = window.SuiteEdition && window.SuiteEdition.firebase;
@@ -523,7 +593,7 @@
 
   /* ---------- v101: the boards' base and state ---------- */
   var bbase = null, bstate = "off", bdetail = "", bhold = null, bempty = false;
-  var winRemote = null;   /* v103: { at, from } of the WIN summary GitHub holds, as of the last round */
+  var winRemote = null;   /* v103: { at, from } of the WIN summary the store holds, as of the last round */
   function loadBBase() {
     if (bbase) return Promise.resolve(bbase);
     return L.idbGet(BBASE_IDB).then(function (b) { bbase = b && typeof b === "object" ? b : {}; return bbase; },
@@ -552,7 +622,7 @@
       return readRemote().then(function (remote) {
         var mine = localKeys();
         if (display()) {
-          /* v101: a display shows what the repository has, and sends nothing */
+          /* v101: a display shows what the store has, and sends nothing */
           var take = {};
           PLANNER_KEYS.forEach(function (k) { if (remote.keys[k] !== undefined && remote.keys[k] !== mine[k]) take[k] = remote.keys[k]; });
           if (Object.keys(take).length) {
@@ -617,7 +687,7 @@
           try { boardChanged = boardChanged.concat(L.apply({ keys: put, updatedAt: new Date().toISOString() })); }
           finally { applying = false; }
         }
-        /* v102: the WIN summary. A display shows the repository's; an editing
+        /* v102: the WIN summary. A display shows the store's; an editing
            device sends its own when it is the newer one. */
         var myLive = localStorage.getItem(LIVE_KEY), when = function (j) { var o = parse(j); return o && typeof o.at === "string" ? o.at : ""; };
         if (display()) {
@@ -659,7 +729,7 @@
         bstate = code === "moved" ? "net" : code; bdetail = e && e.message || "";
       });
     }
-    return loadBase().then(checkRepo).then(function () { return attempt(1); }).then(function (how) {
+    return loadBase().then(FB.ready).then(function () { return attempt(1); }).then(function (how) {
       if (how === "ok") { noteConf({ lastOk: new Date().toISOString() }); setState("idle"); }
       else setState("held", hold.reason);
     }, function (e) {
@@ -717,8 +787,8 @@
   /* v101: a display checks on its own while it is on screen */
   setInterval(function () {
     if (!configured() || !display() || document.hidden || busy) return;
-    /* v105: with Firebase the display listens; this is only a safety check every few minutes */
-    if (viaFirebase() && Date.now() - lastRound < 180000) return;
+    /* the display listens; this is only a safety check every few minutes */
+    if (Date.now() - lastRound < 180000) return;
     round();
   }, DISPLAY_POLL);
   function start() { if (configured()) setTimeout(round, 1200); }
@@ -747,7 +817,7 @@
     });
   }
   function disconnect() {
-    if (viaFirebase()) FB.signOut();
+    FB.signOut();
     try { localStorage.removeItem(CONF_KEY); } catch (e) { }
     clearTimeout(pushTimer); pushTimer = null; hold = null;
     base = {}; L.idbSet(BASE_IDB, {});
@@ -755,13 +825,6 @@
     clearTimeout(boardTimer); boardTimer = null;
     setState("off");
   }
-  /* v107: the boards are no longer a choice; this only runs a round now, for
-     anything that still calls it (v101-v106 tests and pages) */
-  function setBoards() {
-    if (!configured()) return Promise.reject(err("off"));
-    return round();
-  }
-
   /* ---------- words ---------- */
   function ago(iso) {
     var t = Date.parse(iso || ""); if (!t) return "";
@@ -773,7 +836,7 @@
   }
 
   var MESSAGES = {
-    badfile: "planner.json in the repository isn\u2019t a planner file, so nothing was changed.",
+    badfile: "The planner in Firebase isn\u2019t a planner file, so nothing was changed.",
     /* v101 */
     display: "This computer only displays, so it sends nothing.",
     /* v105: Firebase */
@@ -785,7 +848,7 @@
     fbsignin: "Signed out of Firebase on this device. Turn off on this device, then connect again.",
     fbdenied: "Firebase refused. Check the security rules are published, with this account\u2019s user ID in them.",
     nocode: "Couldn\u2019t load Firebase\u2019s code. Reload the page.",
-    badboards: "boards.json in the repository isn\u2019t a boards file, so nothing was changed.",
+    badboards: "The boards in Firebase aren\u2019t a boards file, so nothing was changed.",
     off: "Connect planner sync first."
   };
   /* v103: Walk to WIN, said plainly, so a stalled slide says where it stalled */
@@ -820,7 +883,7 @@
     /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
     if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Connect the Mac or phone you change them on.";
     if (bstate === "idle") return display()
-      ? (viaFirebase() ? "On \u00b7 live: this computer shows each change as it is made" : "On \u00b7 this computer shows them and checks every 25 seconds")
+      ? "On \u00b7 live: this computer shows each change as it is made"
       : "On \u00b7 changes go out in seconds";
     if (bstate === "held") return heldText(bhold, "board");
     return MESSAGES[bstate] || "Couldn\u2019t reach Firebase (" + (bdetail || bstate) + "). It tries again shortly.";
@@ -903,8 +966,6 @@
     function close() { box.remove(); }
 
     if (!configured()) {
-      /* v113: GitHub is gone; a device set up for it is told so, once, here */
-      if (leftoverGitHub()) box.appendChild(el("div", "hubmsg", "GitHub sync was removed. Sign in with Firebase below; everything on this device is still here."));
       /* v105: Firebase, first */
       box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step live through your own Firebase project, the boards by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
       /* v106: with this copy's project built in, only the sign-in is asked for */
@@ -1045,7 +1106,9 @@
     get boardHeld() { return bhold ? { reason: bhold.reason, hits: bhold.hits.map(function (h) { return { where: h.where, word: h.word }; }) } : null; },
     boardsStatus: boardsStatus,
     winLines: function () { return boardsOn() ? winLines() : []; },   /* v103 */
-    setBoards: setBoards,
+    /* v140: lesson materials (planner/materials.js) and the name check they use */
+    materials: MAT,
+    names: namesInText,
     onState: function (f) { listeners.push(f); },
     /* the Sync menu's line for this */
     menuOption: function () {

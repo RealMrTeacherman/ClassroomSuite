@@ -5,7 +5,7 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v139-19d70cc1";
+const CACHE = "classroom-suite-v140-403d094f";
 
 const SHELL = [
   "./",
@@ -17,6 +17,7 @@ const SHELL = [
   "planner/",
   "planner/index.html",
   "planner/day-view.js",
+  "planner/materials.js",
   "planner/manifest.json",
   "fluency/",
   "fluency/index.html",
@@ -109,11 +110,15 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  /* Sync talks to APIs over GET. Those must never be answered from the cache,
-     or a device would merge against yesterday's copy of the file and quietly
-     undo the other device's work. Left to the browser entirely. Google's font
-     host is deliberately not in here — those we do want cached for offline. */
-  if (/^(www\.googleapis\.com|oauth2\.googleapis\.com|accounts\.google\.com|api\.github\.com)$/.test(url.hostname)) return;
+  /* Live sync talks to Google's APIs (Firestore, its sign-in and token
+     hosts). Those must never be answered from the cache, or a device would
+     merge against yesterday's copy, and must never be stored in it: each of
+     Firestore's listen requests has a URL of its own, so caching them only
+     filled the cache. Left to the browser entirely. v140: this list named
+     the routes removed in v96 and v113 and none of Firebase's hosts. Google's
+     font hosts are deliberately left out: those we do want cached offline. */
+  if ((/\.googleapis\.com$/.test(url.hostname) && url.hostname !== "fonts.googleapis.com") ||
+      /(^|\.)google\.com$/.test(url.hostname)) return;
 
   /* Page loads go to the network first, cache second. Cache-first here would
      mean a page that has moved keeps being served from the old cache, with no

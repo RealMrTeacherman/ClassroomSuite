@@ -442,23 +442,6 @@
     document.body.appendChild(box);
   }
 
-  /* ---------- v96: told once that the old route has gone ---------- */
-  var ROUTE_NAMES = { github: "the GitHub repository", drive: "the Google Drive sign-in", file: "a connected file" };
-  function tellRetired() {
-    var S = window.SuiteSync;
-    var r = S && S.retired;
-    if (!r || !r.length) return false;
-    S.retiredTold();
-    var names = r.map(function (k) { return ROUTE_NAMES[k] || k; }).join(" and ");
-    sheet("Sync is simpler now",
-      "This device was syncing through " + names + ". That way of syncing has been removed, and everything on this device is still here. " +
-      (S.folderSupported ? "To keep it in step, choose the folder your phone saves to."
-        : "To keep it in step, use Send and Get on the Sync button."),
-      S.folderSupported ? [{ label: "Choose the sync folder", hint: "in iCloud Drive or Google Drive", run: chooseFolder }]
-        : [{ label: "Open the Sync menu", run: phoneMenu }]);
-    return true;
-  }
-
   /* ---------- drop a sync file anywhere (v77) ----------
      Downloaded from Drive on the other computer, the file is one drag from
      here. Only a drag that carries files is touched, so the gradebook's and
@@ -640,9 +623,10 @@
   }
   function start() {
     build(); watchForUpdate(); tabRows(); tuckOnScroll(); dropToLoad();
-    /* after the page's own boot has had a moment: the notice first, if any;
-       otherwise, on a phone, the offer to get the computer's latest */
-    if (window.SuiteSync) setTimeout(function () { if (!tellRetired()) offerGet(); }, 700);
+    /* after the page's own boot has had a moment: on a phone, the offer to
+       get the computer's latest (v140: the v96 route notice that went first
+       is gone) */
+    if (window.SuiteSync) setTimeout(offerGet, 700);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

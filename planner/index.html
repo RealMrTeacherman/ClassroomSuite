@@ -243,7 +243,7 @@ html:not([data-suite-theme]) .tside .panel.daynotes .flag{min-height:30px;paddin
 @media screen and (min-width:1700px){
   html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip){display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.6fr);column-gap:28px;align-items:start}
   html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subtop{grid-column:1 / -1}
-  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > :is(.slot,.freein,.cmid,.more){grid-column:1}
+  html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > :is(.slot,.freein,.cmid,.more,.mats){grid-column:1}
   html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subnote{grid-column:2;grid-row:2 / span 3;align-self:stretch;height:auto !important;min-height:120px;margin:0;resize:none;
     box-sizing:border-box;background:#F6F8F9;border:1px solid rgba(16,24,32,.10) !important;border-radius:10px;padding:12px 14px !important;font-size:14px;line-height:1.5}
   html:not([data-suite-theme]) .todaygrid .fcol > .sub:not(.skip) > .subnote:focus{background:#fff;border-color:var(--suite-accent,#10655C) !important;outline:none;box-shadow:0 0 0 3px rgba(16,101,92,.12)}
@@ -380,10 +380,6 @@ textarea.notes:focus{
   .railhead{flex-direction:column;gap:2px;align-items:flex-start;margin:20px 0 10px}
   .savebar .primary{flex:1 1 100%;text-align:center}
   .tab{padding:9px 12px;font-size:9px}
-  [data-theme="fourcolor"] .tab{font-size:12px;padding:9px 11px;letter-spacing:.04em}
-  [data-theme="fourcolor"] .dow{font-size:30px}
-  [data-theme="fourcolor"] .primary{font-size:13px}
-  [data-theme="fourcolor"] .brand h1{font-size:18px}
 }
 /* iOS Safari zooms the whole page whenever you focus a field smaller than
    16px, and never zooms back out — which made writing a note on a phone a
@@ -418,27 +414,7 @@ textarea.notes:focus{
   .wnote{-webkit-line-clamp:unset !important;overflow:visible !important}
 }
 
-/* ---------- themes ---------- */
-[data-theme="moonbase"]{
-  --shell:#E4E7EC; --shell-top:#EFF1F5; --shell-2:#D5DAE1; --card:#FBFCFD;
-  --ink:#1A2028; --ink-2:#55606E; --ink-3:#8B96A4; --line:#D2D8E0; --line-2:#B6BFCB;
-  --screen:#171C23; --screen-txt:#EDF1F6;
-  --orange:#E2561F; --orange-2:#BE4315; --gold:#C9A227; --teal:#2E7D91; --avocado:#5E8C6A;
-}
-[data-theme="console"]{
-  --shell:#13181E; --shell-top:#1A2028; --shell-2:#1E252D; --card:#1E252D;
-  --ink:#EDE7DA; --ink-2:#A9A294; --ink-3:#7A7466; --line:#333C47; --line-2:#4A5563;
-  --screen:#0A0D11; --screen-txt:#F2B33D;
-  --orange:#E4711E; --orange-2:#C25A12; --gold:#F0B429; --teal:#3FA9A0; --avocado:#7FB03F;
-}
-[data-theme="formica"]{
-  --shell:#E6F1EA; --shell-top:#F1F8F3; --shell-2:#D5E6DB; --card:#FFFFFF;
-  --ink:#1F2E29; --ink-2:#53665F; --ink-3:#8AA097; --line:#CADED2; --line-2:#A9C6B8;
-  --screen:#1B2A26; --screen-txt:#F4EFE2;
-  --orange:#D33B55; --orange-2:#B12B43; --gold:#E8B33C; --teal:#12A0A8; --avocado:#6FA84B;
-}
-
-/* Accent-derived tints so every theme recolours these automatically */
+/* Tints derived from the accent colours */
 .chip.saved{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,var(--card));
   background:color-mix(in srgb,var(--teal) 12%,var(--card))}
 .chip.draft{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,var(--card));
@@ -450,69 +426,47 @@ textarea.notes:focus{
 .wday h3 i{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,var(--card));
   background:color-mix(in srgb,var(--teal) 12%,var(--card))}
 
-[data-theme="fourcolor"]{
-  --shell:#EDF1F8; --shell-top:#F8FAFD; --shell-2:#DCE3F0; --card:#FFFFFF;
-  --ink:#101A33; --ink-2:#3B4763; --ink-3:#78849C;
-  --line:#D4DCEC; --line-2:#101A33;
-  --screen:#101A33; --screen-txt:#F5B927;
-  --orange:#C8102E; --orange-2:#93091F; --gold:#E8A317; --teal:#1B4DA8; --avocado:#1E8A4C;
-  --display:'Bangers',Impact,'Haettenschweiler','Arial Narrow',sans-serif;
-}
-/* Hard black keylines and offset shadows: comic panel borders */
-[data-theme="fourcolor"] .sub,
-[data-theme="fourcolor"] .panel,
-[data-theme="fourcolor"] .wday,
-[data-theme="fourcolor"] header{border-bottom-width:2.5px;border-bottom-color:#101A33}
-[data-theme="fourcolor"] .ghost,
-[data-theme="fourcolor"] .arrow,
-[data-theme="fourcolor"] .step,
-[data-theme="fourcolor"] .todaybtn,
-[data-theme="fourcolor"] .flag,
-[data-theme="fourcolor"] .skipbtn,
-[data-theme="fourcolor"] .themebtn{border-width:2.5px;border-color:#101A33}
-[data-theme="fourcolor"] .readout,
-[data-theme="fourcolor"] .freein{border:2.5px solid #101A33;box-shadow:none}
-[data-theme="fourcolor"] .primary{border:2.5px solid #101A33;box-shadow:4px 4px 0 #101A33;
-  background:linear-gradient(var(--orange) 0 78%,#E8A317 78% 100%)}
-[data-theme="fourcolor"] .primary:hover{box-shadow:2px 2px 0 #101A33}
-[data-theme="fourcolor"] textarea.notes{border-width:2.5px;border-color:#101A33}
-/* Bangers is condensed, so the display sizes step up to match */
-[data-theme="fourcolor"] .dow{font-family:var(--display);font-size:36px;letter-spacing:.02em;font-weight:400}
-[data-theme="fourcolor"] .brand h1{font-size:21px;letter-spacing:.04em}
-[data-theme="fourcolor"] .tab{font-size:14px;letter-spacing:.06em}
-[data-theme="fourcolor"] .primary{font-size:15px;letter-spacing:.06em}
-[data-theme="fourcolor"] .panel h2,
-[data-theme="fourcolor"] .railhead h2{font-size:14px;letter-spacing:.07em}
-[data-theme="fourcolor"] .panel.closed h2{font-size:20px}
-[data-theme="fourcolor"] .chip{font-size:11.5px;letter-spacing:.06em;vertical-align:4px}
-[data-theme="fourcolor"] .todaybtn{font-size:13px;letter-spacing:.06em}
-[data-theme="fourcolor"] .daypick button{font-size:12.5px;letter-spacing:.05em}
-[data-theme="fourcolor"] .wday h3{font-size:14px;letter-spacing:.05em}
-[data-theme="fourcolor"] .skipbtn{font-size:11px;letter-spacing:.05em}
-
-.themegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;margin-top:4px}
-.themebtn{
-  border:1.5px solid var(--line);border-radius:13px;padding:11px;text-align:left;
-  display:flex;align-items:center;gap:10px;background:var(--card);
-}
-.themebtn:hover{border-color:var(--line-2)}
-.themebtn[aria-pressed="true"]{border-color:var(--orange);box-shadow:0 0 0 1.5px var(--orange)}
-.themebtn span{font-size:12.5px;font-weight:500}
-.swatchrow{display:flex;flex:0 0 auto}
-.swatchrow i{width:11px;height:22px;display:block}
-.swatchrow i:first-child{border-radius:4px 0 0 4px}
-.swatchrow i:last-child{border-radius:0 4px 4px 0}
-.privacy{
-  font-size:12px;color:var(--ink-2);background:color-mix(in srgb,var(--gold) 10%,var(--card));
-  border:1.5px solid color-mix(in srgb,var(--gold) 35%,var(--card));
-  border-radius:12px;padding:11px 13px;margin-bottom:12px;line-height:1.5;
-}
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:11px}
 .field label{font-size:10px;color:var(--ink-3);font-weight:500;text-transform:uppercase;letter-spacing:.08em}
 .field input[type=text]{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--shell)}
 .field small{font-size:11.5px;color:var(--ink-3)}
-.optin{display:flex;align-items:flex-start;gap:9px;font-size:13px;margin:4px 0 13px;line-height:1.45}
-.optin input{margin-top:3px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--orange)}
+
+/* ---------- v140: lesson materials (planner/materials.js) ----------
+   Quiet: a row of small chips under the notes, a type tag and a name. */
+.mats{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.mats:empty,.sub.skip .mats{display:none}
+.matchip{display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:32px;padding:4px 10px 4px 5px;
+  border:1px solid var(--line);border-radius:8px;background:var(--card);font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left}
+.matchip:hover{border-color:var(--line-2)}
+.matchip.busy{border-style:dashed}
+.mattag{flex:none;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  background:color-mix(in srgb,var(--c,var(--teal)) 12%,var(--card));border-radius:5px;padding:3px 6px}
+.matname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:24ch}
+.matstate{flex:none;font-size:11.5px;color:var(--ink-3)}
+.matadd{background:none;border:0;padding:6px 2px;min-height:32px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.sub.matdrop{outline:2px dashed var(--ink-3);outline-offset:3px}
+.matsheet .matlist{list-style:none;margin:0 0 14px;padding:0;border-top:1px solid var(--line)}
+.matsheet .matlist li{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.matsheet .matopen{background:none;border:0;padding:0;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;
+  text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px;flex:1 1 60%;min-width:0;overflow-wrap:anywhere}
+.matsheet .matmeta{flex:1 1 100%;order:3;font-size:12px;color:var(--ink-3)}
+.matsheet .matdel{background:none;border:0;padding:2px 0;font:inherit;font-size:12.5px;color:var(--ink-3);cursor:pointer;text-decoration:underline}
+.matsheet .matnone{font-size:13px;color:var(--ink-3);margin:0 0 14px}
+.matsheet .matscope{border:0;padding:0;margin:0 0 12px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.matsheet .matscope legend{font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:4px;padding:0}
+.matsheet .matscope label{display:flex;gap:8px;align-items:center}
+.matsheet .matdropzone{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:14px;margin-bottom:12px;
+  border:1.5px dashed var(--line-2);border-radius:10px;font-size:13px;color:var(--ink-2)}
+.matsheet .matdropzone.over{border-color:var(--ink-2);background:color-mix(in srgb,var(--ink) 4%,var(--card))}
+.matsheet .matfld{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.matsheet .matfld textarea{font:inherit;font-size:14px;font-weight:400;padding:9px 10px;border:1px solid var(--line-2);border-radius:8px;resize:vertical;color:var(--ink);background:var(--card)}
+.matsheet .matmsg{min-height:1em;font-size:12.5px;color:var(--ink-2);margin:8px 0 0}
+dialog.sheet .sheetcard:has(.matsheet){width:min(93vw,560px)}
+.matnotebody{white-space:pre-wrap;font-size:14px;line-height:1.5;max-height:60vh;overflow:auto;margin:0 0 14px}
+@media print{.mats{display:none}}
+/* a finger-sized target on touch (suite-theme.css already sets touch fields to 16px) */
+@media (pointer:coarse){.matchip,.matadd{min-height:40px}}
 
 /* ---------- sheet ----------
    Replaces prompt(): a real dialog with labelled numeric fields, which
@@ -523,10 +477,8 @@ dialog.sheet::backdrop{background:rgba(30,20,12,.5)}
   background:var(--card);border:1.5px solid var(--line-2);border-radius:var(--radius);
   padding:19px;width:min(93vw,380px);box-shadow:0 14px 44px rgba(44,30,21,.3);
 }
-[data-theme="fourcolor"] .sheetcard{border-width:2.5px;border-color:#101A33;box-shadow:5px 5px 0 #101A33}
 .sheetcard h2{font-family:var(--display);font-size:10.5px;font-weight:400;margin:0 0 5px;
   text-transform:uppercase;letter-spacing:.14em}
-[data-theme="fourcolor"] .sheetcard h2{font-size:15px;letter-spacing:.07em}
 .sheetcard .hint{font-size:12.5px;color:var(--ink-3);margin:0 0 14px}
 .numrow{display:flex;gap:9px;margin-bottom:14px}
 .numfield{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -595,37 +547,13 @@ dialog.sheet::backdrop{background:rgba(30,20,12,.5)}
 /* ============================== storage ============================== */
 const K = { settings:'lp:settings:v2', days:'lp:days:v2', me:'lp:me:v1', pending:'lp:pending:v1' };
 
-/* Theme presets. Each carries a subject palette in subject order:
-   reading, writing, math, science, win (v120: no Phonics; ECRI is part of Reading). */
-const THEMES = {
-  atomic:  {name:'Atomic Ranch',   swatch:['#EFE4CE','#C8511C','#D89A1C','#16706B'],
-            subjects:['#5E8C3A','#16706B','#7A4A6B','#D89A1C','#C8511C','#45607C']},
-  moonbase:{name:'Moonbase',       swatch:['#E4E7EC','#E2561F','#C9A227','#2E7D91'],
-            subjects:['#5E8C6A','#2E7D91','#7A5E8E','#C9A227','#E2561F','#4C5C6E']},
-  console: {name:'Mission Control',swatch:['#13181E','#E4711E','#F0B429','#3FA9A0'],
-            subjects:['#7FB03F','#3FA9A0','#A97FC4','#F0B429','#E4711E','#6E8CA8']},
-  fourcolor:{name:'Vanguard',      swatch:['#EDF1F8','#C8102E','#E8A317','#1B4DA8'],
-            subjects:['#1E8A4C','#1B4DA8','#7A2D8F','#E8A317','#C8102E','#0E7C8C']},
-  formica: {name:'Formica',        swatch:['#E6F1EA','#D33B55','#E8B33C','#12A0A8'],
-            subjects:['#6FA84B','#12A0A8','#9B5A8C','#E8B33C','#D33B55','#4E7A86']}
-};
-const KNOWN_COLOURS = new Set();
 
-let ME = {id:'', name:'', theme:'atomic', share:false, code:''};
+/* lp:me:v1, synced. Kept for its name, which Walk to WIN reads as a hint;
+   v140: the planner's five looks went (none could draw since v92), and with
+   them `theme`. A theme still in an old copy is ignored. */
+let ME = {id:'', name:'', share:false, code:''};
 
 function newId(){ return 'u'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
-
-function applyTheme(){
-  document.documentElement.setAttribute('data-theme', ME.theme||'atomic');
-}
-/* Recolour subjects only if they're still on a known preset colour,
-   so a colour picked by hand in Settings is never overwritten. */
-function applyThemePalette(id){
-  const pal = (THEMES[id]||{}).subjects || [];
-  S.subjects.forEach((sb,i)=>{
-    if(pal[i] && KNOWN_COLOURS.has((sb.color||'').toUpperCase())) sb.color = pal[i];
-  });
-}
 
 /* v116: the browser's own storage. (A second path for Claude's artifact
    storage, used only by the retired team sharing, was removed.) */
@@ -924,7 +852,6 @@ function stashDraft(){
   queuePending();
 }
 async function persistSettings(){ await store.set(K.settings, S); }
-async function persistMe(){ await store.set(K.me, ME); }
 
 /* A lesson position as one number from the start of the year (curriculum.js
    uses it). v116: kept when the team sharing it sat among was removed. */
@@ -1089,6 +1016,7 @@ function renderToday(){
   fitSide(); setTimeout(fitSide, 300);
   markNow();
   if(window.DayView) window.DayView.afterToday();   /* v112: the day laid out (was suite-boot.js) */
+  if(window.PlannerMaterials) window.PlannerMaterials.afterToday();   /* v140: each lesson's materials */
 }
 
 /* v118: on a screen 1100px wide or more, a sidebar beside the lessons holds
@@ -1227,6 +1155,7 @@ function cardBase(sb){
       <textarea class="subnote" data-note="${sb.id}" rows="1"
              placeholder="Add specifics — pages, groups, what to reteach"
              aria-label="Notes for ${esc(sb.name)}">${esc(e.note||'')}</textarea>
+      <div class="mats" data-mats="${sb.id}"></div>
     </article>`;
 }
 
@@ -1243,6 +1172,7 @@ function wireToday(){
     const ro = main.querySelector(`[data-edit="${sb.id}"]`);
     ro.querySelector('span').textContent = fmt(sb,e.pos);
     ro.classList.remove('roll'); void ro.offsetWidth; ro.classList.add('roll');
+    if(window.PlannerMaterials) window.PlannerMaterials.refresh(sb.id);   /* v140: the new lesson's materials */
     touch();
   });
 
@@ -1517,18 +1447,6 @@ function renderSettings(){
     </div>
 
     <div class="panel">
-      <h2>Theme</h2>
-      <p class="hint">Yours only.</p>
-      <div class="themegrid">
-        ${Object.keys(THEMES).map(id=>`
-          <button class="themebtn" data-theme-pick="${id}" aria-pressed="${ME.theme===id}">
-            <span class="swatchrow">${THEMES[id].swatch.map(c=>`<i style="background:${esc(c)}"></i>`).join('')}</span>
-            <span>${esc(THEMES[id].name)}</span>
-          </button>`).join('')}
-      </div>
-    </div>
-
-    <div class="panel">
       <h2>School year ${esc(YEAR.label)}</h2>
       <p class="hint" id="yearstats"></p>
       <ul class="tl" id="closelist"></ul>
@@ -1575,13 +1493,6 @@ function blockEditor(b,i){
     </div>`;
 }
 function wireSettings(){
-  main.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=async()=>{
-    ME.theme = b.dataset.themePick;
-    applyThemePalette(ME.theme);
-    applyTheme();
-    await persistMe(); await persistSettings();
-    renderSettings();
-  });
   /* Year progress + the closure list, grouped so repeats collapse. */
   const first=parseKey(YEAR.first), last=parseKey(YEAR.last);
   let total=0, done=0, early=0, d=new Date(first);
@@ -1877,14 +1788,11 @@ function seedFirstDay(){
      all. Data is still read now, as before: those scripts expect it loaded. */
   const allLoaded = new Promise(r => document.readyState==='loading'
     ? document.addEventListener('DOMContentLoaded', r, {once:true}) : r());
-  Object.values(THEMES).forEach(t=>t.subjects.forEach(c=>KNOWN_COLOURS.add(c.toUpperCase())));
-  ['#17876B','#2F6FB2','#7B4FA8','#D9932B','#C4552F','#4E5D6C'].forEach(c=>KNOWN_COLOURS.add(c));
   const [s,d,me,pend] = await Promise.all([
     store.get(K.settings), store.get(K.days), store.get(K.me), store.get(K.pending)
   ]);
   if(me && typeof me==='object') ME = Object.assign(ME, me);
   if(!ME.id) ME.id = newId();
-  applyTheme();
   S = s && s.subjects ? s : {subjects:JSON.parse(JSON.stringify(DEFAULT_SUBJECTS)),templates:JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),tv:SCHEDULE_VERSION};
   if(!S.templates) S.templates = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
   migrateSchedule();
@@ -1906,6 +1814,7 @@ function seedFirstDay(){
 <script src="../suite-nav.js" defer></script>
 <script src="../suite-boot.js" defer></script>
 <script src="day-view.js" defer></script>
+<script src="materials.js" defer></script>
 <script src="../sub-plans.js" defer></script>
 <script src="../curriculum.js"></script>
 </body>

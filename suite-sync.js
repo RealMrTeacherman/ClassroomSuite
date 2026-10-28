@@ -57,7 +57,7 @@
        is not reported as having stray keys. */
     "suite:gh:v1": "v96: the retired GitHub route's token; cleared on load, never travels",
     "suite:gd:v1": "v96: the retired Google Drive route's settings; cleared on load",
-    "suite:retired:v1": "v96: which retired route this device was using, and whether it has been told",
+    "suite:retired:v1": "v96-v139: the retired route this device was on, for a notice; cleared on load since v140",
     "suite:lastGet:v1": "v96: when this device last brought in another device's file; drives the phone's Get reminder",
     "suite:theme:v1": "the look this device used until v91; a preference, not data, and cleared on load since v92",
     "suite:mailto:v1": "v95: the address this device's Email button fills in; set per device, like its name",
@@ -77,13 +77,13 @@
     "gb2:preRestore:v1": "this device's undo copy from before its last gradebook restore",
     /* v83: the same, for the running-records tool's Restore from backup */
     "suite:orfPreRestore:v1": "this device's undo copy from before its last ORF tool restore",
-    /* v99: planner sync through a private GitHub repository
-       (suite-planner-sync.js). The token is this device's alone, and a
-       "Not a student here" is a judgment made on this device's notes. */
-    "suite:plannerHub:v1": "v99: this device's planner-sync repository, token and last round; never travels",
+    /* v99: live planner sync (suite-planner-sync.js; Firebase since v105).
+       The sign-in is this device's alone, and a "Not a student here" is a
+       judgment made on this device's notes. */
+    "suite:plannerHub:v1": "v99: this device's live-sync settings (Firebase project, email, display) and last round; never travels",
     "suite:plannerHubOk:v1": "v99: words this device was told are not a student's name, per note",
-    /* v102: the Walk to WIN slide's summary travels only through GitHub,
-       with the boards; the folder route carries the lists themselves */
+    /* v102: the Walk to WIN slide's summary travels only live, with the
+       boards; the folder route carries the lists themselves */
     "suite:winLive:v1": "v102: the WIN slide summary by gradebook id; travels only in boards.json",
     "suite:winLiveMine:v1": "v102: what this device last summarised, so it re-summarises only on its own change"
   };
@@ -209,33 +209,18 @@
 
   /* ---------- v96: the routes that were removed ----------
      A device still set up for the GitHub repository, the Google sign-in or
-     a single connected file keeps all its data (it is in this browser), but
-     the setting is cleared, along with the GitHub token, and the device
-     notes which route it was on so the switcher can say so once. The note is
-     a flag on purpose: it records an event, and "told" must stick. */
-  var RETIRED_KEY = "suite:retired:v1";
-  function retired() {
-    try { return JSON.parse(localStorage.getItem(RETIRED_KEY) || "null") || null; } catch (e) { return null; }
-  }
+     a single connected file keeps all its data (it is in this browser); the
+     setting is cleared, the GitHub token with it. v140: silently. The
+     one-time "Sync is simpler now" notice went, since no device has been on
+     those routes for many releases; its record is cleared too. */
   function retireOld() {
-    var was = [];
+    var was = false;
     try {
-      if (localStorage.getItem("suite:gh:v1")) was.push("github");
-      if (localStorage.getItem("suite:gd:v1")) was.push("drive");
+      ["suite:gh:v1", "suite:ghExp", "suite:gd:v1", "suite:retired:v1"].forEach(function (k) {
+        if (localStorage.getItem(k) != null) { was = true; localStorage.removeItem(k); }
+      });
     } catch (e) { }
-    return idbGet(HANDLE_KEY).then(function (h) {
-      if (h) was.push("file");
-      if (!was.length) return;
-      try {
-        ["suite:gh:v1", "suite:ghExp", "suite:gd:v1"].forEach(function (k) { localStorage.removeItem(k); });
-        if (!retired()) localStorage.setItem(RETIRED_KEY, JSON.stringify({ routes: was, at: new Date().toISOString(), told: false }));
-      } catch (e) { }
-      return idbSet(HANDLE_KEY, null);
-    });
-  }
-  function retiredTold() {
-    var r = retired();
-    if (r && !r.told) { r.told = true; try { localStorage.setItem(RETIRED_KEY, JSON.stringify(r)); } catch (e) { } }
+    return idbGet(HANDLE_KEY).then(function (h) { if (h) return idbSet(HANDLE_KEY, null); });
   }
 
   /* ---------- the fallback for phones and iPads ----------
@@ -805,7 +790,7 @@
   function busyNow() {
     return !!(folder && folderBusy) || laneBusy();
   }
-  /* v99: the planner's GitHub round (suite-planner-sync.js) reads and
+  /* v99: the planner's live round (suite-planner-sync.js) reads and
      writes the same keys. Two rounds interleaved would each apply what it
      read before the other wrote, and put the older copy back, so only one
      runs at a time: each checks the other before starting. */
@@ -1006,7 +991,7 @@
     opts = opts || {};
     if (!folder) return Promise.resolve([]);
     if (folderBusy) { if (opts.push) pushPending = true; return Promise.resolve([]); }
-    /* v99: the planner's GitHub round is running; go once it is done */
+    /* v99: the planner's live round is running; go once it is done */
     if (laneBusy()) { pushPending = true; return Promise.resolve([]); }
     folderBusy = true;
     if (!opts.quiet) set("syncing", "");
@@ -1225,8 +1210,6 @@
     /* when a sync file was last saved here, and whether anything changed since */
     get lastExport() { var e = exportState(); return e ? { at: e.at, dirty: !!e.dirty, name: e.name || "" } : null; },
     /* v96: the route this device was on before it was removed, until told */
-    get retired() { var r = retired(); return r && !r.told ? r.routes.slice() : null; },
-    retiredTold: retiredTold,
     touchDevice: touchDevice,
     onState: function (f) { listeners.push(f); f(state, detail); },
     onChanged: function (f) { changeHandlers.push(f); },

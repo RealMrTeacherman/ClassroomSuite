@@ -5062,13 +5062,12 @@ function orfIso(t) { const d = new Date(t); return d.getFullYear() + "-" + Strin
    the goal; on track = within the margin of the line either way; needs
    attention = further below it than that. After the spring check the result
    words stay (Made the goal, Goal not made...), sorted with the nearest kind.
-   The margin scales with the reader (orfBand): a flat 10 words is about 10%
+   The margin scales with the reader (SuiteOrf.goals.band): a flat 10 words is about 10%
    of a 100-word reader and half of a 20-word one. */
 const ORF_KIND_COLOR = { exceeding: "var(--s4)", on: "var(--s3)", attention: "var(--s1)", start: "var(--ink-3)" };
 /* v137: the margin and the kinds live in suite-orf.js (goals.band,
    goals.cardStatus), shared with the Assess tab's last-check comparison */
 const ORF_BAND_FLOOR = window.SuiteOrf ? window.SuiteOrf.goals.BAND_FLOOR : 3;
-function orfBand(pl, t) { return window.SuiteOrf.goals.band(pl, t); }
 function orfCardStatus(pl) {
   const st = window.SuiteOrf.goals.cardStatus(pl);
   return Object.assign(st, { color: ORF_KIND_COLOR[st.kind] });

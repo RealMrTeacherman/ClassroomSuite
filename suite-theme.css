@@ -100,13 +100,13 @@ body {
 
 /* Both tools draw heavier shadows and rounder corners than this look wants.
    Softening them here keeps their markup untouched. */
-.card, .panel, .sheet, .tile, .box {
+.card, .panel, .sheet, .box {
   box-shadow: var(--suite-shadow-sm) !important;
 }
 
 @media print {
   body { background: #fff !important; }
-  .card, .panel, .sheet, .tile, .box { box-shadow: none !important; }
+  .card, .panel, .sheet, .box { box-shadow: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -134,13 +134,6 @@ body {
   overflow: hidden;
 }
 
-/* ---- The planner's own looks are retired --------------------------------
-   The planner arrived with five looks of its own (Atomic Ranch, Moonbase,
-   Mission Control, Vanguard, Formica), from before it lived in this suite.
-   The suite's Look control now owns the look for all three tools, and
-   suite-migrate.js pins the planner to its base palette. Its Theme panel
-   in Settings goes with them. Subject colours are data and stay as set. */
-.panel:has(> .themegrid) { display: none; }
 
 /* ---- The gradebook's sync flag ------------------------------------------
    Its colours were written for a dark header the gradebook no longer has:
@@ -153,7 +146,7 @@ body {
 /* ---- Desktop audit (v46) ------------------------------------------------ */
 /* Hints ran up to 93em — about 150 characters a line — across a wide
    gradebook card. 75ch is the upper end of comfortable reading. */
-.hint, .card li, #sampleNote { max-width: 75ch; }
+.hint, .card li { max-width: 75ch; }
 /* Keyboard focus that drew nothing in the quiet look: the gradebook's date
    field, the planner's per-subject notes, and the planner's jump-to-date
    control, whose real input is invisible over the date text. */
@@ -395,7 +388,7 @@ body {
     border: 1px solid var(--suite-line-2); border-radius: var(--x-r); padding: 7px 14px; margin-right: 10px; cursor: pointer;
   }
   html:not([data-suite-theme]) textarea::placeholder { font-family: var(--suite-sans); }
-  html:not([data-suite-theme]) :is(th, .tablehead) { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; }
+  html:not([data-suite-theme]) th { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; }
 
   /* ---- gradebook ---- */
   html:not([data-suite-theme]) header.app { padding-left: 0; padding-right: 0; }
