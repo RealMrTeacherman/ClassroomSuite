@@ -35,11 +35,14 @@
    - The WIN summary (win.js) carries this class's matches by id, with the
      teachers' names and rooms (his call); the newest `at` wins.
 
-   A DISPLAY (the school computer that projects) signs in as a read-only
-   user: it never writes, takes the store's copy as it is, and listens, with
+   A DISPLAY (the school computer that projects) signs in as the display
+   user: it never writes the planner, the WIN summary or materials, and
+   since v142 arranges the boards like any device (rules: the display writes
+   suite/boards only; its first round takes the store's as it is). It
+   listens, with
    a safety round every few minutes while on screen. Sign-in is a Firebase
    email and password, not a Google account; tools/firestore.rules lets the
-   display's account read and only the owner's write. The SDK is vendored
+   display's account read, and write only suite/boards (v142). The SDK is vendored
    (vendor/firebase/, Apache-2.0) and loads only on a device set up for it.
    Everything Firebase-specific is the FB object below.
 
@@ -285,8 +288,10 @@
   /* one file: { sha, text }, or { sha: null, text: null } if it is not there yet ("sha" is Firebase's rev) */
   function fetchFile(name) { return FB.get(name); }
   function putFile(name, text, sha, message) {
-    /* v101: a display never writes, whatever asks it to */
-    if (display()) return Promise.reject(err("display"));
+    /* v101: a display never writes, whatever asks it to. v142: except the
+       boards (the math board and reading groups), which he arranges on it
+       too; never the planner, the WIN summary or lesson materials */
+    if (display() && name !== BOARDS_FILE) return Promise.reject(err("display"));
     return FB.put(name, text, sha, message);
   }
   /* ---------- v105: Firebase, as a store for the same two files ---------- */
@@ -678,7 +683,13 @@
           var st = stripGuests(k, v);
           if (st != null) mine[k] = st;
         });
-        var merged = display() ? remote : onlyBoards(L.mergeKeys(bbase, mine, remote, false, false).keys);
+        /* v142: the display merges its own moves too, as any device does.
+           But on its first round it has no base, and its copy (from an
+           emailed file, maybe days old) would read as edits and overwrite
+           the Mac's: then it takes the store's as it is, as it always did,
+           and that is its base from then on. */
+        var firstOnDisplay = display() && !Object.keys(bbase || {}).some(function (k) { return BOARD_KEYS.indexOf(k) >= 0; });
+        var merged = firstOnDisplay ? Object.assign({}, remote) : onlyBoards(L.mergeKeys(bbase, mine, remote, false, false).keys);
         var put = {};
         BOARD_KEYS.forEach(function (k) {
           if (merged[k] === undefined) return;
@@ -693,18 +704,19 @@
         /* v102: the WIN summary. A display shows the store's; an editing
            device sends its own when it is the newer one. */
         var myLive = localStorage.getItem(LIVE_KEY), when = function (j) { var o = parse(j); return o && typeof o.at === "string" ? o.at : ""; };
+        var sendLive;
         if (display()) {
           if (remoteLive !== undefined && remoteLive !== myLive) {
             applying = true;
             try { localStorage.setItem(LIVE_KEY, remoteLive); boardChanged.push(LIVE_KEY); } finally { applying = false; }
           }
-          var rl = parse(remoteLive || "null");
-          winRemote = rl ? { at: rl.at, from: rl.from || "" } : null;
-          saveBBase(remote); bhold = null; return "ok";
+          /* the display never sends a WIN summary of its own: the store's goes back as it was */
+          sendLive = remoteLive;
+        } else {
+          var mineOk = myLive != null && !!parse(myLive);
+          /* sent when there is none there yet, or when this one is newer */
+          sendLive = mineOk && (remoteLive === undefined || when(myLive) > when(remoteLive)) ? myLive : remoteLive;
         }
-        var mineOk = myLive != null && !!parse(myLive);
-        /* sent when there is none there yet, or when this one is newer */
-        var sendLive = mineOk && (remoteLive === undefined || when(myLive) > when(remoteLive)) ? myLive : remoteLive;
         var held = parse(sendLive || remoteLive || "null");
         winRemote = held ? { at: held.at, from: held.from || "" } : null;
         if (sendLive !== undefined) merged[LIVE_KEY] = sendLive;
@@ -759,7 +771,7 @@
   }
   /* v101: a change to a board reaches the projector in seconds */
   function scheduleBoards() {
-    if (!boardsOn() || display()) return;
+    if (!boardsOn()) return;   /* v142: the display's moves go out too */
     clearTimeout(boardTimer);
     boardTimer = setTimeout(round, BOARD_PUSH_AFTER);
   }
@@ -841,7 +853,7 @@
   var MESSAGES = {
     badfile: "The planner in Firebase isn\u2019t a planner file, so nothing was changed.",
     /* v101 */
-    display: "This computer only displays, so it sends nothing.",
+    display: "This computer is the display: it changes the boards, never the planner.",
     /* v105: Firebase */
     fbconfig: "That doesn\u2019t look like a Firebase config. Paste the firebaseConfig block from your project\u2019s settings.",
     fbcreds: "Enter the email and password of a user you made in Firebase.",
@@ -884,10 +896,10 @@
     if (!boardsOn()) return "Off on this device";
     if (bstate === "off") return "On";
     /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
-    if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Connect the Mac or phone you change them on.";
-    if (bstate === "idle") return display()
-      ? "On \u00b7 live: this computer shows each change as it is made"
-      : "On \u00b7 changes go out in seconds";
+    if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Arrange a board here, or on the Mac or phone.";
+    /* v142: a project still on the old rules refuses the display's moves */
+    if (bstate === "fbdenied" && display()) return "Firebase won\u2019t take this computer\u2019s changes to the boards yet. Publish the current security rules (tools/firestore.rules, v142) in the Firebase console, then Sync now. Until then, moves made here stay on this computer only.";
+    if (bstate === "idle") return "On \u00b7 live: changes here and on your other devices go out in seconds";
     if (bstate === "held") return heldText(bhold, "board");
     return MESSAGES[bstate] || "Couldn\u2019t reach Firebase (" + (bdetail || bstate) + "). It tries again shortly.";
   }
@@ -1005,7 +1017,7 @@
     } else {
       var c = conf();
       box.appendChild(el("i", "", display()
-        ? "Through " + where() + ". This computer only displays: it shows what is there and never changes anything."
+        ? "Through " + where() + ". This computer is the display: it shows the planner and never changes it. The boards it can change (below)."
         : "Through " + where() + ". " + "The planner and the boards go there, the boards by student id only," + " and nothing is sent while typed text names a student."));
       box.appendChild(el("div", "hubstatus", status()));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
@@ -1026,7 +1038,7 @@
       /* v101: the projected boards */
       box.appendChild(el("div", "hubhead", "Boards and Walk to WIN slides"));
       box.appendChild(el("i", "", display()
-        ? "Shows the math board, reading cards and Walk to WIN slides as they change on your Mac or phone, names from this computer\u2019s own gradebook copy."
+        ? "The math board and reading groups can be arranged here as on any device, and changes go both ways in seconds, by student id only; names come from this computer\u2019s own gradebook copy. The Walk to WIN slides come from your Mac (their lists name other classes\u2019 children, so they never go to Firebase)."
         : "Keeps the math board, reading cards and Walk to WIN slides in step too, by student id only. Children\u2019s names, visiting children and the pasted WIN lists stay off Firebase; the WIN cards\u2019 teacher names and rooms go. Nothing goes while typed text names a student."));
       box.appendChild(el("div", "hubstatus", boardsStatus()));
       if (boardsOn()) winLines().forEach(function (t) { box.appendChild(el("div", "hubstatus", t)); });   /* v103 */

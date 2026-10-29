@@ -65,8 +65,9 @@ device; saved into a watched Downloads folder, it merges on its own.
 Firebase email and password. The planner, the math board, the reading cards,
 the Walk to WIN slides and lesson files reach your other devices within
 seconds; the boards carry children by id only, and everything typed is checked
-for a child's name before it leaves the device. A computer that only projects
-signs in as the display user and changes nothing. Security rules:
+for a child's name before it leaves the device. A computer that projects signs
+in as the display user: it can arrange the math board and reading groups
+(changes go both ways in seconds) but never changes the planner. Security rules:
 `tools/firestore.rules`.
 
 Merges are three-way: whichever device actually changed a thing wins. **Back
