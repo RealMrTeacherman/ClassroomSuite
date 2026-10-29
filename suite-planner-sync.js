@@ -184,6 +184,9 @@
         if (path.length >= 2 && path[path.length - 2] === "place") return;
         /* v102: the WIN summary's notes are keyed by gradebook id too */
         if (isKey && path.length >= 2 && path[path.length - 2] === "notes") return;
+        /* v141: a group's uploaded picture is a data: URL; read as words, its
+           base64 can spell a name by chance */
+        if (!isKey && path[path.length - 1] === "img" && /^data:image\/[a-z]+;base64,/.test(text)) return;
         var found = namesIn(text, known.words);
         if (!found.length) return;
         var id = fieldId(k, path) + (isKey ? "#key" : "");

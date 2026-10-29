@@ -74,12 +74,17 @@
   @media print{ .gb-offer{display:none!important} }
 
   .grid{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(10px,1.2vw,20px);min-height:0}
+  /* v141: two to six groups. Two or three in a row, four as 2x2, five or six as 3x2 */
+  .grid[data-n="2"]{grid-template-rows:1fr}
+  .grid[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr}
+  .grid[data-n="5"],.grid[data-n="6"]{grid-template-columns:repeat(3,minmax(0,1fr))}
   .group{position:relative;display:flex;flex-direction:column;background:var(--card);border:4px solid var(--gc);border-radius:22px;
     padding:clamp(10px,1.2vw,20px);min-height:0;overflow:hidden}
   .group-head{display:flex;align-items:center;gap:clamp(8px,1vw,16px);min-width:0}
   .medallion{flex:0 0 auto;width:clamp(40px,min(6.4vw,8.5vh),110px);height:clamp(40px,min(6.4vw,8.5vh),110px);border-radius:50%;background:var(--gt);
     display:grid;place-items:center;border:3px solid var(--gc)}
   .medallion svg{width:78%;height:78%;display:block}
+  .medallion img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%}
   .group-name{font-size:clamp(1.4rem,min(4.4vw,6vh),4.6rem);font-weight:700;line-height:.95;color:var(--gc);padding:2px 8px;border-radius:10px;outline:none;min-width:0;overflow-wrap:anywhere}
   .group-name:focus{background:#F3F7FA;box-shadow:0 0 0 3px #9BC4E8}
 
@@ -166,11 +171,40 @@
   .drawer a{color:#0F6B6B;font-weight:700}
 
   @media (max-width:820px){
-    .grid{grid-template-columns:1fr;grid-template-rows:repeat(4,minmax(180px,1fr))}
+    .grid,.grid[data-n]{grid-template-columns:1fr;grid-template-rows:repeat(var(--n,4),minmax(180px,1fr))}
     .board{height:auto}
     .drawer{max-height:none}
   }
-  @media (pointer:coarse){ .addform input,.field input[type=text],.drawer textarea{font-size:16px} }
+  /* ---------- v141: the group editor, in Setup ---------- */
+  .ged-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:6px}
+  .ged-count{display:inline-flex;align-items:center;gap:0;border:2px solid var(--rule);border-radius:12px;background:var(--card);overflow:hidden}
+  .drawer .ged-count button{border:0;border-radius:0;padding:6px 14px;font-size:1.1rem;line-height:1}
+  .ged-count b{min-width:2.2ch;text-align:center;font-size:1.05rem}
+  .ged-lbl{font-size:.9rem;font-weight:700;color:var(--ink-soft)}
+  .ged{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:12px}
+  .gcard{position:relative;display:flex;flex-direction:column;gap:8px;background:var(--card);border:3px solid var(--gc);border-radius:16px;padding:12px}
+  .gcard-top{display:flex;align-items:center;gap:10px}
+  .drawer .gpic{flex:none;width:56px;height:56px;padding:0;border-radius:50%;border:3px solid var(--gc);background:var(--gt);display:grid;place-items:center;overflow:hidden}
+  .gpic svg{width:78%;height:78%}
+  .gpic img{width:100%;height:100%;object-fit:cover}
+  .gcard-n{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+  .gcard label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+  .gcard input[type=text]{font:inherit;font-size:1rem;font-weight:600;color:var(--ink);border:2px solid var(--rule);border-radius:10px;padding:7px 9px;background:#F8FAFB;min-width:0}
+  .gcard .pg{flex-direction:row;align-items:center;gap:6px;font-weight:600}
+  .drawer .gdel{position:absolute;top:8px;right:8px;padding:2px 9px;font-size:.8rem;border-width:1px}
+  .gadd{display:flex;align-items:center;justify-content:center;min-height:150px;border:2px dashed #9AA8B5!important;background:transparent!important;color:var(--ink-soft)!important}
+  .picpanel{border-top:2px dashed var(--rule);padding-top:8px;display:flex;flex-direction:column;gap:8px}
+  .picgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .drawer .picgrid button{padding:4px;aspect-ratio:1;border-radius:50%;border-width:2px;background:#fff;display:grid;place-items:center}
+  .drawer .picgrid button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+  .picgrid svg{width:80%;height:80%}
+  .swatches{display:flex;flex-wrap:wrap;gap:6px}
+  .drawer .swatches button{width:28px;height:28px;padding:0;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--rule)}
+  .drawer .swatches button[aria-pressed="true"]{box-shadow:0 0 0 3px var(--ink)}
+  .drawer .picup{font-size:.9rem}
+  .picnote{font-size:.8rem;color:var(--ink-soft);line-height:1.4;margin:0}
+  @media (pointer:coarse){ .addform input,.field input[type=text],.drawer textarea{font-size:16px} .gcard input[type=text]{font-size:16px}
+    .drawer .swatches button{width:40px;height:40px} .drawer .gdel{min-height:40px;padding:6px 12px} .drawer .ged-count button{min-height:40px;min-width:44px} }
   @media print{
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     body{background:#fff}
@@ -347,7 +381,7 @@
       <button id="slides" class="primary">Download sub slides (.pptx)</button>
       <span class="status" id="slideStatus" role="status"></span>
     </div>
-    <p class="note">Makes the four-rotation deck for a substitute from this board as it is now: your group names, today’s students, your station names and every page number. It opens in PowerPoint, and Google Slides takes it through File &rarr; Import slides or by uploading it to Drive.</p>
+    <p class="note">Makes the rotation deck for a substitute (one slide per rotation) from this board as it is now: your group names, today’s students, your station names and every page number. It opens in PowerPoint, and Google Slides takes it through File &rarr; Import slides or by uploading it to Drive.</p>
 
     <h2>Skill groups from the gradebook</h2>
     <div id="gbSuggest"></div>
@@ -355,12 +389,15 @@
     <h2>Students</h2>
     <p class="note" id="rosterNote"></p>
 
-    <h2>Group look</h2>
-    <div class="row looks" id="lookPick" role="group" aria-label="Group look" style="margin-top:0"></div>
-    <p class="note">Animals are Fox, Bear, Tiger and Lion. Colors are Red, Blue, Yellow and Green, each with its own shape, so a child who can’t tell red from green still finds their group. Switching moves no one. A name you typed yourself stays; one still called Fox or Red switches with the look.</p>
-
-    <h2>Station names</h2>
-    <div class="fields" id="stationFields"></div>
+    <h2>Groups</h2>
+    <div class="ged-head">
+      <span class="ged-lbl">How many</span>
+      <span class="ged-count"><button type="button" id="gedLess" aria-label="One group fewer">−</button><b id="gedN">4</b><button type="button" id="gedMore" aria-label="One more group">+</button></span>
+      <span class="ged-lbl">Start from</span>
+      <div class="row looks" id="lookPick" role="group" aria-label="Start from a set of pictures" style="margin-top:0"></div>
+    </div>
+    <div class="ged" id="groupEditor"></div>
+    <p class="note">Each group starts at its own station and moves to the next one when you rotate, so there are as many stations as groups. Tap a group’s picture to choose another, upload your own, or change its colour. Animals and Colors set every group’s picture and colour at once; each colour has its own shape, so a child who can’t tell red from green still finds their group. A name you typed yourself stays. Pictures you upload travel to your other devices with the board, so use a picture, not a photo of a child.</p>
     <div class="row">
       <button id="lineupBtn">Line up the starting order</button>
       <span class="note" style="margin:0" id="lineupNote">Sends Fox to the first station, Bear to the second, and so on.</span>
@@ -429,68 +466,104 @@
   var ROSTER_KEY = "gb2_standards_v1";
   var ANIMALS = {
     fox: { color: "#C9481E", tint: "#FBE7DE" }, bear: { color: "#6E4630", tint: "#F2E7E0" },
-    tiger: { color: "#D08207", tint: "#FDF0D9" }, lion: { color: "#A9722B", tint: "#F7EBD9" }
+    tiger: { color: "#D08207", tint: "#FDF0D9" }, lion: { color: "#A9722B", tint: "#F7EBD9" },
+    /* v141: two more slots, and two more animals to choose from */
+    owl: { color: "#6B4FA0", tint: "#EEE8F7" }, frog: { color: "#2E7D32", tint: "#E2F2E3" },
+    penguin: { color: "#3D4F63", tint: "#E4EAF0" }, turtle: { color: "#0E7C7B", tint: "#DDF1F0" }
   };
-  var ORDER = ["fox", "bear", "tiger", "lion"];
-  var STATION_COLORS = ["#0F6B6B", "#4B3FA8", "#B01E55", "#2E6B2E"];
+  var ORDER = ["fox", "bear", "tiger", "lion", "owl", "frog"];
+  var STATION_COLORS = ["#0F6B6B", "#4B3FA8", "#B01E55", "#2E6B2E", "#1D5C8C", "#8A4B10"];
+  var MAXG = 6, MING = 2;
 
-  /* v91: the board has a look, animals or colors, and it is the whole
-     board's. Slot i is Fox or Red, Bear or Blue, and so on: placements,
-     stations and pages belong to the slot, so switching moves no one.
-     Each color has a shape too, so a child who can't tell red from green
-     still finds their group, and a non-reader has a picture as the animals
-     gave them. In the colors look the station bars go to one dark slate,
-     so the only color on a card is its group's; the icon and the label
-     still say which station it is. `animal` stays on each group as it
-     always was, the slot's old identity; the look is `math.look`. */
+  /* v91: the board has a look, animals or colors. Slot i is Fox or Red,
+     Bear or Blue, and so on: placements, stations and pages belong to the
+     slot, so switching moves no one. Each color has a shape too, so a child
+     who can't tell red from green still finds their group. In the colors
+     look the station bars go to one dark slate, so the only color on a card
+     is its group's. v141: the look is the set every group starts from; a
+     group can choose its own picture (`pic`, or an uploaded `img`) and
+     colour (`color`), and there are two to six slots. */
   var LOOKS = {
-    animals: { label: "Animals", names: ["Fox", "Bear", "Tiger", "Lion"] },
-    colors: { label: "Colors", names: ["Red", "Blue", "Yellow", "Green"], station: "#34424F",
+    animals: { label: "Animals", names: ["Fox", "Bear", "Tiger", "Lion", "Owl", "Frog"] },
+    colors: { label: "Colors", names: ["Red", "Blue", "Yellow", "Green", "Purple", "Orange"], station: "#34424F",
       slots: [
         { shape: "circle", color: "#C62828", fill: "#E53935", tint: "#FDE4E2" },
         { shape: "square", color: "#1F5FAE", fill: "#2F7FE0", tint: "#E1ECFA" },
         { shape: "triangle", color: "#9A7300", fill: "#F5C400", tint: "#FFF4CC" },
-        { shape: "star", color: "#2E7D32", fill: "#43A047", tint: "#E2F2E3" }
+        { shape: "star", color: "#2E7D32", fill: "#43A047", tint: "#E2F2E3" },
+        { shape: "diamond", color: "#6B4FA0", fill: "#8A6CC4", tint: "#EEE8F7" },
+        { shape: "heart", color: "#C2560F", fill: "#F07A22", tint: "#FCE8D9" }
       ] }
   };
+  /* the colours a group can take: every look's, and a few more */
+  var PALETTE = [
+    { color: "#C9481E", tint: "#FBE7DE", fill: "#E0643A" }, { color: "#6E4630", tint: "#F2E7E0", fill: "#8E6248" },
+    { color: "#D08207", tint: "#FDF0D9", fill: "#F0A020" }, { color: "#A9722B", tint: "#F7EBD9", fill: "#C98F40" },
+    { color: "#C62828", tint: "#FDE4E2", fill: "#E53935" }, { color: "#1F5FAE", tint: "#E1ECFA", fill: "#2F7FE0" },
+    { color: "#9A7300", tint: "#FFF4CC", fill: "#F5C400" }, { color: "#2E7D32", tint: "#E2F2E3", fill: "#43A047" },
+    { color: "#6B4FA0", tint: "#EEE8F7", fill: "#8A6CC4" }, { color: "#C2560F", tint: "#FCE8D9", fill: "#F07A22" },
+    { color: "#0E7C7B", tint: "#DDF1F0", fill: "#19A3A1" }, { color: "#B0306A", tint: "#F9E1EC", fill: "#D9558F" }
+  ];
+  var ANIMAL_PICS = ["fox", "bear", "tiger", "lion", "owl", "frog", "penguin", "turtle"];
+  var SHAPE_PICS = ["circle", "square", "triangle", "star", "diamond", "heart", "hexagon", "moon"];
+  function palOf(hex) { hex = String(hex || "").toUpperCase(); for (var k = 0; k < PALETTE.length; k++) if (PALETTE[k].color === hex) return PALETTE[k]; return null; }
   /* A board starts as its build says (suite-edition.js); once a look is
      saved on the board, that wins. */
   var EDITION_LOOK = (window.SuiteEdition && LOOKS[window.SuiteEdition.groupLook]) ? window.SuiteEdition.groupLook : "animals";
-  function slotLook(look, i) {
-    if (look === "colors") return LOOKS.colors.slots[i];
-    return ANIMALS[ORDER[i]];
+  /* what slot i is in a look, before any choice of the group's own */
+  function slotDefault(look, i) {
+    if (look === "colors") { var c = LOOKS.colors.slots[i]; return { pic: c.shape, color: c.color, tint: c.tint, fill: c.fill }; }
+    var a = ANIMALS[ORDER[i]], p = palOf(a.color) || { fill: a.color };
+    return { pic: ORDER[i], color: a.color, tint: a.tint, fill: p.fill };
   }
-  function stationColor(look, i) { return look === "colors" ? LOOKS.colors.station : STATION_COLORS[i]; }
+  /* what group i shows: its own picture and colour if chosen, else the look's */
+  function groupLook(m, i) {
+    var d = slotDefault(m.look, i), g = m.groups[i] || {};
+    var p = palOf(g.color);
+    return { pic: g.img ? "img" : (validPic(g.pic) ? g.pic : d.pic), img: g.img || "",
+      color: p ? p.color : d.color, tint: p ? p.tint : d.tint, fill: p ? p.fill : d.fill };
+  }
+  function validPic(p) { return ANIMAL_PICS.indexOf(p) >= 0 || SHAPE_PICS.indexOf(p) >= 0; }
+  function slotLook(look, i) { return slotDefault(look, i); }
+  function stationColor(look, i) { return look === "colors" ? LOOKS.colors.station : STATION_COLORS[i % STATION_COLORS.length]; }
   /* A name that is still some look's name for its own slot follows the
      look; a name anyone typed is left alone (standing rule 7). */
   function followLook(m, from) {
     if (from === m.look || !LOOKS[from]) return false;
     var to = LOOKS[m.look].names, changed = false;
     m.groups.forEach(function (g, i) {
-      if (String(g.name || "").trim().toLowerCase() === LOOKS[from].names[i].toLowerCase()) { g.name = to[i]; changed = true; }
+      if (String(g.name || "").trim().toLowerCase() === String(LOOKS[from].names[i] || "").toLowerCase()) { g.name = to[i]; changed = true; }
     });
     return changed;
   }
 
   /* ---------------- data ----------------
-     suite:groups:v1 = { v:1, math:{ title, look ("animals"|"colors", v91), stations[4], pageStations[4],
-       groups:[{animal,name,station,pages:{stationIndex:text}}] x4,
+     suite:groups:v1 = { v:1, math:{ title, look ("animals"|"colors", v91),
+       stations[n], pageStations[n],
+       groups:[{animal, name, station, pages:{stationIndex:text},
+                pic?, color?, img? (v141)}] x n, n = 2..6 (v141; 4 before),
        place:{ gradebookStudentId: groupIndex },
        guests:{ id:{ name, group } } } }
      Names are never stored here: a student is a gradebook id, so renaming
      or removing someone in the gradebook shows up on this board at once.
      place and guests are maps keyed by id so the suite's merge takes each
-     student's move on its own, whichever device made it. */
+     student's move on its own, whichever device made it. A group's `img`
+     is a small square picture (a data: URL) the teacher uploaded; it
+     travels with the board, and the name check passes it by (v141). */
+  var STATION_NAMES = ["Teacher Table", "iReady Goal", "Desk Work", "McGraw Hill", "Station 5", "Station 6"];
+  var PAGE_DEFAULT = [false, false, true, false, false, false];
+  function newGroup(look, i) { return { animal: ORDER[i], name: LOOKS[look].names[i], station: i, pages: {} }; }
   function defaults() {
     return { v: 1, math: {
       title: "Math Groups",
-      stations: ["Teacher Table", "iReady Goal", "Desk Work", "McGraw Hill"],
-      pageStations: [false, false, true, false],
+      stations: STATION_NAMES.slice(0, 4),
+      pageStations: PAGE_DEFAULT.slice(0, 4),
       look: EDITION_LOOK,
-      groups: ORDER.map(function (a, i) { return { animal: a, name: LOOKS[EDITION_LOOK].names[i], station: i, pages: {} }; }),
+      groups: [0, 1, 2, 3].map(function (i) { return newGroup(EDITION_LOOK, i); }),
       place: {}, guests: {}
     } };
   }
+  function okImg(v) { return typeof v === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) && v.length < 300000; }
   function normalize(o) {
     var d = defaults();
     if (!o || typeof o !== "object" || !o.math) return d;
@@ -501,20 +574,36 @@
        that once, so sub plans and the other devices see it too. */
     var hadLook = !!LOOKS[m.look];
     out.look = hadLook ? m.look : EDITION_LOOK;
-    if (Array.isArray(m.stations) && m.stations.length === 4) out.stations = m.stations.map(function (s, i) { return String(s || "Station " + (i + 1)); });
-    if (Array.isArray(m.pageStations) && m.pageStations.length === 4) out.pageStations = m.pageStations.map(Boolean);
-    if (Array.isArray(m.groups)) out.groups = out.groups.map(function (g, i) {
-      var s = m.groups[i] || {};
-      return { animal: g.animal, name: (typeof s.name === "string" && s.name.trim()) ? s.name : g.name,
-        station: (typeof s.station === "number" && s.station >= 0 && s.station < 4) ? s.station : i,
-        pages: (s.pages && typeof s.pages === "object") ? s.pages : {} };
+    /* v141: as many groups as were saved, two to six */
+    var n = Array.isArray(m.groups) ? Math.max(MING, Math.min(MAXG, m.groups.length)) : 4;
+    out.stations = STATION_NAMES.slice(0, n).map(function (def, i) {
+      var v = Array.isArray(m.stations) ? m.stations[i] : null;
+      return (typeof v === "string" && v.trim()) ? v : (Array.isArray(m.stations) && m.stations.length === n ? "Station " + (i + 1) : def);
     });
+    out.pageStations = PAGE_DEFAULT.slice(0, n).map(function (def, i) {
+      return Array.isArray(m.pageStations) && i < m.pageStations.length ? !!m.pageStations[i] : def;
+    });
+    var seen = {}, clash = false;
+    out.groups = [];
+    for (var i = 0; i < n; i++) {
+      var s = (Array.isArray(m.groups) && m.groups[i]) || {}, g = newGroup(out.look, i);
+      if (typeof s.name === "string" && s.name.trim()) g.name = s.name;
+      g.station = (typeof s.station === "number" && s.station >= 0 && s.station < n) ? s.station : i;
+      if (seen[g.station]) clash = true; seen[g.station] = 1;
+      g.pages = (s.pages && typeof s.pages === "object") ? s.pages : {};
+      if (validPic(s.pic)) g.pic = s.pic;
+      if (palOf(s.color)) g.color = palOf(s.color).color;
+      if (okImg(s.img)) g.img = s.img;
+      out.groups.push(g);
+    }
+    /* two groups at one station would rotate together: line them up */
+    if (clash) out.groups.forEach(function (g, k) { g.station = k; });
     if (m.place && typeof m.place === "object") Object.keys(m.place).forEach(function (k) {
-      var v = m.place[k]; if (typeof v === "number" && v >= 0 && v < 4) out.place[k] = v;
+      var v = m.place[k]; if (typeof v === "number" && v >= 0 && v < n) out.place[k] = v;
     });
     if (m.guests && typeof m.guests === "object") Object.keys(m.guests).forEach(function (k) {
       var g = m.guests[k];
-      if (g && typeof g.name === "string" && typeof g.group === "number" && g.group >= 0 && g.group < 4) out.guests[k] = { name: g.name.slice(0, 40), group: g.group };
+      if (g && typeof g.name === "string" && typeof g.group === "number" && g.group >= 0 && g.group < n) out.guests[k] = { name: g.name.slice(0, 40), group: g.group };
     });
     /* before v91 every board was animals, so only animal names can be stale */
     if (!hadLook) followLook(out, "animals");
@@ -574,7 +663,7 @@
      shows (suite:suggest:v1: for Math, the standard, and each group as
      gradebook ids, lowest first). The board offers them in Setup; nothing
      is grouped here. "Use these groups" places each child in the group of
-     the same number, for up to four groups, and can be undone. */
+     the same number, for as many groups as the board has (v141: 2-6), and can be undone. */
   var gbUndo = null;
   function gbSuggest() { try { return JSON.parse(localStorage.getItem("suite:suggest:v1") || "null"); } catch (e) { return null; } }
   function gbSugRender() {
@@ -598,7 +687,7 @@
     });
     box.appendChild(list);
     var btns = mk("div", "row");
-    if (m.groups.length <= 4) {
+    if (m.groups.length <= M().groups.length) {
       var use = mk("button", "primary", "Use these groups");
       use.addEventListener("click", function () {
         if (!confirm("Put every child in the group of the same number? Anyone not in these groups keeps their place.")) return;
@@ -607,7 +696,7 @@
         save(); render(); gbSugRender(); say("Placed from the gradebook\u2019s skill groups.");
       });
       btns.appendChild(use);
-    } else btns.appendChild(mk("span", "note", m.groups.length + " groups: the board has four, so place them by hand."));
+    } else btns.appendChild(mk("span", "note", m.groups.length + " groups: the board has " + M().groups.length + ". Add groups below, or place them by hand."));
     /* v97 */
     var now = boardNow().groups, sent = lastSent();
     var matches = sameGroups(now, m.groups), wasSent = !matches && sameGroups(now, sent && sent.groups);
@@ -630,25 +719,25 @@
   /* ---------- v97: and back again ----------
      After arranging, the board's groups can go to the gradebook. The board
      never writes the gradebook's data: it leaves a request in
-     suite:boardGroups:v1 (the four groups in slot order, first slot first,
+     suite:boardGroups:v1 (the board's groups in slot order, first slot first,
      and who is not placed), and the gradebook takes it the next time it is
      open, on whichever device, and pins everyone there. The standard is the
      one the gradebook is grouping math on, as published in suite:suggest:v1. */
   var BKEY = "suite:boardGroups:v1";
   function boardNow() {
-    var m = M(), groups = [[], [], [], []], out = [];
+    var m = M(), groups = m.groups.map(function () { return []; }), out = [];
     roster.forEach(function (s) {
       var p = m.place[s.id];
-      if (typeof p === "number" && p >= 0 && p < 4) groups[p].push(s.id); else out.push(s.id);
+      if (typeof p === "number" && p >= 0 && p < groups.length) groups[p].push(s.id); else out.push(s.id);
     });
     groups.forEach(function (g) { g.sort(); }); out.sort();
     return { groups: groups, out: out };
   }
   function sameGroups(a, b) {
-    if (!a || !b || !Array.isArray(a) || a.length !== 4 || b.length !== 4) return false;
+    if (!a || !b || !Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
     var known = {}; roster.forEach(function (s) { known[s.id] = 1; });
     var norm = function (g) { return (Array.isArray(g) ? g : []).filter(function (id) { return known[id]; }).slice().sort().join(","); };
-    for (var i = 0; i < 4; i++) if (norm(a[i]) !== norm(b[i])) return false;
+    for (var i = 0; i < a.length; i++) if (norm(a[i]) !== norm(b[i])) return false;
     return true;
   }
   function lastSent() { try { return JSON.parse(localStorage.getItem(BKEY) || "null"); } catch (e) { return null; } }
@@ -700,6 +789,24 @@
   /* ---------------- art (unchanged from the approved board) ---------------- */
   function animalSVG(kind) {
     var s = function (b) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + "</svg>"; };
+    /* v141: four more, drawn the same way: flat shapes, dark eyes, no outline */
+    if (kind === "owl") return s('<path d="M24 22 L34 34 L22 38 Z" fill="#4E3878"/><path d="M76 22 L66 34 L78 38 Z" fill="#4E3878"/>' +
+      '<ellipse cx="50" cy="56" rx="30" ry="33" fill="#6B4FA0"/><ellipse cx="50" cy="70" rx="17" ry="16" fill="#D9CCEE"/>' +
+      '<circle cx="37" cy="47" r="12" fill="#FBF8FF"/><circle cx="63" cy="47" r="12" fill="#FBF8FF"/>' +
+      '<circle cx="37" cy="48" r="5.6" fill="#2B1710"/><circle cx="63" cy="48" r="5.6" fill="#2B1710"/><path d="M50 54 L56 60 L50 68 L44 60 Z" fill="#E09A1E"/>');
+    if (kind === "frog") return s('<circle cx="31" cy="32" r="14" fill="#2E7D32"/><circle cx="69" cy="32" r="14" fill="#2E7D32"/>' +
+      '<ellipse cx="50" cy="58" rx="36" ry="27" fill="#43A047"/><circle cx="31" cy="31" r="8.5" fill="#FBFFF8"/><circle cx="69" cy="31" r="8.5" fill="#FBFFF8"/>' +
+      '<circle cx="32" cy="32" r="4.6" fill="#2B1710"/><circle cx="68" cy="32" r="4.6" fill="#2B1710"/>' +
+      '<path d="M32 64 Q50 78 68 64" fill="none" stroke="#1B4D1E" stroke-width="4.5" stroke-linecap="round"/>' +
+      '<circle cx="27" cy="62" r="5" fill="#9CCF7A"/><circle cx="73" cy="62" r="5" fill="#9CCF7A"/>');
+    if (kind === "penguin") return s('<ellipse cx="50" cy="54" rx="31" ry="35" fill="#24303C"/><path d="M50 30 C34 30 27 44 29 58 C31 74 40 84 50 84 C60 84 69 74 71 58 C73 44 66 30 50 30 Z" fill="#F7F9FB"/>' +
+      '<circle cx="40" cy="47" r="4.4" fill="#2B1710"/><circle cx="60" cy="47" r="4.4" fill="#2B1710"/><path d="M42 55 L58 55 L50 64 Z" fill="#E8A21C"/>' +
+      '<circle cx="34" cy="60" r="4" fill="#F4C3C3"/><circle cx="66" cy="60" r="4" fill="#F4C3C3"/>');
+    if (kind === "turtle") return s('<circle cx="50" cy="20" r="11" fill="#5FAF5A"/><circle cx="46" cy="18" r="2.6" fill="#2B1710"/><circle cx="54" cy="18" r="2.6" fill="#2B1710"/>' +
+      '<ellipse cx="24" cy="44" rx="9" ry="7" fill="#5FAF5A"/><ellipse cx="76" cy="44" rx="9" ry="7" fill="#5FAF5A"/>' +
+      '<ellipse cx="26" cy="76" rx="9" ry="7" fill="#5FAF5A"/><ellipse cx="74" cy="76" rx="9" ry="7" fill="#5FAF5A"/>' +
+      '<ellipse cx="50" cy="60" rx="30" ry="27" fill="#0E7C7B"/><path d="M50 42 L62 50 L62 66 L50 74 L38 66 L38 50 Z" fill="#3FB3A8"/>' +
+      '<path d="M50 42 L50 33 M62 50 L74 44 M62 66 L74 72 M38 50 L26 44 M38 66 L26 72 M50 74 L50 86" stroke="#3FB3A8" stroke-width="4" stroke-linecap="round"/>');
     if (kind === "fox") return s('<path d="M16 10 L38 24 L24 40 Z" fill="#8F3214"/><path d="M84 10 L62 24 L76 40 Z" fill="#8F3214"/>' +
       '<path d="M50 18 C28 18 16 30 21 48 C26 66 38 80 50 88 C62 80 74 66 79 48 C84 30 72 18 50 18 Z" fill="#C9481E"/>' +
       '<path d="M50 52 C41 52 35 62 39 71 C43 80 47 85 50 88 C53 85 57 80 61 71 C65 62 59 52 50 52 Z" fill="#FBEFE7"/>' +
@@ -725,13 +832,18 @@
   }
   /* v91: the colors look. Solid, simple shapes: they read from the back of
      the room and on a projector that washes colors out. */
-  function shapeSVG(i) {
-    var c = LOOKS.colors.slots[i];
+  function shapeSVG(i) { var c = LOOKS.colors.slots[i]; return shapeOf(c.shape, c); }
+  /* v141: any shape in any colour (c: {color, fill}) */
+  function shapeOf(shape, c) {
     var s = function (b) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + "</svg>"; };
     var paint = ' fill="' + c.fill + '" stroke="' + c.color + '" stroke-width="5" stroke-linejoin="round"';
-    if (c.shape === "circle") return s('<circle cx="50" cy="50" r="36"' + paint + "/>");
-    if (c.shape === "square") return s('<rect x="19" y="19" width="62" height="62" rx="7"' + paint + "/>");
-    if (c.shape === "triangle") return s('<path d="M50 14 L87 80 L13 80 Z"' + paint + "/>");
+    if (shape === "circle") return s('<circle cx="50" cy="50" r="36"' + paint + "/>");
+    if (shape === "square") return s('<rect x="19" y="19" width="62" height="62" rx="7"' + paint + "/>");
+    if (shape === "triangle") return s('<path d="M50 14 L87 80 L13 80 Z"' + paint + "/>");
+    if (shape === "diamond") return s('<path d="M50 11 L86 50 L50 89 L14 50 Z"' + paint + "/>");
+    if (shape === "heart") return s('<path d="M50 84 C22 64 12 48 15 34 C18 21 34 15 50 30 C66 15 82 21 85 34 C88 48 78 64 50 84 Z"' + paint + "/>");
+    if (shape === "hexagon") return s('<path d="M30 16 L70 16 L89 50 L70 84 L30 84 L11 50 Z"' + paint + "/>");
+    if (shape === "moon") return s('<path d="M64 14 C42 18 28 34 28 52 C28 70 42 86 64 88 C46 80 38 66 38 51 C38 36 46 22 64 14 Z"' + paint + "/>");
     var pts = [];
     for (var k = 0; k < 10; k++) {
       var r = k % 2 ? 19 : 40, ang = -Math.PI / 2 + k * Math.PI / 5;
@@ -739,12 +851,20 @@
     }
     return s('<path d="M' + pts.join(" L") + ' Z"' + paint + "/>");
   }
-  function medallionSVG(look, i) { return look === "colors" ? shapeSVG(i) : animalSVG(ORDER[i]); }
+  function medallionSVG(look, i) { var d = slotDefault(look, i); return picSVG(d.pic, d); }
+  /* v141: a picture by name, in a group's colours */
+  function picSVG(pic, c) { return ANIMAL_PICS.indexOf(pic) >= 0 ? animalSVG(pic) : shapeOf(pic, c); }
+  function imgTag(dataUrl) { return "<img alt=\"\" " + "src=\"" + esc(dataUrl) + "\">"; }
+  function medallionHTML(m, i) {
+    var a = groupLook(m, i);
+    /* an uploaded picture is a data: URL (normalize() checks it) */
+    return a.img ? imgTag(a.img) : picSVG(a.pic, a);
+  }
   /* the station's mark in a picker or a Setup field: its color in the
      animals look, its icon in the colors look, where the bars are all one color */
   function stationMark(i) {
     if (M().look === "colors") return '<span class="swatch ico" style="color:' + LOOKS.colors.station + '">' + stationSVG(i) + "</span>";
-    return '<span class="swatch" style="background:' + STATION_COLORS[i] + '"></span>';
+    return '<span class="swatch" style="background:' + stationColor(M().look, i) + '"></span>';
   }
   function stationSVG(i) {
     var w = 'fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"';
@@ -752,7 +872,10 @@
     if (i === 0) return o + '<circle cx="12" cy="5.4" r="2.6" ' + w + '/><path d="M7.2 12.4a4.8 4.8 0 0 1 9.6 0" ' + w + '/><path d="M3 15.4h18M5.6 15.4V21M18.4 15.4V21" ' + w + "/></svg>";
     if (i === 1) return o + '<rect x="3" y="4.5" width="18" height="12" rx="1.8" ' + w + '/><path d="M1.6 19.5h20.8" ' + w + '/><circle cx="12" cy="10.5" r="3.4" ' + w + '/><circle cx="12" cy="10.5" r="1" fill="currentColor"/></svg>';
     if (i === 2) return o + '<path d="M5 3.5h9.5L19 8v12.5H5z" ' + w + '/><path d="M14.5 3.5V8H19" ' + w + '/><path d="M8 12.5h8M8 16.5h5.5" ' + w + "/></svg>";
-    return o + '<path d="M12 6.4C10 4.6 7.4 4.1 4.5 4.3v13c2.9-.2 5.5.3 7.5 2.1 2-1.8 4.6-2.3 7.5-2.1v-13c-2.9-.2-5.5.3-7.5 2.1z" ' + w + '/><path d="M12 6.4v13.1" ' + w + "/></svg>";
+    if (i === 3) return o + '<path d="M12 6.4C10 4.6 7.4 4.1 4.5 4.3v13c2.9-.2 5.5.3 7.5 2.1 2-1.8 4.6-2.3 7.5-2.1v-13c-2.9-.2-5.5.3-7.5 2.1z" ' + w + '/><path d="M12 6.4v13.1" ' + w + "/></svg>";
+    /* v141: a fifth station (blocks, hands-on) and a sixth (headphones, listening) */
+    if (i === 4) return o + '<rect x="3.5" y="12.5" width="7.5" height="7.5" rx="1" ' + w + '/><rect x="13" y="12.5" width="7.5" height="7.5" rx="1" ' + w + '/><rect x="8.2" y="4" width="7.5" height="7.5" rx="1" ' + w + "/></svg>";
+    return o + '<path d="M4 15v-3a8 8 0 0 1 16 0v3" ' + w + '/><rect x="3" y="14" width="4.5" height="6.5" rx="1.6" ' + w + '/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.6" ' + w + "/></svg>";
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
@@ -772,8 +895,10 @@
     ab.classList.toggle("flag", !arranging && loose > 0);
 
     grid.innerHTML = "";
+    grid.setAttribute("data-n", m.groups.length);             /* v141: 2-6 groups */
+    grid.style.setProperty("--n", m.groups.length);
     m.groups.forEach(function (g, gi) {
-      var a = slotLook(m.look, gi), si = g.station;
+      var a = groupLook(m, gi), si = g.station;
       var card = document.createElement("section");
       card.className = "group";
       card.dataset.group = gi;
@@ -784,7 +909,7 @@
 
       var head = document.createElement("div");
       head.className = "group-head";
-      head.innerHTML = '<div class="medallion">' + medallionSVG(m.look, gi) + "</div>";
+      head.innerHTML = '<div class="medallion">' + medallionHTML(m, gi) + "</div>";
       var nameEl = document.createElement("div");
       nameEl.className = "group-name";
       nameEl.textContent = g.name;
@@ -865,6 +990,17 @@
     }
   }
   window.addEventListener("resize", fitNames);
+  /* v141: the board is also resized by Setup opening and closing above it;
+     names fitted while it was squeezed stayed small after it closed (v139
+     too, after editing a station). Re-fit whenever the board's size changes. */
+  if (window.ResizeObserver) {
+    var fitT = null, lastH = 0;
+    new ResizeObserver(function () {
+      if (grid.clientHeight === lastH) return;
+      lastH = grid.clientHeight;
+      clearTimeout(fitT); fitT = setTimeout(fitNames, 60);
+    }).observe(grid);
+  }
   document.addEventListener("fullscreenchange", function () { setTimeout(fitNames, 60); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNames);
 
@@ -988,33 +1124,40 @@
   document.addEventListener("click", function (e) { if (!picker.contains(e.target)) closePicker(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closePicker(); if (selected) { selected = null; render(); } } });
 
-  function rotate() { M().groups.forEach(function (g) { g.station = (g.station + 1) % 4; }); save(); render(); }
+  function rotate() { var n = M().groups.length; M().groups.forEach(function (g) { g.station = (g.station + 1) % n; }); save(); render(); }
   function lineUp() { M().groups.forEach(function (g, i) { g.station = i; }); save(); render(); }
 
-  /* v91: switch the whole board's look. Everyone stays where they are. */
-  function setLook(look) {
+  /* v91: switch the whole board's look. Everyone stays where they are.
+     v141: a look is the set every group starts from, so choosing it puts
+     each group's own picture and colour back to the set's (asked first). */
+  function customised() { return M().groups.some(function (g) { return g.pic || g.color || g.img; }); }
+  function setLook(look, sure) {
     var m = M();
-    if (!LOOKS[look] || m.look === look) return false;
+    if (!LOOKS[look] || (m.look === look && !customised())) return false;
+    if (customised() && !sure && !confirm("Give every group the " + LOOKS[look].label.toLowerCase() + " set\u2019s picture and colour? Pictures and colours you chose go back. Names you typed stay.")) return false;
     var from = m.look;
     m.look = look;
+    m.groups.forEach(function (g) { delete g.pic; delete g.color; delete g.img; });
     followLook(m, from);
-    save(); render(); buildLookPick(); buildStationFields();
+    save(); render(); buildLookPick(); buildEditor();
     return true;
   }
   function buildLookPick() {
     var wrap = document.getElementById("lookPick");
     if (!wrap) return;
     wrap.innerHTML = "";
+    var n = M().groups.length, mixed = customised();
     Object.keys(LOOKS).forEach(function (k) {
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "lookbtn" + (M().look === k ? " primary" : "");
-      b.setAttribute("aria-pressed", M().look === k ? "true" : "false");
+      var on = M().look === k && !mixed;
+      b.className = "lookbtn" + (on ? " primary" : "");
+      b.setAttribute("aria-pressed", on ? "true" : "false");
       b.dataset.look = k;
       var marks = "";
-      for (var i = 0; i < 4; i++) marks += '<span class="lookmark">' + medallionSVG(k, i) + "</span>";
+      for (var i = 0; i < n; i++) marks += '<span class="lookmark">' + medallionSVG(k, i) + "</span>";
       b.innerHTML = marks + "<span>" + esc(LOOKS[k].label) + "</span>";
-      b.title = LOOKS[k].names.join(", ");
+      b.title = LOOKS[k].names.slice(0, n).join(", ");
       b.addEventListener("click", function () { setLook(k); });
       wrap.appendChild(b);
     });
@@ -1026,43 +1169,242 @@
     if (el) el.textContent = "Sends " + n[0] + " to the first station, " + n[1] + " to the second, and so on.";
   }
 
-  function buildStationFields() {
-    var wrap = document.getElementById("stationFields"), m = M();
-    wrap.innerHTML = "";
-    m.stations.forEach(function (label, i) {
-      var f = document.createElement("label");
-      f.className = "field";
-      f.innerHTML = stationMark(i);
-      var inp = document.createElement("input");
-      inp.type = "text";
-      inp.value = label;
-      inp.setAttribute("aria-label", "Station " + (i + 1) + " name");
-      inp.addEventListener("input", function () { m.stations[i] = inp.value || "Station " + (i + 1); save(); render(); });
-      f.appendChild(inp);
-      var tog = document.createElement("span");
-      tog.className = "pagetoggle";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = !!m.pageStations[i];
-      cb.setAttribute("aria-label", "Show a page number for " + label);
-      cb.addEventListener("change", function () { m.pageStations[i] = cb.checked; save(); render(); });
-      tog.appendChild(cb);
-      tog.appendChild(document.createTextNode("Page #"));
-      f.appendChild(tog);
-      wrap.appendChild(f);
+  /* ---------- v141: how many groups ----------
+     Group i and station i are added and taken away together, so the
+     stations stay one per group and Rotate still moves everyone one along.
+     Taking a group away: its children go to "Not in a group" (visitors in
+     it are removed), the group that was at its station takes the removed
+     group's, and every index after it moves down one, in placements,
+     visitors, stations and page numbers alike. */
+  function addGroup() {
+    var m = M(), i = m.groups.length;
+    if (i >= MAXG) return false;
+    m.stations.push(STATION_NAMES[i]);
+    m.pageStations.push(false);
+    var g = newGroup(m.look, i);
+    m.groups.push(g);
+    return true;
+  }
+  function removeGroup(gi) {
+    var m = M(), n = m.groups.length;
+    if (n <= MING || gi < 0 || gi >= n) return false;
+    var gone = m.groups[gi], freed = gone.station;
+    m.groups.forEach(function (g, k) { if (k !== gi && g.station === gi) g.station = freed; });
+    var down = function (x) { return x > gi ? x - 1 : x; };
+    m.groups.splice(gi, 1);
+    m.stations.splice(gi, 1);
+    m.pageStations.splice(gi, 1);
+    m.groups.forEach(function (g) {
+      g.station = down(g.station);
+      var pages = {};
+      Object.keys(g.pages || {}).forEach(function (k) { var x = Number(k); if (x !== gi && x >= 0) pages[down(x)] = g.pages[k]; });
+      g.pages = pages;
+    });
+    Object.keys(m.place).forEach(function (id) {
+      if (m.place[id] === gi) delete m.place[id]; else if (m.place[id] > gi) m.place[id] -= 1;
+    });
+    Object.keys(m.guests).forEach(function (id) {
+      if (m.guests[id].group === gi) delete m.guests[id]; else if (m.guests[id].group > gi) m.guests[id].group -= 1;
+    });
+    return true;
+  }
+  function setCount(n) {
+    n = Math.max(MING, Math.min(MAXG, n));
+    while (M().groups.length < n) addGroup();
+    while (M().groups.length > n) removeGroup(M().groups.length - 1);
+  }
+  function askRemove(gi) {
+    var m = M(), g = m.groups[gi];
+    if (!g || m.groups.length <= MING) return;
+    var kids = members(gi).length;
+    var msg = "Take away " + g.name + "?" + (kids ? " Its " + kids + " " + (kids === 1 ? "child goes" : "children go") + " to \u201cNot in a group\u201d" +
+      (members(gi).some(function (p) { return p.kind === "guest"; }) ? " (visitors are removed)" : "") + "." : "") +
+      " Station \u201c" + m.stations[gi] + "\u201d goes with it.";
+    if (!confirm(msg)) return;
+    removeGroup(gi); save(); render(); buildEditor(); buildLookPick();
+  }
+
+  /* ---------- v141: the group editor ----------
+     One card per group: its picture (tap for the pictures, an upload, and
+     the colours), its name, and its station, the one it starts at: group i
+     and station i, as Line up sets them. Typing saves as it goes; the board
+     redraws behind the drawer. */
+  var picOpen = -1;
+  function buildEditor() {
+    var box = document.getElementById("groupEditor");
+    if (!box) return;
+    var m = M(), n = m.groups.length;
+    document.getElementById("gedN").textContent = n;
+    document.getElementById("gedLess").disabled = n <= MING;
+    document.getElementById("gedMore").disabled = n >= MAXG;
+    box.innerHTML = "";
+    m.groups.forEach(function (g, gi) {
+      var a = groupLook(m, gi);
+      var card = mk("div", "gcard");
+      card.style.setProperty("--gc", a.color); card.style.setProperty("--gt", a.tint);
+      card.dataset.group = gi;
+      var top = mk("div", "gcard-top");
+      var pic = mk("button", "gpic");
+      pic.type = "button";
+      pic.innerHTML = medallionHTML(m, gi);
+      pic.setAttribute("aria-label", "Change " + g.name + "\u2019s picture or colour");
+      pic.setAttribute("aria-expanded", picOpen === gi ? "true" : "false");
+      pic.addEventListener("click", function () { picOpen = picOpen === gi ? -1 : gi; buildEditor(); });
+      top.appendChild(pic);
+      top.appendChild(mk("span", "gcard-n", "Group " + (gi + 1)));
+      card.appendChild(top);
+      if (n > MING) {
+        var del = mk("button", "gdel", "Remove");
+        del.type = "button"; del.setAttribute("aria-label", "Remove " + g.name);
+        del.addEventListener("click", function () { askRemove(gi); });
+        card.appendChild(del);
+      }
+      var nl = mk("label", null, "Name"), ni = document.createElement("input");
+      ni.type = "text"; ni.value = g.name; ni.maxLength = 30; ni.setAttribute("data-gname", gi);
+      ni.addEventListener("input", function () { if (ni.value.trim()) { g.name = ni.value; save(); render(); } });
+      ni.addEventListener("blur", function () { if (!ni.value.trim()) ni.value = g.name; buildLookPick(); });
+      nl.appendChild(ni); card.appendChild(nl);
+      var sl = mk("label", null, "Starts at (station " + (gi + 1) + ")"), si = document.createElement("input");
+      si.type = "text"; si.value = m.stations[gi]; si.maxLength = 40; si.setAttribute("data-gstation", gi);
+      si.addEventListener("input", function () { m.stations[gi] = si.value || "Station " + (gi + 1); save(); render(); });
+      sl.appendChild(si); card.appendChild(sl);
+      var pl = mk("label", "pg"), pc = document.createElement("input");
+      pc.type = "checkbox"; pc.checked = !!m.pageStations[gi];
+      pc.addEventListener("change", function () { m.pageStations[gi] = pc.checked; save(); render(); });
+      pl.appendChild(pc); pl.appendChild(document.createTextNode("Page number at this station"));
+      card.appendChild(pl);
+      if (picOpen === gi) card.appendChild(picPanel(gi));
+      box.appendChild(card);
+    });
+    if (n < MAXG) {
+      var add = mk("button", "gadd", "+ Add a group");
+      add.type = "button";
+      add.addEventListener("click", function () { addGroup(); save(); render(); buildEditor(); buildLookPick(); });
+      box.appendChild(add);
+    }
+  }
+  function picPanel(gi) {
+    var m = M(), g = m.groups[gi], a = groupLook(m, gi);
+    var p = mk("div", "picpanel");
+    var grid2 = mk("div", "picgrid");
+    ANIMAL_PICS.concat(SHAPE_PICS).forEach(function (name) {
+      var b = mk("button");
+      b.type = "button"; b.innerHTML = picSVG(name, a);
+      b.setAttribute("aria-label", name); b.title = name.charAt(0).toUpperCase() + name.slice(1);
+      b.setAttribute("aria-pressed", !a.img && a.pic === name ? "true" : "false");
+      b.addEventListener("click", function () {
+        delete g.img;
+        if (name === slotDefault(m.look, gi).pic) delete g.pic; else g.pic = name;
+        /* an animal brings its own colour, unless one was chosen */
+        if (ANIMAL_PICS.indexOf(name) >= 0 && !g.color && name !== slotDefault(m.look, gi).pic) { var pa = palOf(ANIMALS[name].color); if (pa) g.color = pa.color; }
+        save(); render(); buildEditor(); buildLookPick();
+      });
+      grid2.appendChild(b);
+    });
+    p.appendChild(grid2);
+    var sw = mk("div", "swatches");
+    sw.setAttribute("role", "group"); sw.setAttribute("aria-label", "Colour");
+    PALETTE.forEach(function (c) {
+      var b = mk("button");
+      b.type = "button"; b.style.background = c.color;
+      b.setAttribute("aria-label", "Colour " + c.color);
+      b.setAttribute("aria-pressed", a.color === c.color ? "true" : "false");
+      b.addEventListener("click", function () {
+        if (c.color === slotDefault(m.look, gi).color) delete g.color; else g.color = c.color;
+        save(); render(); buildEditor(); buildLookPick();
+      });
+      sw.appendChild(b);
+    });
+    p.appendChild(sw);
+    var row = mk("div", "row");
+    var up = mk("button", "picup", g.img ? "Upload another picture" : "Upload a picture");
+    up.type = "button";
+    var fi = document.createElement("input");
+    fi.type = "file"; fi.accept = "image/*"; fi.hidden = true;
+    up.addEventListener("click", function () { fi.click(); });
+    fi.addEventListener("change", function () {
+      var f = fi.files && fi.files[0]; if (!f) return;
+      squarePicture(f).then(function (url) { g.img = url; save(); render(); buildEditor(); buildLookPick(); },
+        function (e) { say(e.message || "That picture could not be read.", true); });
+    });
+    row.appendChild(up); row.appendChild(fi);
+    if (g.img) {
+      var rm = mk("button", null, "Use a built-in picture");
+      rm.type = "button";
+      rm.addEventListener("click", function () { delete g.img; save(); render(); buildEditor(); buildLookPick(); });
+      row.appendChild(rm);
+    }
+    p.appendChild(row);
+    p.appendChild(mk("p", "picnote", "An uploaded picture is cropped square and made small. It goes to your other devices with the board: a picture, never a photo of a child."));
+    return p;
+  }
+  /* an uploaded picture: centre-cropped square, 192px, JPEG on white, so a
+     board with six stays small enough to sync */
+  function squarePicture(file) {
+    return new Promise(function (res, rej) {
+      if (!/^image\//.test(file.type || "")) return rej(new Error("That file isn\u2019t a picture."));
+      var url = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        try {
+          var S = 192, c = document.createElement("canvas"); c.width = S; c.height = S;
+          var x = c.getContext("2d"), side = Math.min(im.naturalWidth, im.naturalHeight);
+          x.fillStyle = "#fff"; x.fillRect(0, 0, S, S);
+          x.drawImage(im, (im.naturalWidth - side) / 2, (im.naturalHeight - side) / 2, side, side, 0, 0, S, S);
+          URL.revokeObjectURL(url);
+          res(c.toDataURL("image/jpeg", 0.86));
+        } catch (e) { rej(new Error("That picture could not be read.")); }
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); rej(new Error("That picture could not be read.")); };
+      im.src = url;
     });
   }
 
   /* ---------------- sub slides ---------------- */
+  /* v141: the approved deck is four groups with a look's own pictures and
+     colours; any other board is drawn by SubSlides.fillGeneral, from the
+     same parts, with its pictures made here as PNGs */
+  function usesTemplate() { return M().groups.length === 4 && !customised(); }
   function slideModel() {
     var m = M();
     return {
       title: m.title, look: m.look, stations: m.stations.slice(), pageStations: m.pageStations.slice(),
       madeOn: new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
+      general: !usesTemplate(),
+      stationHex: m.stations.map(function (_, i) { return stationColor(m.look, i); }),
+      start: m.groups.map(function (g) { return g.station; }),
       groups: m.groups.map(function (g, gi) {
-        return { animal: g.animal, name: g.name, pages: g.pages, names: members(gi).map(function (p) { return p.label; }) };
+        var a = groupLook(m, gi);
+        return { animal: g.animal, name: g.name, pages: g.pages, names: members(gi).map(function (p) { return p.label; }), color: a.color, tint: a.tint };
       })
     };
+  }
+  /* a picture as a square PNG (base64, no prefix), drawn by the browser */
+  function svgPng(svg, size) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var c = document.createElement("canvas"); c.width = size; c.height = size;
+          c.getContext("2d").drawImage(im, 0, 0, size, size);
+          res(c.toDataURL("image/png").replace(/^data:image\/png;base64,/, ""));
+        } catch (e) { rej(new Error("The slide pictures could not be made in this browser.")); }
+      };
+      im.onerror = function () { rej(new Error("The slide pictures could not be made in this browser.")); };
+      im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    });
+  }
+  function medallionSvgFor(m, i) {
+    var a = groupLook(m, i), inner;
+    if (a.img) inner = '<clipPath id="c"><circle cx="128" cy="128" r="113"/></clipPath><image ' + "href=\"" + esc(a.img) + "\"" + ' x="15" y="15" width="226" height="226" clip-path="url(#c)" preserveAspectRatio="xMidYMid slice"/>';
+    else inner = picSVG(a.pic, a).replace("<svg ", '<svg x="28" y="28" width="200" height="200" ');
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">' +
+      '<circle cx="128" cy="128" r="118" fill="' + a.tint + '" stroke="' + a.color + '" stroke-width="10"/>' + inner + "</svg>";
+  }
+  function slidePictures() {
+    var m = M(), n = m.groups.length, jobs = [];
+    for (var i = 0; i < n; i++) jobs.push(svgPng(medallionSvgFor(m, i), 256));
+    for (var k = 0; k < n; k++) jobs.push(svgPng(stationSVG(k).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" ').split("currentColor").join("#FFFFFF"), 128));
+    return Promise.all(jobs).then(function (all) { return { medallions: all.slice(0, n), stations: all.slice(n) }; });
   }
   function loadJSZip() {
     if (window.JSZip) return Promise.resolve(window.JSZip);
@@ -1102,8 +1444,10 @@
     out.classList.remove("warn");
     out.textContent = "Making the deck\u2026";
     var loose = unplaced().length;
-    Promise.all([loadJSZip(), loadColorMedallions(), loadDeckTemplate()]).then(function (got) {
-      return window.SubSlides.build(slideModel(), got[0]);
+    var model = slideModel();
+    Promise.all([loadJSZip(), loadColorMedallions(), loadDeckTemplate(), model.general ? slidePictures() : null]).then(function (got) {
+      if (model.general) model.png = got[3];
+      return window.SubSlides.build(model, got[0]);
     }).then(function (r) {
       var stamp = new Date();
       var name = "math-groups-sub-" + stamp.getFullYear() + "-" + String(stamp.getMonth() + 1).padStart(2, "0") + "-" + String(stamp.getDate()).padStart(2, "0") + ".pptx";
@@ -1155,15 +1499,17 @@
   }
   function importOld(obj) {
     if (!obj || !Array.isArray(obj.groups)) return null;
+    /* v141: the old board had four groups; this one may have fewer */
+    if (M().groups.length < Math.min(4, obj.groups.length)) setCount(Math.min(4, obj.groups.length));
     var m = M(), notes = [], placed = {}, counts = { matched: 0, visitors: 0 };
     if (typeof obj.title === "string" && obj.title.trim()) m.title = obj.title.trim();
-    if (Array.isArray(obj.stations) && obj.stations.length === 4) m.stations = obj.stations.map(String);
-    if (Array.isArray(obj.pageStations) && obj.pageStations.length === 4) m.pageStations = obj.pageStations.map(Boolean);
-    obj.groups.slice(0, 4).forEach(function (og, gi) {
+    if (Array.isArray(obj.stations) && obj.stations.length === m.stations.length) m.stations = obj.stations.map(String);
+    if (Array.isArray(obj.pageStations) && obj.pageStations.length === m.pageStations.length) m.pageStations = obj.pageStations.map(Boolean);
+    obj.groups.slice(0, m.groups.length).forEach(function (og, gi) {
       if (!og) return;
       var g = m.groups[gi];
       if (typeof og.name === "string" && og.name.trim()) g.name = og.name.trim();
-      if (typeof og.station === "number" && og.station >= 0 && og.station < 4) g.station = og.station;
+      if (typeof og.station === "number" && og.station >= 0 && og.station < m.groups.length) g.station = og.station;
       if (og.pages && typeof og.pages === "object") g.pages = og.pages;
       (Array.isArray(og.students) ? og.students : []).forEach(function (typed) {
         typed = String(typed || "").trim();
@@ -1217,9 +1563,11 @@
   document.getElementById("settings").addEventListener("click", function () {
     gbSugRender();
     drawer.classList.toggle("open");
-    if (drawer.classList.contains("open")) { buildLookPick(); buildStationFields(); }
+    if (drawer.classList.contains("open")) { picOpen = -1; buildLookPick(); buildEditor(); }
   });
   document.getElementById("lineupBtn").addEventListener("click", lineUp);
+  document.getElementById("gedMore").addEventListener("click", function () { if (addGroup()) { save(); render(); buildEditor(); buildLookPick(); } });
+  document.getElementById("gedLess").addEventListener("click", function () { askRemove(M().groups.length - 1); });
   document.getElementById("slides").addEventListener("click", downloadSlides);
   document.getElementById("applyCode").addEventListener("click", function () {
     showImport(importOld(decodeOld(document.getElementById("code").value)), "the pasted code");
@@ -1256,6 +1604,9 @@
     if (saveT) saveNow();
     if (rSaveT) rSaveNow();
     load(); rLoad(); readRoster(); render(); rRender();
+    /* v141: another device changed the groups: redraw the editor, unless typing in it */
+    var dr = document.getElementById("drawer");
+    if (dr && dr.classList.contains("open") && !dr.contains(document.activeElement)) { buildEditor(); buildLookPick(); }
   }
   window.addEventListener("storage", function (e) { if (e.key === KEY || e.key === RKEY || e.key === ROSTER_KEY || e.key === "running-records-v1") refresh(); });
   if (window.SuiteSync && window.SuiteSync.onChanged) {
@@ -1827,6 +2178,8 @@
   window.SmallGroups = { state: function () { return G; }, roster: function () { return roster; }, members: members,
     unplaced: unplaced, moveTo: moveTo, rotate: rotate, lineUp: lineUp, importOld: importOld, decodeOld: decodeOld,
     slideModel: slideModel, refresh: refresh, saveNow: saveNow, setLook: setLook, looks: LOOKS, editionLook: EDITION_LOOK,
+    /* v141 */ addGroup: addGroup, removeGroup: removeGroup, setCount: setCount, groupLook: groupLook, usesTemplate: usesTemplate,
+    boardNow: boardNow, pictures: { animals: ANIMAL_PICS, shapes: SHAPE_PICS, palette: PALETTE },
     reading: { state: function () { return R; }, members: function (gid, k) { return rMembers(k ? R.units[k] : cu(), gid); },
       unplaced: function (k) { return rUnplaced(k ? R.units[k] : cu()); }, move: rMove, copyFrom: rCopyFrom,
       importOld: rImport, fillWeeks: fillWeeks, saveNow: rSaveNow, select: function (k) { R.current = k; rRender(); },

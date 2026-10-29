@@ -8,7 +8,7 @@ Five tools for one second-grade classroom, sharing one origin and one roster:
 | `/gradebook/` | Standards gradebook: Enter marks, Skill groups, Math goal, Students, ORF reading progress, Conferences, Setup (iReady comes in there) |
 | `/planner/` | Lesson planner: Today, Week, Settings, sub plans, and files and links on each lesson |
 | `/fluency/` | Oral reading fluency: Assess and Passages |
-| `/groups/` | Small groups: the math rotation board, reading cards, Walk to WIN slides |
+| `/groups/` | Small groups: the math rotation board (2 to 6 groups, each with its own name, station, picture and colour, set in Setup), reading cards, Walk to WIN slides |
 
 They install together as one app ("Classroom"), work offline, and keep their
 data in the browser. Shared files sit at the root: `sw.js`, `suite-theme.css`,

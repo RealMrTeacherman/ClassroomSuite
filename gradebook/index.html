@@ -1792,7 +1792,7 @@ function schedulePublish() { clearTimeout(publishT); publishT = setTimeout(publi
 
 /* ---------- v97: the math board's groups, taken back ----------
    The Small Groups board writes suite:boardGroups:v1 when the teacher sends
-   his arrangement: { at, std, label, groups: [[ids] x 4, first slot first],
+   his arrangement: { at, std, label, groups: [[ids] x 2-6 (v141; 4 before), first slot first],
    out: [ids] }. Only the gradebook writes its own data, so it takes the
    request here: every child is pinned where the board put them, for that
    standard, and the board's first slot is Group 1, as "Use these groups"
@@ -1802,7 +1802,7 @@ function schedulePublish() { clearTimeout(publishT); publishT = setTimeout(publi
 const BOARD_KEY = "suite:boardGroups:v1";
 function takeBoardGroups() {
   const r = orfJSON(BOARD_KEY);
-  if (!r || typeof r.at !== "string" || !Array.isArray(r.groups) || r.groups.length !== 4) return false;
+  if (!r || typeof r.at !== "string" || !Array.isArray(r.groups) || r.groups.length < 2 || r.groups.length > 6) return false;
   if (S.boardTaken && S.boardTaken.at && S.boardTaken.at >= r.at) return false;
   if (!S.students.length) return false;
   const known = new Set(S.students.map(s => s.id));
@@ -1813,8 +1813,8 @@ function takeBoardGroups() {
   const key = pinKey("Math", std);
   S.boardTaken = { at: r.at, std: std, key: key, prev: S.groupPins[key] ? JSON.parse(JSON.stringify(S.groupPins[key])) : null, undone: false };
   if (Object.keys(pins).length) S.groupPins[key] = pins;
-  /* the gradebook shows them as the board does: four groups, on that standard */
-  UI.groupCount = 4;
+  /* the gradebook shows them as the board does: its number of groups, on that standard */
+  UI.groupCount = r.groups.length;
   if (UI.subject === "Math") UI.groupStd = std;
   save();
   publishSuggestions();
