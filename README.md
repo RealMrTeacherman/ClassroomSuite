@@ -5,7 +5,7 @@ Five tools for one second-grade classroom, sharing one origin and one roster:
 | Path | What it is |
 |---|---|
 | `/` | Launcher |
-| `/gradebook/` | Standards gradebook: Enter marks, Skill groups, Math goal, Students, ORF reading progress, Conferences, Setup (iReady comes in there) |
+| `/gradebook/` | Standards gradebook: Enter marks, Skill groups, Math goal, Students, ORF reading progress, Conferences, Report card, Setup (iReady comes in there) |
 | `/planner/` | Lesson planner: Today, Week, Settings, sub plans, and files and links on each lesson |
 | `/fluency/` | Oral reading fluency: Assess and Passages |
 | `/groups/` | Small groups: the math rotation board (2 to 6 groups, each with its own name, station, picture and colour, set in Setup), reading cards, Walk to WIN slides |
@@ -92,11 +92,16 @@ materials can be edited for that day. **The published files hold no standing
 notes**: names and behaviour notes load from a private JSON kept outside the
 repository (Sub plan → *Load standing notes*).
 
-## Term marks, and Synergy
+## Report card, and Synergy
 
-Grading is done in Synergy. The gradebook works out a mark per standard for
-each marking period (Setup › Term marks) for conferences, Math goal and Skill
-groups. **Setup › Your data › Download all marks** saves every mark as a CSV.
+Marks are typed into Synergy (it has no import open to us). The **Report
+card** tab gets them ready: the class as a grid, one column per standard, a
+mark per child figured by **power law** over the year so far (assignments,
+iReady and ORF together; the plain average, flagged, when there are fewer
+than 3 scores). Click a mark to see every score behind it, or set it
+yourself. **Copy column**, **Print entry sheet** and **Download CSV** make the
+typing quick. The same marks feed Conferences, Math goal and Skill groups;
+how they're figured is in Setup › Term marks.
 
 ## Data, plainly
 

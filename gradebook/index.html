@@ -265,6 +265,61 @@ summary.tiny,summary.small{padding:4px 0}
 #toast.show{opacity:1}
 
 /* ---------- print: everything flattens ---------- */
+/* v143: Report card */
+.rc-top{flex-wrap:wrap;align-items:flex-end;gap:10px}
+.rc-wrap{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.rc-grid{flex:999 1 600px;min-width:0;padding:0;overflow:hidden}
+.rc-scroll{overflow-x:auto}
+table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
+.rc-table th,.rc-table td{border-bottom:1px solid var(--line-2);padding:4px 5px}
+.rc-table thead th{vertical-align:bottom;border-bottom:1px solid var(--line);background:var(--panel)}
+.rc-table th.rc-name{text-align:left;padding:7px 12px;white-space:nowrap;position:sticky;left:0;background:var(--panel);z-index:1;font-weight:500}
+.rc-table thead th.rc-name{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.rc-col{min-width:88px;padding:10px 5px 6px !important}
+.rc-col code.std,.rc-col .rc-lbl,.rc-col .rc-dist{display:block;margin:0 auto;text-align:center}
+.rc-lbl{font-size:11.5px;color:var(--ink-2);font-weight:400;line-height:1.25;max-width:104px;margin:3px auto 5px !important}
+.rc-dist{display:flex !important;width:64px;height:6px;border-radius:3px;overflow:hidden;background:var(--paper);margin-bottom:3px !important}
+.rc-dist span{display:block;height:100%}
+.rc-col .btn{font-size:12px;padding:2px 6px}
+.rc-cell{position:relative;border:0;background:transparent;padding:4px;border-radius:8px;cursor:pointer;min-width:40px;min-height:34px;font:inherit}
+.rc-cell:hover{background:var(--accent-soft)}
+.rc-cell.on{outline:2px solid var(--accent);outline-offset:-1px;background:var(--accent-soft)}
+.rc-cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rc-cell .mark{width:28px;height:25px}
+.mark.rc-thin{border-style:dashed !important;border-color:var(--s2) !important}
+.mark.rc-over{border:2px solid var(--ink) !important}
+.rc-i,.rc-ikey{position:absolute;top:0;right:1px;font-size:9.5px;font-weight:700;color:var(--s4);line-height:11px}
+.rc-ikey{position:static;font-size:12px}
+.rc-legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 12px 12px;font-size:12px;color:var(--ink-2);border-top:1px solid var(--line-2)}
+.rc-legend .mark{width:21px;height:19px;font-size:11px;vertical-align:middle;margin-right:3px}
+.rc-change{color:var(--accent);font-weight:500}
+.rc-why{flex:1 1 320px;min-width:280px;max-width:430px;display:flex;flex-direction:column;gap:10px}
+.rc-whyhead{display:flex;flex-direction:column;gap:2px}
+.rc-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.rc-who{font-size:17px;font-weight:600}
+.rc-result{display:flex;align-items:center;gap:14px;background:var(--paper);border-radius:10px;padding:11px 13px}
+.mark.rc-big{width:46px;height:42px;font-size:21px;border-radius:9px;flex:none}
+.rc-how{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.rc-thinnote{margin:0;font-size:12.5px}
+.rc-chart{width:100%;height:auto;display:block;margin-top:2px}
+.rc-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3);margin:-4px 0 0 22px}
+.rc-ev{display:flex;flex-direction:column}
+.rc-evrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line-2);font-size:13px}
+.rc-evrow.early{opacity:.75}
+.rc-date{width:46px;color:var(--ink-2);flex:none}
+.rc-tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:var(--paper);color:var(--ink-2);flex:none}
+.rc-tag.iready{background:var(--s4-bg);color:var(--s4)}
+.rc-tag.orf{background:var(--s3-bg);color:var(--s3)}
+.rc-what{flex:1;min-width:0}
+.rc-set{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:11px}
+.rc-set .muted{margin-right:4px}
+.rc-setbtn{width:44px;height:44px;border-radius:8px;border:1px solid var(--line-strong);background:var(--panel);font:inherit;font-weight:600;font-size:15px;cursor:pointer}
+.rc-setbtn.s1{color:var(--s1)}.rc-setbtn.s2{color:var(--s2-ink)}.rc-setbtn.s3{color:var(--s3)}.rc-setbtn.s4{color:var(--s4)}
+.rc-setbtn[aria-pressed="true"].s1{background:var(--s1);color:#fff;border-color:var(--s1)}
+.rc-setbtn[aria-pressed="true"].s2{background:var(--s2);color:#fff;border-color:var(--s2)}
+.rc-setbtn[aria-pressed="true"].s3{background:var(--s3);color:#fff;border-color:var(--s3)}
+.rc-setbtn[aria-pressed="true"].s4{background:var(--s4);color:#fff;border-color:var(--s4)}
+@media (max-width:760px){.rc-why{max-width:none}}
 #printsheet{display:none}
 @media print{
   header.app,nav.tabs,.noprint,#suitenav{display:none !important}
@@ -740,6 +795,7 @@ body.gg-dragging,body.gg-dragging *{cursor:grabbing !important;-webkit-user-sele
     <button role="tab" data-tab="students" aria-selected="false">Students</button>
     <button role="tab" data-tab="orf" aria-selected="false">ORF</button>
     <button role="tab" data-tab="conf" aria-selected="false">Conferences</button>
+    <button role="tab" data-tab="report" aria-selected="false">Report card</button>
     <button role="tab" data-tab="setup" aria-selected="false">Setup</button>
   </nav>
 </header>
@@ -751,6 +807,7 @@ body.gg-dragging,body.gg-dragging *{cursor:grabbing !important;-webkit-user-sele
   <section class="panel" id="panel-students" hidden></section>
   <section class="panel" id="panel-orf" hidden></section>
   <section class="panel" id="panel-conf" hidden></section>
+  <section class="panel" id="panel-report" hidden></section>
   <section class="panel" id="panel-setup" hidden></section>
   <div id="printsheet"></div>
 </main>
@@ -1107,6 +1164,14 @@ function hydrate(p) {
   if (!out.seeded || typeof out.seeded !== "object") out.seeded = {};
   seedRevealUnits(out);
   seedBenchmarkUnits(out);
+  /* v143: report cards are figured by power law over the year so far, iReady
+     included, as he asked. Once, and flagged: a later change in Setup stays. */
+  if (!out.seeded.rcPowerLaw) {
+    out.settings.rule = "powerlaw";
+    out.settings.rcYTD = true;
+    out.settings.ireadyInReport = true;
+    out.seeded.rcPowerLaw = 1;
+  }
   return out;
 }
 /* The unit -> standards map was left empty because only he knew what his
@@ -1167,11 +1232,11 @@ function blankState() {
     terms: splitYear(y + "-09-01", (y + 1) + "-06-11", 4),
     overrides: {},
     groupPins: {},
-    settings: { rule: "weighted", teacher: "", year: y + "\u2013" + (y + 1), showSubs: false,
+    settings: { rule: "powerlaw", rcYTD: true, teacher: "", year: y + "\u2013" + (y + 1), showSubs: false,
       orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 }, orfAgainst: "eoy",
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
-      ireadyAutoScore: true, ireadyInReport: false, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
+      ireadyAutoScore: true, ireadyInReport: true, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
       noMapPrompts: false, mathCodes: "oregon" }
   };
 }
@@ -1200,7 +1265,9 @@ let UI = {
   groupStd: "",
   groupCount: 4,
   studentSel: "",
-  reportTerm: "t1",
+  reportTerm: "",           /* v143: "" = the term we are in */
+  rcSel: null,              /* v143: { sid, code } the why panel shows */
+  rcAll: false,             /* v143: also show standards nobody has a score on yet */
   orfOrder: "need",         /* v134: Reading progress, needs attention first or A-Z */
   studentTerm: "",          /* v104: the term the student page lists assignments for ("" = the current one, "all" = the year) */
   studentUnmarked: false,   /* v104: only the assignments still without this child's mark */   /* v104: the entry sheet, one column per standard or one block per student */
@@ -1266,9 +1333,31 @@ function inWindow(sc, days) {
 }
 function markHTML(v) { return '<span class="mark ' + (v ? "v" + v : "vnone") + '">' + (v || "\u2013") + "</span>"; }
 function avg(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+/* v143: Marzano's power law. Scores in date order are fitted to y = a\u00b7x^b
+   (least squares on the logs, x = 1, 2, 3, \u2026) and the curve is read at the
+   newest score: where the child is now, with later work counting more. It
+   needs a trend to fit, so with fewer than POWER_MIN scores the plain
+   average stands in (and the report card flags it). Clamped to 1\u20134. */
+const POWER_MIN = 3;
+function powerFit(vals) {
+  const n = vals.length;
+  const xs = vals.map((_, i) => Math.log(i + 1)), ys = vals.map(v => Math.log(Math.max(0.1, v)));
+  const mx = avg(xs), my = avg(ys);
+  let sxx = 0, sxy = 0;
+  xs.forEach((x, i) => { sxx += (x - mx) * (x - mx); sxy += (x - mx) * (ys[i] - my); });
+  const b = sxx ? sxy / sxx : 0, a = my - b * mx;
+  return { a: a, b: b, at: i => Math.max(1, Math.min(4, Math.exp(a + b * Math.log(i + 1)))), n: n };
+}
+function powerLaw(vals) {
+  if (!vals.length) return null;
+  if (vals.length < POWER_MIN) return Math.round(avg(vals) * 100) / 100;
+  const f = powerFit(vals);
+  return Math.round(f.at(vals.length - 1) * 100) / 100;
+}
 function computeMark(vals) {
   if (!vals.length) return null;
   const rule = S.settings.rule;
+  if (rule === "powerlaw") return powerLaw(vals);
   if (rule === "latest") return vals[vals.length - 1];
   if (rule === "mean") return Math.round(avg(vals) * 10) / 10;
   let num = 0, den = 0;
@@ -1330,7 +1419,7 @@ function parseHash() {
 }
 /* v134: the iReady and Report card tabs are gone; a link to either (a
    bookmark, an old note) opens Setup, where bringing in iReady now lives */
-const RETIRED_TABS = { iready: "setup", report: "setup" };
+const RETIRED_TABS = { iready: "setup" };   /* v143: Report card is back */
 function openTabFromHash() {
   let { tab, params } = parseHash();
   if (RETIRED_TABS[tab]) tab = RETIRED_TABS[tab];
@@ -1372,6 +1461,7 @@ function render() {
   if (UI.tab === "students") renderStudents();
   if (UI.tab === "orf") renderORF();
   if (UI.tab === "conf") renderConferences();
+  if (UI.tab === "report") renderReport();
   if (UI.tab === "setup") renderSetup();
   document.getElementById("metaline").textContent =
     S.students.length + " students \u00b7 " + S.scores.length + " marks \u00b7 " + (S.settings.year || "");
@@ -2597,9 +2687,15 @@ function rcCodes() {
 function stdScores(sid, code) {
   return S.scores.filter(x => x.sid === sid && reportable(x) && rcParent(x.std) === code);
 }
+/* v143: the scores a term's mark is figured from: that term's, or with
+   "year to date" every score from the start of the year to the term's end */
+function stdEvidence(sid, code, term) {
+  const from = S.settings.rcYTD ? "" : term.start;
+  return stdScores(sid, code).filter(x => x.date && x.date >= from && x.date <= term.end)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 function stdMark(sid, code, term) {
-  const vals = stdScores(sid, code).filter(x => x.date >= term.start && x.date <= term.end)
-    .sort((a, b) => a.date.localeCompare(b.date)).map(x => x.v);
+  const vals = stdEvidence(sid, code, term).map(x => x.v);
   return { raw: computeMark(vals), n: vals.length };
 }
 function carriedStd(sid, code, term) {
@@ -2618,7 +2714,7 @@ function finalStd(sid, code, term) {
   const k = stdKey(term, sid, code);
   const r = stdMark(sid, code, term);
   if (S.overrides[k]) return { v: S.overrides[k], over: true, n: r.n };
-  if (r.n === 0 && S.settings.carryForward) {
+  if (r.n === 0 && S.settings.carryForward && !S.settings.rcYTD) {
     const c = carriedStd(sid, code, term);
     if (c && c.v) return { v: c.v, over: false, n: 0, carried: c.from };
   }
@@ -2632,15 +2728,204 @@ function termMarksCardHTML() {
   return '<div class="card pad" id="term-marks"><h2>Term marks</h2>' +
     '<p class="hint" style="margin-top:4px">How a child\u2019s marks on one standard become one mark for a marking period. Conferences, Math goal and Skill groups all use it.</p>' +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><label class="fld">How marks are figured<select id="tm-rule">' +
+    '<option value="powerlaw"' + (r === "powerlaw" ? " selected" : "") + '>Power law (the trend, where they are now)</option>' +
     '<option value="weighted"' + (r === "weighted" ? " selected" : "") + '>Recent work counts more</option>' +
     '<option value="latest"' + (r === "latest" ? " selected" : "") + '>Most recent mark only</option>' +
     '<option value="mean"' + (r === "mean" ? " selected" : "") + '>Straight average</option></select></label>' +
-    '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-carry"' + (S.settings.carryForward ? " checked" : "") + '> Carry a mark forward when a standard has no marks this term</label></div></div>';
+    '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-ytd"' + (S.settings.rcYTD ? " checked" : "") + '> Count the whole year so far, not just this term</label>' +
+    (S.settings.rcYTD ? "" : '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-carry"' + (S.settings.carryForward ? " checked" : "") + '> Carry a mark forward when a standard has no marks this term</label>') +
+    "</div>" + (r === "powerlaw" ? '<p class="hint" style="margin-top:6px">With fewer than ' + POWER_MIN + " scores there is no trend to fit, so the plain average is used, and the Report card flags it.</p>" : "") + "</div>";
 }
-/* v134: the Report card tab is gone (grading happens in Synergy). The term-
-   mark math above stays: the conference sheets use it, and the export below
-   (downloadMarks, copyColumn) is kept, unwired, for the day calculated marks
-   go to Synergy's report card. How marks are figured is set in Setup. */
+/* ============================================================
+   REPORT CARD (v143)
+   Back as a tab, laid out as he chose from the mockups: the class as a grid
+   (students in last-name order, Synergy's; one column per standard, in the
+   stored Oregon codes, Synergy's) and a "why" panel for the picked mark: every
+   score behind it, assignments, iReady and ORF together, plotted oldest to
+   newest with the power-law curve, the number it lands on, the plain average
+   beside it, and 1-4 to set the mark yourself (an override, as in v104).
+   The mark is finalStd's, so Conferences, the CSV and the entry sheet all say
+   the same. Standards nobody has a score on yet are hidden unless asked for.
+   ============================================================ */
+function rcTerm() {
+  return S.terms.find(t => t.id === UI.reportTerm) || S.terms.find(t => t.id === studentTermNow()) || S.terms[0];
+}
+function rcScoredCodes(term) {
+  return rcCodes().filter(c => S.students.some(st => { const f = finalStd(st.id, c, term); return f.v || f.n; }));
+}
+function rcShownCodes(term) { return UI.rcAll ? rcCodes() : rcScoredCodes(term); }
+function rcThin(f) { return S.settings.rule === "powerlaw" && !f.over && f.n > 0 && f.n < POWER_MIN; }
+function rcSrc(x) { return x.source === "iready" ? "iReady" : x.source === "orf" ? "ORF" : "Assignment"; }
+const RC_RULE_WORDS = { powerlaw: "power law", weighted: "recent work counts more", latest: "most recent mark", mean: "straight average" };
+function rcMethodLine(term) {
+  const what = ["assignments"];
+  if (S.settings.ireadyInReport && S.settings.ireadyAutoScore) what.push("iReady");
+  if (S.settings.orfAutoScore) what.push("ORF checks");
+  const span = S.settings.rcYTD ? "the year so far, through " + fmtShort(term.end) : fmtShort(term.start) + " \u2013 " + fmtShort(term.end);
+  return "Figured by " + (RC_RULE_WORDS[S.settings.rule] || S.settings.rule) + " over " + span + ", from " +
+    (what.length > 1 ? what.slice(0, -1).join(", ") + " and " + what[what.length - 1] : what[0]) + ".";
+}
+function fmtShort(iso) {
+  const d = new Date(String(iso) + "T12:00:00");
+  return isNaN(d) ? String(iso || "") : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function rcCellHTML(st, code, term, f) {
+  const ev = stdEvidence(st.id, code, term);
+  const on = UI.rcSel && UI.rcSel.sid === st.id && UI.rcSel.code === code;
+  const cls = "mark " + (f.v ? "v" + f.v : "vnone") + (rcThin(f) ? " rc-thin" : "") + (f.over ? " rc-over" : "");
+  const label = fullName(st) + ", " + code + ": " + (f.v ? f.v : "no mark") + (f.over ? ", set by you" : "") + (rcThin(f) ? ", fewer than " + POWER_MIN + " scores" : "");
+  return '<td class="c"><button type="button" class="rc-cell' + (on ? " on" : "") + '" data-sid="' + esc(st.id) + '" data-code="' + esc(code) + '" aria-label="' + esc(label) + '">' +
+    '<span class="' + cls + '">' + (f.v || "\u2013") + "</span>" +
+    (ev.some(x => x.source === "iready") ? '<span class="rc-i" aria-hidden="true">i</span>' : "") + "</button></td>";
+}
+function rcChartSVG(ev, fit) {
+  const n = ev.length, W = 300, H = 120, x0 = 22, x1 = 290, y0 = 10, y1 = 104;
+  const X = i => n === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (n - 1);
+  const Y = v => y0 + (y1 - y0) * (4 - v) / 3;
+  let h = '<svg class="rc-chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Scores oldest to newest' + (fit ? ", with the power-law curve" : "") + '">';
+  [4, 3, 2, 1].forEach(v => {
+    h += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(v) + '" y2="' + Y(v) + '" style="stroke:var(--line)"/>' +
+      '<text x="8" y="' + (Y(v) + 4) + '" style="fill:var(--ink-3);font-size:10px">' + v + "</text>";
+  });
+  if (fit) h += '<polyline fill="none" points="' + ev.map((_, i) => X(i).toFixed(1) + "," + Y(fit.at(i)).toFixed(1)).join(" ") + '" style="stroke:var(--accent);stroke-width:2;stroke-dasharray:5 4"/>';
+  ev.forEach((x, i) => {
+    const cx = X(i), cy = Y(x.v), c = "fill:var(--s" + x.v + ");stroke:var(--panel);stroke-width:2";
+    const t = "<title>" + esc(fmtShort(x.date) + ", " + rcSrc(x) + ": " + x.v) + "</title>";
+    if (x.source === "iready") h += '<polygon points="' + cx + "," + (cy - 7) + " " + (cx + 7) + "," + cy + " " + cx + "," + (cy + 7) + " " + (cx - 7) + "," + cy + '" style="' + c + '">' + t + "</polygon>";
+    else if (x.source === "orf") h += '<rect x="' + (cx - 5.5) + '" y="' + (cy - 5.5) + '" width="11" height="11" rx="2" style="' + c + '">' + t + "</rect>";
+    else h += '<circle cx="' + cx + '" cy="' + cy + '" r="6" style="' + c + '">' + t + "</circle>";
+  });
+  return h + "</svg>";
+}
+function rcWhyHTML(term) {
+  const sel = UI.rcSel, st = sel && S.students.find(s => s.id === sel.sid);
+  if (!st || !byCode[sel.code]) return '<div class="card pad rc-why"><p class="hint">Pick any mark to see the scores behind it.</p></div>';
+  const code = sel.code, f = finalStd(st.id, code, term), ev = stdEvidence(st.id, code, term), vals = ev.map(x => x.v);
+  const rule = S.settings.rule, calc = computeMark(vals), plain = vals.length ? avg(vals) : null;
+  const two = x => x == null ? "\u2013" : (Math.round(x * 100) / 100).toFixed(2);
+  let how;
+  if (!vals.length) how = "<b>No scores yet</b>" + (S.settings.rcYTD ? " this year." : " this term.");
+  else if (rule === "powerlaw" && vals.length >= POWER_MIN) how = "<b>Power law " + two(calc) + "</b> \u2192 rounds to " + roundMark(calc);
+  else if (rule === "powerlaw") how = "<b>Average of " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ": " + two(calc) + "</b> \u2192 " + roundMark(calc);
+  else how = "<b>" + esc(RC_RULE_WORDS[rule] || rule) + " " + two(calc) + "</b> \u2192 " + roundMark(calc);
+  let sub = vals.length ? "Straight average " + two(plain) + " \u00b7 " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ", " + fmtShort(ev[0].date) + " \u2013 " + fmtShort(ev[ev.length - 1].date) : "";
+  if (f.over) { how = "<b>Set by you: " + f.v + "</b>"; sub = vals.length ? "Calculated: " + roundMark(calc) + " (" + two(calc) + ")" : "Nothing calculated yet"; }
+  else if (!vals.length && f.carried) sub = "Carried from " + esc(f.carried);
+  let h = '<div class="card pad rc-why" id="rc-why"><div class="rc-whyhead"><span class="rc-eyebrow">' + esc(code) + " \u00b7 " + esc(byCode[code].lbl) + "</span>" +
+    '<span class="rc-who">' + nameLink(st, fullName(st)) + "</span></div>" +
+    '<div class="rc-result">' + '<span class="mark rc-big ' + (f.v ? "v" + f.v : "vnone") + '">' + (f.v || "\u2013") + "</span>" +
+    '<div class="rc-how"><span>' + how + "</span>" + (sub ? '<span class="muted">' + sub + "</span>" : "") + "</div></div>";
+  if (rcThin(f)) h += '<p class="notice rc-thinnote">Fewer than ' + POWER_MIN + " scores, so there\u2019s no trend to fit and this is the plain average. Worth a look before it goes on the report card.</p>";
+  if (ev.length) {
+    const fit = rule === "powerlaw" && vals.length >= POWER_MIN && !f.over ? powerFit(vals) : null;
+    h += rcChartSVG(ev, fit) + '<div class="rc-axis"><span>oldest</span><span>newest</span></div>';
+    h += '<div class="rc-ev">' + ev.slice().reverse().map(x => {
+      const before = x.date < term.start;
+      return '<div class="rc-evrow' + (before ? " early" : "") + '"' + (x.note ? ' title="' + esc(x.note) + '"' : "") + '><span class="rc-date">' + esc(fmtShort(x.date)) + "</span>" +
+        '<span class="rc-tag ' + rcSrc(x).toLowerCase() + '">' + rcSrc(x) + "</span>" +
+        '<span class="rc-what">' + esc(x.ctx || "") + (x.std !== code ? ' <span class="muted">(' + esc(x.std) + ")</span>" : "") + "</span>" + markHTML(x.v) + "</div>";
+    }).join("") + "</div>";
+  }
+  h += '<div class="rc-set"><span class="muted small">Set it yourself</span>' + [1, 2, 3, 4].map(v =>
+    '<button type="button" class="rc-setbtn s' + v + '" data-set="' + v + '" aria-pressed="' + (f.over && f.v === v ? "true" : "false") + '">' + v + "</button>").join("") +
+    (f.over ? '<button type="button" class="btn sm ghost" data-set="0">Use calculated</button>' : "") + "</div></div>";
+  return h;
+}
+function renderReport() {
+  const el = document.getElementById("panel-report");
+  if (!el) return;
+  if (!S.students.length) return noStudents(el);
+  const term = rcTerm();
+  UI.reportTerm = term.id;
+  const codes = rcShownCodes(term), unscored = rcCodes().length - rcScoredCodes(term).length, studs = sortedStudents();
+  if (!UI.rcSel || !studs.some(s => s.id === UI.rcSel.sid) || codes.indexOf(UI.rcSel.code) < 0)
+    UI.rcSel = codes.length ? { sid: studs[0].id, code: codes[0] } : null;
+  const marks = {};
+  studs.forEach(st => { marks[st.id] = {}; codes.forEach(c => { marks[st.id][c] = finalStd(st.id, c, term); }); });
+  let thin = 0, over = 0;
+  studs.forEach(st => codes.forEach(c => { const f = marks[st.id][c]; if (rcThin(f)) thin++; if (f.over) over++; }));
+  let h = '<div class="sectionhead rc-top"><div><h2>' + esc(term.name) + " report card \u00b7 " + esc(subjLabel()) + "</h2>" +
+    '<p class="hint" style="margin-top:2px">' + esc(rcMethodLine(term)) + ' <a class="rc-change" href="#setup" onclick="gotoTab(\'setup\');setTimeout(()=>{const t=document.getElementById(\'term-marks\');t&&t.scrollIntoView()},50);return false">Change</a></p></div>' +
+    '<span class="spacer"></span><label class="fld">Term<select id="rc-term">' + S.terms.map(t => '<option value="' + t.id + '"' + (t.id === term.id ? " selected" : "") + ">" + esc(t.name) + "</option>").join("") + "</select></label>" +
+    '<button class="btn" onclick="rcPrint()">Print entry sheet</button><button class="btn primary" onclick="downloadMarks()">Download CSV</button></div>';
+  if (!codes.length) {
+    h += '<div class="card empty"><strong>No scores yet ' + (S.settings.rcYTD ? "this year" : "this term") + "</strong>Marks entered in Enter marks show up here, a column per standard.</div>";
+    el.innerHTML = h; rcWire(el); return;
+  }
+  h += '<div class="rc-wrap"><div class="card rc-grid"><div class="rc-scroll scroll"><table class="rc-table"><thead><tr><th class="rc-name">Student</th>';
+  codes.forEach(c => {
+    const cnt = { 1: 0, 2: 0, 3: 0, 4: 0 }; let tot = 0;
+    studs.forEach(st => { const v = marks[st.id][c].v; if (v) { cnt[v]++; tot++; } });
+    h += '<th class="rc-col"><code class="std">' + esc(c) + '</code><span class="rc-lbl">' + esc(byCode[c].lbl) + "</span>" +
+      '<span class="rc-dist" title="' + [1, 2, 3, 4].map(v => v + ": " + cnt[v]).join("  ") + '">' +
+      (tot ? [1, 2, 3, 4].map(v => cnt[v] ? '<span style="width:' + (cnt[v] / tot * 100) + '%;background:var(--s' + v + ')"></span>' : "").join("") : "") + "</span>" +
+      '<button type="button" class="btn sm ghost" data-copy="' + esc(c) + '">Copy column</button></th>';
+  });
+  h += "</tr></thead><tbody>";
+  studs.forEach(st => {
+    h += '<tr><th class="rc-name" scope="row">' + nameLink(st, st.last + ", " + st.first) + "</th>";
+    codes.forEach(c => { h += rcCellHTML(st, c, term, marks[st.id][c]); });
+    h += "</tr>";
+  });
+  h += "</tbody></table></div>" +
+    '<div class="rc-legend"><span><b class="rc-ikey">i</b> includes an iReady score</span>' +
+    '<span><span class="mark rc-thin v2" aria-hidden="true">2</span> fewer than ' + POWER_MIN + " scores: plain average" + (thin ? " (" + thin + ")" : "") + "</span>" +
+    '<span><span class="mark rc-over v3" aria-hidden="true">3</span> set by you' + (over ? " (" + over + ")" : "") + "</span>" +
+    (unscored ? '<label class="row small" style="gap:6px"><input type="checkbox" id="rc-all"' + (UI.rcAll ? " checked" : "") + "> Show standards with no scores yet (" + unscored + ")</label>" : "") +
+    "</div></div>" + rcWhyHTML(term) + "</div>";
+  el.innerHTML = h;
+  rcWire(el);
+}
+function rcWire(el) {
+  const ts = el.querySelector("#rc-term");
+  if (ts) ts.onchange = () => { UI.reportTerm = ts.value; renderReport(); };
+  const ra = el.querySelector("#rc-all");
+  if (ra) ra.onchange = () => { UI.rcAll = ra.checked; renderReport(); };
+  el.onclick = e => {
+    const cell = e.target.closest(".rc-cell");
+    if (cell) {
+      UI.rcSel = { sid: cell.dataset.sid, code: cell.dataset.code };
+      renderReport();
+      const w = document.getElementById("rc-why");
+      if (w && phoneLayout() && w.scrollIntoView) w.scrollIntoView({ behavior: "smooth", block: "start" });
+      const again = el.querySelector('.rc-cell[data-sid="' + cell.dataset.sid + '"][data-code="' + cell.dataset.code + '"]');
+      if (again && !phoneLayout()) again.focus();
+      return;
+    }
+    const set = e.target.closest("[data-set]");
+    if (set && UI.rcSel) { rcSet(Number(set.dataset.set)); return; }
+    const cp = e.target.closest("[data-copy]");
+    if (cp) rcCopy(cp.dataset.copy);
+  };
+}
+/* tapping the mark already set clears it, as on the student page */
+function rcSet(v) {
+  const term = rcTerm(), k = stdKey(term, UI.rcSel.sid, UI.rcSel.code);
+  if (!v || S.overrides[k] === v) delete S.overrides[k]; else S.overrides[k] = v;
+  save(); renderReport();
+}
+function rcCopy(code) {
+  const text = copyColumn(code, rcTerm());
+  const done = () => toast("Copied " + code + ": " + sortedStudents().length + " marks, top to bottom");
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => toast("Couldn\u2019t copy here. Try the CSV."));
+    else toast("Couldn\u2019t copy here. Try the CSV.");
+  } catch (e) { toast("Couldn\u2019t copy here. Try the CSV."); }
+}
+/* the entry sheet: the grid on paper, to type from */
+function rcPrint() {
+  const term = rcTerm(), codes = rcShownCodes(term);
+  let h = "<h2>" + esc(term.name) + " report card \u00b7 " + esc(subjLabel()) + '</h2><p style="font-size:11px;color:#555">' + esc(rcMethodLine(term)) +
+    " * fewer than " + POWER_MIN + " scores. Printed " + todayISO() + '.</p><table border="1" cellspacing="0" cellpadding="3" style="width:100%;border-collapse:collapse;font-size:11px"><tr><th align="left">Student</th>' +
+    codes.map(c => '<th style="text-align:center">' + esc(c) + "</th>").join("") + "</tr>";
+  sortedStudents().forEach(st => {
+    h += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>" + codes.map(c => { const f = finalStd(st.id, c, term); return '<td style="text-align:center">' + (f.v || "") + (rcThin(f) ? "*" : "") + "</td>"; }).join("") + "</tr>";
+  });
+  document.getElementById("printsheet").innerHTML = h + "</table>";
+  suitePrint();
+}
+/* v143: the export below (downloadMarks, copyColumn) is wired to the Report
+   card tab again. How marks are figured is still set in Setup. */
 /* one mark per line, in last-name order: a blank line where there is no mark,
    so a pasted column never slides up against the wrong child */
 function copyColumn(code, term) {
@@ -2654,7 +2939,7 @@ function download(name, text) {
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
 function downloadMarks() {
-  const term = termOf(UI.reportTerm);
+  const term = rcTerm();
   const codes = rcCodes();
   const head = ["Last Name", "First Name", "Student ID"].concat(codes);
   const rows = [head.map(csvCell).join(",")];
@@ -2724,7 +3009,9 @@ function confStandards(st, term) {
     const rows = [];
     codes.forEach(c => {
       const f = finalStd(st.id, c, term);
-      if (!f.over && !f.n) return;
+      /* v143: the mark can reach back over the year (year to date), but the
+         sheet still lists only what was worked on this term */
+      if (!f.over && !stdScores(st.id, c).some(x => x.date >= term.start && x.date <= term.end)) return;
       if (!f.v) return;
       rows.push({ code: c, words: confWords(c), v: f.v, trend: confTrend(st.id, c, term) });
     });
@@ -4395,9 +4682,11 @@ function renderSetup() {
   renderIReady();
   renderOrfImport();
   const tr = document.getElementById("tm-rule");
-  if (tr) tr.onchange = e => { S.settings.rule = e.target.value; save(); };
+  if (tr) tr.onchange = e => { S.settings.rule = e.target.value; save(); renderSetup(); };
   const tc = document.getElementById("tm-carry");
   if (tc) tc.onchange = e => { S.settings.carryForward = e.target.checked; save(); };
+  const ty = document.getElementById("tm-ytd");
+  if (ty) ty.onchange = e => { S.settings.rcYTD = e.target.checked; save(); renderSetup(); };
 
   const mp = document.getElementById("set-mapprompts");
   if (mp) mp.onchange = e => { S.settings.noMapPrompts = !e.target.checked; save(); };
