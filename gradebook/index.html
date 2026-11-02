@@ -272,9 +272,18 @@ summary.tiny,summary.small{padding:4px 0}
 .rc-scroll{overflow-x:auto}
 table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 .rc-table th,.rc-table td{border-bottom:1px solid var(--line-2);padding:4px 5px}
-.rc-table thead th{vertical-align:bottom;border-bottom:1px solid var(--line);background:var(--panel)}
-.rc-table th.rc-name{text-align:left;padding:7px 12px;white-space:nowrap;position:sticky;left:0;background:var(--panel);z-index:1;font-weight:500}
-.rc-table thead th.rc-name{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+/* v144: every th on the page sticks to the top (the global th rule). Here the
+   names are th too, one per row: they stick to the left only, or they pile up
+   under the header as the box scrolls. The header stays in front of the marks
+   (each .rc-cell is positioned), and its corner in front of both. */
+.rc-table thead th{vertical-align:bottom;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
+.rc-table th.rc-name{text-align:left;padding:7px 12px;white-space:nowrap;position:sticky;left:0;background:var(--panel);z-index:1;font-weight:500;font-size:13.5px;letter-spacing:0;text-transform:none;color:var(--ink)}
+.rc-table tbody th.rc-name{top:auto}
+.rc-table thead th.rc-name{z-index:3;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.rc-table tbody tr:hover th.rc-name{background:#F7F9FA}
+/* the theme makes a phone's tables scroll themselves; this one has its own
+   box, which must be the only scroller for the names and header to stay put */
+#panel-report .rc-scroll table.rc-table{display:table;overflow:visible}
 .rc-col{min-width:88px;padding:10px 5px 6px !important}
 .rc-col code.std,.rc-col .rc-lbl,.rc-col .rc-dist{display:block;margin:0 auto;text-align:center}
 .rc-lbl{font-size:11.5px;color:var(--ink-2);font-weight:400;line-height:1.25;max-width:104px;margin:3px auto 5px !important}
