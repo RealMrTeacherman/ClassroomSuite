@@ -120,15 +120,18 @@
      mark on it. q = question number; std = the CCSS code the question
      assesses, matched from the question itself (the printed book lists no
      codes); or = a gradebook code that overrides the crosswalk, as a lesson's
-     does, for the 2.OA.B.2 split (B2 q16 is making a 10 to add, so adding). */
+     does, for the 2.OA.B.2 split (B2 q16 is making a 10 to add, so adding).
+     Josh's calls (v147): B1 q14 (the array) is not graded, so it is left
+     out; and on the benchmarks reading and writing numbers (2.NBT.A.3) is
+     marked with place value (2.NBT.A.1), one mark instead of two. */
   var BENCH = {
     1: [[1, "2.OA.A.1"], [2, "2.OA.C.3"], [3, "2.NBT.A.4"], [4, "2.NBT.A.1.a"], [5, "2.NBT.A.2"],
-        [6, "2.OA.A.1"], [7, "2.NBT.A.2"], [8, "2.OA.A.1"], [9, "2.OA.C.3"], [10, "2.NBT.A.3"],
-        [11, "2.OA.A.1"], [12, "2.NBT.A.1"], [13, "2.NBT.A.3"], [14, "2.OA.C.4"], [15, "2.NBT.A.4"],
+        [6, "2.OA.A.1"], [7, "2.NBT.A.2"], [8, "2.OA.A.1"], [9, "2.OA.C.3"], [10, "2.NBT.A.3", "2.NBT.A.1"],
+        [11, "2.OA.A.1"], [12, "2.NBT.A.1"], [13, "2.NBT.A.3", "2.NBT.A.1"], [15, "2.NBT.A.4"],
         [16, "2.OA.A.1"], [17, "2.NBT.A.2"], [18, "2.OA.A.1"]],
-    2: [[1, "2.MD.A.1"], [2, "2.NBT.B.5"], [3, "2.OA.A.1"], [4, "2.NBT.A.3"], [5, "2.OA.A.1"],
+    2: [[1, "2.MD.A.1"], [2, "2.NBT.B.5"], [3, "2.OA.A.1"], [4, "2.NBT.A.3", "2.NBT.A.1"], [5, "2.OA.A.1"],
         [6, "2.OA.C.3"], [7, "2.OA.A.1"], [8, "2.MD.A.2"], [9, "2.OA.C.3"], [10, "2.NBT.A.2"],
-        [11, "2.NBT.B.5"], [12, "2.NBT.B.5"], [13, "2.NBT.A.3"], [14, "2.NBT.B.5"], [15, "2.MD.B.6"],
+        [11, "2.NBT.B.5"], [12, "2.NBT.B.5"], [13, "2.NBT.A.3", "2.NBT.A.1"], [14, "2.NBT.B.5"], [15, "2.MD.B.6"],
         [16, "2.OA.B.2", "2.OA.B.2a"], [17, "2.OA.C.4"], [18, "2.OA.A.1"]],
     3: [[1, "2.MD.A.1"], [2, "2.NBT.B.8"], [3, "2.NBT.B.6"], [4, "2.OA.A.1"], [5, "2.MD.B.6"],
         [6, "2.NBT.B.7"], [7, "2.MD.C.7"], [8, "2.NBT.B.7"], [9, "2.NBT.A.1"], [10, "2.NBT.B.7"],
