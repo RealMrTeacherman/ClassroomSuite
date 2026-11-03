@@ -113,6 +113,39 @@
     CROSS[c].or.forEach(function (o) { if (!SHOW[o]) SHOW[o] = c; });
   });
 
+  /* ---------- the Benchmark Assessments, question by question (v147) ----------
+     Reveal's three printable Benchmark Assessments (Assessment Resource Book,
+     pp. 73-78, 147-152, 213-218), 18 questions each. The guide gives a
+     benchmark day no standard, so until v147 the gradebook had nothing to
+     mark on it. q = question number; std = the CCSS code the question
+     assesses, matched from the question itself (the printed book lists no
+     codes); or = a gradebook code that overrides the crosswalk, as a lesson's
+     does, for the 2.OA.B.2 split (B2 q16 is making a 10 to add, so adding). */
+  var BENCH = {
+    1: [[1, "2.OA.A.1"], [2, "2.OA.C.3"], [3, "2.NBT.A.4"], [4, "2.NBT.A.1.a"], [5, "2.NBT.A.2"],
+        [6, "2.OA.A.1"], [7, "2.NBT.A.2"], [8, "2.OA.A.1"], [9, "2.OA.C.3"], [10, "2.NBT.A.3"],
+        [11, "2.OA.A.1"], [12, "2.NBT.A.1"], [13, "2.NBT.A.3"], [14, "2.OA.C.4"], [15, "2.NBT.A.4"],
+        [16, "2.OA.A.1"], [17, "2.NBT.A.2"], [18, "2.OA.A.1"]],
+    2: [[1, "2.MD.A.1"], [2, "2.NBT.B.5"], [3, "2.OA.A.1"], [4, "2.NBT.A.3"], [5, "2.OA.A.1"],
+        [6, "2.OA.C.3"], [7, "2.OA.A.1"], [8, "2.MD.A.2"], [9, "2.OA.C.3"], [10, "2.NBT.A.2"],
+        [11, "2.NBT.B.5"], [12, "2.NBT.B.5"], [13, "2.NBT.A.3"], [14, "2.NBT.B.5"], [15, "2.MD.B.6"],
+        [16, "2.OA.B.2", "2.OA.B.2a"], [17, "2.OA.C.4"], [18, "2.OA.A.1"]],
+    3: [[1, "2.MD.A.1"], [2, "2.NBT.B.8"], [3, "2.NBT.B.6"], [4, "2.OA.A.1"], [5, "2.MD.B.6"],
+        [6, "2.NBT.B.7"], [7, "2.MD.C.7"], [8, "2.NBT.B.7"], [9, "2.NBT.A.1"], [10, "2.NBT.B.7"],
+        [11, "2.NBT.B.7"], [12, "2.NBT.B.8"], [13, "2.MD.C.8"], [14, "2.OA.C.3"], [15, "2.NBT.A.2"],
+        [16, "2.MD.C.8"], [17, "2.MD.A.1"], [18, "2.OA.A.1"]]
+  };
+  UNITS.forEach(function (u) {
+    u.steps.forEach(function (s) {
+      if (s.k !== "bench" || !BENCH[s.n]) return;
+      s.items = BENCH[s.n].map(function (r) {
+        var it = { q: r[0], std: [r[1]] };
+        if (r[2]) it.or = [r[2]];
+        return it;
+      });
+    });
+  });
+
   /* ---------- the sequence, flattened ----------
      FLAT is every day of the guide in order. Each step learns its unit, its
      place in FLAT, and how many guide days of its unit come before it. */
@@ -201,6 +234,7 @@
   function ccss(s) {
     if (!s) return [];
     if (s.k === "L") return (s.std || []).slice();
+    if (s.items) return uniq([].concat.apply([], s.items.map(function (q) { return q.std; })));
     var from = s.k === "assess" || s.k === "review" ? lessonsOf(s.u)
       : s.k === "probe" ? lessonsOf(s.u, s.after) : [];
     return uniq([].concat.apply([], from.map(function (l) { return l.std || []; })));
@@ -217,9 +251,26 @@
   function oregon(s) {
     if (!s) return [];
     if (s.k === "L") return lessonOregon(s);
+    /* a benchmark: the standards its questions assess, in question order */
+    if (s.items) return uniq([].concat.apply([], s.items.map(lessonOregon)));
     var from = s.k === "assess" || s.k === "review" ? lessonsOf(s.u)
       : s.k === "probe" ? lessonsOf(s.u, s.after) : [];
     return uniq([].concat.apply([], from.map(lessonOregon)));
+  }
+  /* A benchmark's questions grouped by gradebook code, in the order oregon()
+     gives: [{ code, qs: [1, 6, 8] }]. Empty for any other day. */
+  function questions(s) {
+    if (!s || !s.items) return [];
+    var out = [];
+    s.items.forEach(function (it) {
+      lessonOregon(it).forEach(function (c) {
+        var g = null;
+        for (var i = 0; i < out.length; i++) if (out[i].code === c) g = out[i];
+        if (!g) out.push(g = { code: c, qs: [] });
+        g.qs.push(it.q);
+      });
+    });
+    return out;
   }
   function unitOregon(u) {
     return uniq([].concat.apply([], lessonsOf(u).map(lessonOregon)));
@@ -257,7 +308,7 @@
   var RP = window.RevealPacing = {
     VERSION: VERSION, UNITS: UNITS, FLAT: FLAT, TOTAL: TOTAL, CROSS: CROSS,
     unit: unit, find: find, next: next, prev: prev, posOf: posOf, short: short, name: name,
-    ccss: ccss, oregon: oregon, toOregon: toOregon, lessonOregon: lessonOregon, unitOregon: unitOregon, ccssFor: ccssFor,
+    ccss: ccss, oregon: oregon, questions: questions, toOregon: toOregon, lessonOregon: lessonOregon, unitOregon: unitOregon, ccssFor: ccssFor,
     isPrior: isPrior, priorUnit: priorUnit, on: on, plan: plan, unitOnDate: unitOnDate
   };
 

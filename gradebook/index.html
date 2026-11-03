@@ -7784,6 +7784,10 @@ function lessonPickHTML() {
       '<span class="tiny muted lessonname">' + esc(R.name(step)) + "</span></div>";
     if (following && !daySaved) h += '<div class="hint" style="margin-top:6px">This day isn\u2019t saved in the planner yet, so this is the lesson its card shows for it.</div>';
     if (step.tg && step.tg.length) h += '<div class="hint" style="margin-top:6px">' + esc(step.tg.join(" ")) + "</div>";
+    /* v147: a benchmark lists which questions go with each standard */
+    const qs = R.questions ? R.questions(step).filter(g => byCode[g.code]) : [];
+    if (qs.length) h += '<div class="hint" style="margin-top:6px">Questions by standard: ' +
+      qs.map(g => esc(byCode[g.code].lbl) + " — " + (g.qs.length > 1 ? "Qs " : "Q") + g.qs.join(", ")).join(" · ") + "</div>";
   } else {
     h += '<div class="hint" style="margin-top:8px">The planner has no Reveal lesson on this date. Pick one above, or choose a standard.</div>';
   }
