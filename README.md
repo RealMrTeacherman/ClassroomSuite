@@ -103,6 +103,10 @@ yourself. **Copy column**, **Print entry sheet** and **Download CSV** make the
 typing quick. The same marks feed Conferences, Math goal and Skill groups;
 how they're figured is in Setup › Term marks.
 
+**Conferences** prints a sheet per child for families: Reading, then Math,
+each with the latest iReady placement, the report card marks so far, and one
+thing to work on at home (picked from the lowest mark; you can change it).
+
 ## Data, plainly
 
 Rosters, marks, plans and running records live in your browser and your own

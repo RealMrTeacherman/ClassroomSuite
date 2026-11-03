@@ -351,7 +351,17 @@ table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13
 .cf-name{font-family:var(--serif);font-size:24px;font-weight:600;margin:0;color:#000}
 .cf-sub{color:#333;margin-top:2px}
 .cf-meta{color:#333;font-size:12px;text-align:right}
-.cf-reading,.cf-stds{margin-top:12px}
+.cf-reading{margin-top:6px}
+.cf-subj{margin-top:12px}
+.cf-subjhead{font-size:15px !important;border-bottom:1px solid #000;padding-bottom:2px}
+.cf-minor{font-size:13px;font-weight:600;margin:0;color:#000}
+.cf-ir{margin:4px 0 0;font-size:12.5px}
+.cf-home{border:1.5px solid #000;padding:5px 10px 6px;margin-top:8px;break-inside:avoid;page-break-inside:avoid}
+.cf-homehead{font-weight:600}
+.cf-home ul{margin:3px 0 0 18px;padding:0}
+.cf-home li{margin:1px 0}
+.cf-pick{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#444}
+.cf-pick select{font:inherit;font-size:12px;max-width:100%;color:#000;background:#fff;border:1px solid #888;border-radius:4px;padding:3px 4px}
 .cf-hint{color:#444;margin:1px 0 0;font-size:12px}
 .cf-chart{display:block;width:100%;height:auto;margin-top:4px}
 .cf-key{color:#444;font-size:11.5px;margin:4px 0 0}
@@ -363,17 +373,18 @@ table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13
 .cf-table tr{break-inside:avoid}
 .cf-table .cf-c{text-align:center;width:44px}
 .cf-mark{display:inline-block;min-width:22px;border:1px solid #000;font-weight:700;font-variant-numeric:tabular-nums;line-height:18px}
-.cf-arrow{font-size:16px;width:28px !important}
 .cf-none{color:#444;margin:8px 0 0}
-.cf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (max-width:760px){
   .confsheet{padding:18px 16px;font-size:13px}
+  .cf-pick select{font-size:16px;min-height:40px}
   .cf-name{font-size:20px}
 }
 @media print{
   #printsheet .confsheet{border:0;border-radius:0;padding:0;max-width:none;break-after:page;page-break-after:always}
   #printsheet .confsheet:last-child{break-after:auto;page-break-after:auto}
   #printsheet .cf-table th{background:none !important}
+  #printsheet .cf-table td{padding:1.5px 0}
+  #printsheet .cf-subj{margin-top:9px;break-inside:avoid;page-break-inside:avoid}
 }
 
 /* ---------- v122: class goal ---------- */
@@ -838,6 +849,12 @@ const CATALOG = [
 /* ---------------- MATH ---------------- */
 {c:"2.OA.A.1",s:"Math",d:"Operations",lvl:1,lbl:"Add/subtract word problems to 100",t:"Use addition and subtraction within 100 to solve one- and two-step problems in authentic contexts by using drawings and equations with a symbol for the unknown."},
 {c:"2.OA.B.2",s:"Math",d:"Operations",lvl:1,lbl:"Fluency within 20",t:"Fluently add and subtract within 20 using accurate, efficient, and flexible strategies and algorithms based on place value and properties of operations."},
+/* v145: his split, not Oregon's. 2.OA.B.2 is one standard in the 2021 Oregon
+   standards; he marks adding and subtracting apart. Both count toward
+   2.OA.B.2 on the report card (rcParent), which stays the Synergy row.
+   `shown`: listed in Setup like a main standard, sub-standards on or off. */
+{c:"2.OA.B.2a",s:"Math",d:"Operations",lvl:2,shown:1,lbl:"Add fluently within 20",t:"Fluently add within 20 using accurate, efficient, and flexible strategies and algorithms based on place value and properties of operations."},
+{c:"2.OA.B.2b",s:"Math",d:"Operations",lvl:2,shown:1,lbl:"Subtract fluently within 20",t:"Fluently subtract within 20 using accurate, efficient, and flexible strategies and algorithms based on place value and properties of operations."},
 {c:"2.OA.C.3",s:"Math",d:"Operations",lvl:1,lbl:"Odd and even",t:"Determine whether a group up to 20 objects has an odd or even number by pairing objects or counting them by 2s; record using drawings and equations including expressing an even number as a sum of two equal addends."},
 {c:"2.OA.C.4",s:"Math",d:"Operations",lvl:1,lbl:"Arrays as repeated addition",t:"Use addition to find the total number of objects arranged in rectangular arrays with up to 5 rows and up to 5 columns; write an equation to express the total as a sum of equal addends."},
 
@@ -988,6 +1005,8 @@ const DEFAULT_RC = [
 const PARENT_WORDS = {
 "2.OA.A.1":"Solves story problems with adding and subtracting up to 100",
 "2.OA.B.2":"Adds and subtracts within 20 quickly and accurately",
+"2.OA.B.2a":"Adds within 20 quickly and accurately",
+"2.OA.B.2b":"Subtracts within 20 quickly and accurately",
 "2.OA.C.3":"Tells whether a number is odd or even",
 "2.OA.C.4":"Uses adding to count objects in rows and columns",
 "2.NBT.A.1":"Understands hundreds, tens, and ones",
@@ -1181,7 +1200,55 @@ function hydrate(p) {
     out.settings.ireadyInReport = true;
     out.seeded.rcPowerLaw = 1;
   }
+  splitFluency20(out);
   return out;
+}
+/* v145: "Fluency within 20" (2.OA.B.2) became two, adding (2.OA.B.2a) and
+   subtracting (2.OA.B.2b). Every mark made so far was on adding, his word,
+   so hand marks and their missing-work records move to 2.OA.B.2a; iReady's
+   rows stay on 2.OA.B.2 (they rebuild, and its Algebra score is neither
+   half). Report card overrides stay on 2.OA.B.2, still the report card's
+   row. Lists of standards (class goals, year goals) take both halves; a
+   group, its goal and its pins take adding, as their marks were.
+   Once, and flagged: anything he changes afterwards stays. */
+const FL20 = "2.OA.B.2", FL20_ADD = "2.OA.B.2a", FL20_SUB = "2.OA.B.2b";
+function fl20Codes(codes) {
+  if (!Array.isArray(codes) || codes.indexOf(FL20) < 0) return codes;
+  const out = [];
+  codes.forEach(c => { (c === FL20 ? [FL20_ADD, FL20_SUB] : [c]).forEach(x => { if (out.indexOf(x) < 0) out.push(x); }); });
+  return out;
+}
+function splitFluency20(st) {
+  if (st.seeded.fluency20Split) return;
+  st.scores.forEach(x => { if (x && x.std === FL20 && !x.source) x.std = FL20_ADD; });
+  st.missing.forEach(x => { if (x && x.std === FL20) x.std = FL20_ADD; });
+  if (st.active[FL20]) { st.active[FL20_ADD] = true; st.active[FL20_SUB] = true; delete st.active[FL20]; }
+  Object.keys(st.groupPins).forEach(k => {
+    const m = /^(.*)\|2\.OA\.B\.2$/.exec(k);
+    if (!m) return;
+    const to = m[1] + "|" + FL20_ADD;
+    if (!st.groupPins[to]) st.groupPins[to] = st.groupPins[k];
+    delete st.groupPins[k];
+  });
+  Object.keys(st.unitMap).forEach(k => {
+    const cur = st.unitMap[k];
+    if (!Array.isArray(cur) || cur.indexOf(FL20) < 0) return;
+    const R = window.RevealPacing, u = /^math\|(\d+)$/.exec(k);
+    const halves = u && R ? R.unitOregon(Number(u[1])).filter(c => c === FL20_ADD || c === FL20_SUB) : [];
+    const out = [];
+    cur.forEach(c => { (c === FL20 ? (halves.length ? halves : [FL20_ADD, FL20_SUB]) : [c]).forEach(x => { if (out.indexOf(x) < 0) out.push(x); }); });
+    st.unitMap[k] = out;
+  });
+  st.goals.forEach(g => {
+    if (!g) return;
+    g.codes = fl20Codes(g.codes);
+    /* a group goal follows its group, which goes to adding; a class goal
+       keeps 2.OA.B.2 as its name and counts both halves */
+    if (g.group && g.focus && g.focus.kind === "std" && g.focus.key === FL20) { g.focus.key = FL20_ADD; g.codes = (g.codes || []).filter(c => c !== FL20_SUB); }
+  });
+  st.ggroups.forEach(g => { if (g && g.std === FL20) g.std = FL20_ADD; });
+  if (st.yearGoals) st.yearGoals.groups.forEach(g => { if (g) g.codes = fl20Codes(g.codes); });
+  st.seeded.fluency20Split = 1;
 }
 /* The unit -> standards map was left empty because only he knew what his
    units covered. The district's Reveal pacing guide now says, lesson by
@@ -1218,6 +1285,8 @@ function seedBenchmarkUnits(st) {
 function blankState() {
   const active = {};
   CATALOG.forEach(s => { if (s.lvl === 1) active[s.c] = true; });
+  /* v145: fluency within 20 is marked as its two halves */
+  delete active[FL20]; active[FL20_ADD] = true; active[FL20_SUB] = true;
   const y = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;
   return {
     v: 1,
@@ -1328,6 +1397,9 @@ function fullName(st) { return st ? (st.first + " " + st.last).trim() : ""; }
 /* the other names a child goes by (v76): Setup → Roster → Also called */
 function akaOf(st) { return window.SuiteNames ? window.SuiteNames.akaList(st && st.aka) : []; }
 function nickHint(st) { const f = String(st.first || ""); return f.length > 4 ? f.slice(0, 3) : "a nickname"; }
+/* listed in Setup and the mapping pickers: main standards, sub-standards
+   when "Show sub-standards" is on, and any marked `shown` (v145) */
+function stdListed(s) { return !!(S.settings.showSubs || s.lvl === 1 || s.shown); }
 function activeCodes(subject) {
   return CATALOG.filter(s => S.active[s.c] && (!subject || subject === "All" || s.s === subject)).map(s => s.c);
 }
@@ -2984,31 +3056,33 @@ function printStudent() {
 }
 
 /* ============================================================
-   CONFERENCES (v121)
-   One sheet per child for a parent conference: their reading line and
-   each standard marked this term, in a family's words, black on white.
+   CONFERENCES (v121; v146 report card, iReady and home focus)
+   One sheet per child for a parent conference, black on white. v146 (his
+   layout "B"): a section per subject, Reading first, each with the child's
+   latest iReady diagnostic placement, the report card mark for every
+   standard that has one so far (finalStd: the Report card tab's mark, an
+   override if set; a standard with no mark yet is left off), and one area
+   to work on at home with a few steps. Reading also carries the ORF line.
    Nothing is stored: every line is read from what the gradebook and the
-   ORF tool already hold. The mark is the report card's (finalStd: an
-   override if one is set), so the sheet and Synergy never disagree. The
-   arrow compares the two most recent hand-entered marks on that standard
-   up to the term's end (ORF and iReady marks are left out of it); one mark,
-   no arrow. Both subjects always, whatever the Math/ELA/Both switch says:
-   a family hears about both.
+   ORF tool already hold. Both subjects always, whatever the Math/ELA/Both
+   switch says: a family hears about both.
+
+   The home focus (confFocus): the lowest report card mark of 2 or below
+   among the standards that have an area, ties to the area whose iReady
+   domain placed lowest, then catalog order. No mark that low: the lowest
+   iReady domain placed below grade level. Neither: "keep going". Writing,
+   conventions and speaking marks are on the sheet but never chosen: he
+   asked for reading and math. A different focus can be picked per child
+   on screen (UI.confFocus, this session only); paper shows the result.
    ============================================================ */
-const CONF_SUBJECTS = [["Math", "Math"], ["ELA", "Reading, writing, and language"]];
+const CONF_SUBJECTS = [["ELA", "Reading, writing, and language"], ["Math", "Math"]];
 function confTerm() {
   const want = UI.confTerm || studentTermNow();
   return S.terms.find(t => t.id === want) || termOf(want);
 }
 function confWords(code) { return PARENT_WORDS[code] || (byCode[code] ? byCode[code].lbl : code); }
-function confTrend(sid, code, term) {
-  const hand = S.scores.filter(x => x.sid === sid && !x.source && rcParent(x.std) === code && x.date <= term.end)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (hand.length < 2) return "";
-  const a = hand[hand.length - 2].v, b = hand[hand.length - 1].v;
-  return b > a ? "up" : b < a ? "down" : "same";
-}
-/* the standards this child was marked on this term, by subject */
+/* the standards on this child's report card so far, by subject: every
+   standard switched on (a sub-standard as its parent) that has a mark */
 function confStandards(st, term) {
   return CONF_SUBJECTS.map(([subj, label]) => {
     const codes = [];
@@ -3018,14 +3092,125 @@ function confStandards(st, term) {
     const rows = [];
     codes.forEach(c => {
       const f = finalStd(st.id, c, term);
-      /* v143: the mark can reach back over the year (year to date), but the
-         sheet still lists only what was worked on this term */
-      if (!f.over && !stdScores(st.id, c).some(x => x.date >= term.start && x.date <= term.end)) return;
-      if (!f.v) return;
-      rows.push({ code: c, words: confWords(c), v: f.v, trend: confTrend(st.id, c, term) });
+      if (f.v) rows.push({ code: c, words: confWords(c), v: f.v });
     });
     return { subj: subj, label: label, rows: rows };
   });
+}
+/* ---- v146: at home. Each area in a family's words, with things most homes
+   have. Keys are stable (UI.confFocus holds them). ---- */
+const CONF_HOME = {
+  sounds: { s: "ELA", t: "Hearing the sounds in words", steps: [
+    "Say a word like \u201cstamp\u201d and tap a finger for each sound: s-t-a-m-p.",
+    "Play \u201cchange one sound\u201d: cat, bat, bit, bin. Say each new word together.",
+    "Clap the syllables in family names and favorite foods."] },
+  phonics: { s: "ELA", t: "Sounding out new words", steps: [
+    "When your child gets stuck on a word, have them slide through it sound by sound, then reread the sentence.",
+    "Hunt for word parts on signs, boxes, and menus: sh, ch, ee, ai, -ing, -ed.",
+    "Write a few tricky words on sticky notes around the house and read each one when you pass it."] },
+  fluency: { s: "ELA", t: "Reading smoothly", steps: [
+    "Read the same short page three times this week. Notice together how it gets smoother.",
+    "Take turns: you read a page with expression, then your child reads it back the same way.",
+    "Read jokes, poems, or a recipe aloud, like a performer."] },
+  stories: { s: "ELA", t: "Understanding stories", steps: [
+    "After a story, ask: Who was in it? What was the problem? How did it end?",
+    "Stop partway and ask, \u201cWhat do you think will happen next? Why?\u201d",
+    "Have your child retell the story to someone else using first, next, then, and last."] },
+  nonfiction: { s: "ELA", t: "Learning from nonfiction", steps: [
+    "Pick a library book about something your child loves, like animals, trucks, or space.",
+    "Before reading, look at the pictures and headings together and guess what you\u2019ll learn.",
+    "Afterward, ask for two new facts your child learned."] },
+  vocab: { s: "ELA", t: "Learning new words", steps: [
+    "Try one interesting word a day at dinner (enormous, curious, delicious) and look for chances to use it again.",
+    "When a book has a new word, figure out together what it might mean from the sentence and pictures.",
+    "Play \u201csame and opposite\u201d: you say a word, your child gives one that means the same and one that means the opposite."] },
+  readmore: { s: "ELA", t: "Keep reading every day", steps: [
+    "Read together for about 20 minutes a day, and let your child choose the book.",
+    "Talk about it afterward: a favorite part, a new word, a question it raised."] },
+  facts: { s: "Math", t: "Adding and subtracting within 20", steps: [
+    "Practice a few facts in the car or at dinner: \u201cWhat\u2019s 8 + 7? How did you know?\u201d",
+    "Play a card game: each flip two cards and add them. The bigger sum wins.",
+    "Make 10 with small objects: \u201cI have 6. How many more make 10?\u201d"] },
+  story: { s: "Math", t: "Solving story problems", steps: [
+    "Make up story problems from your day: \u201cWe had 14 grapes and ate 6. How many are left?\u201d",
+    "Ask your child to draw a quick picture of the problem before solving it.",
+    "Switch roles: your child makes up a problem for you to solve."] },
+  groups: { s: "Math", t: "Odd and even numbers and equal groups", steps: [
+    "Pair up socks or spoons. If every one has a partner, the number is even.",
+    "Set snacks out in rows (3 rows of 4) and add the rows to find the total."] },
+  placevalue: { s: "Math", t: "Hundreds, tens, and ones", steps: [
+    "Bundle straws, spoons, or crayons into groups of 10, then count by tens and ones.",
+    "Read house numbers and prices: \u201cIn 352, what does the 3 stand for?\u201d",
+    "Count by 5s, 10s, and 100s while walking or doing chores."] },
+  bignum: { s: "Math", t: "Adding and subtracting bigger numbers", steps: [
+    "Add two prices on a menu or receipt: the tens first, then the ones.",
+    "Ask \u201cWhat is 10 more? 10 less? 100 more?\u201d about house or page numbers."] },
+  measure: { s: "Math", t: "Measuring length", steps: [
+    "Measure things around the house with a ruler or tape measure, in inches and centimeters.",
+    "Guess first, then measure: \u201cHow long is the table? How close was your guess?\u201d"] },
+  timemoney: { s: "Math", t: "Telling time and counting money", steps: [
+    "Read a clock with hands together a few times a day, to the nearest 5 minutes.",
+    "Count a handful of coins: start with the quarters, then dimes, nickels, and pennies."] },
+  shapes: { s: "Math", t: "Shapes and equal parts", steps: [
+    "Name shapes you see: how many sides and corners does each have?",
+    "Cut a sandwich or tortilla into halves, thirds, or fourths and name the pieces."] },
+  data: { s: "Math", t: "Reading graphs", steps: [
+    "Make a tally chart at home (favorite fruit, cars that pass by) and talk about which has the most."] },
+  mathtalk: { s: "Math", t: "Math in everyday life", steps: [
+    "Ask \u201cHow many more?\u201d and \u201cHow did you know?\u201d while counting things together.",
+    "Play board or card games that use counting and adding."] }
+};
+/* a report card standard's home area, or null (writing, conventions,
+   speaking: on the sheet, never the focus) */
+const CONF_AREA_RULES = [[/^\d\.RF\.2$/, "sounds"], [/^\d\.RF\.3$/, "phonics"], [/^\d\.RF\.4$/, "fluency"],
+  [/^\d\.RL\./, "stories"], [/^\d\.RI\./, "nonfiction"], [/^\d\.L\.[456]$/, "vocab"],
+  [/^\d\.OA\.B\.2$/, "facts"], [/^\d\.(OA\.A\.1|GM\.C\.8)$/, "story"], [/^\d\.OA\.C\./, "groups"],
+  [/^\d\.NBT\.A\./, "placevalue"], [/^\d\.NBT\.B\./, "bignum"], [/^\d\.GM\.D\./, "timemoney"],
+  [/^\d\.GM\.A\./, "shapes"], [/^\d\.GM\./, "measure"], [/^\d\.DR\./, "data"]];
+function confAreaOf(code) { const r = CONF_AREA_RULES.find(x => x[0].test(code)); return r ? r[1] : null; }
+/* iReady's domains, foundations first, and the home area each points to */
+const CONF_DOMS = {
+  ELA: [["pa", /phonological/, "sounds"], ["phonics", /\bphonics\b/, "phonics"], ["hfw", /high.?frequency/, "phonics"],
+        ["vocab", /vocab/, "vocab"], ["lit", /literature/, "stories"], ["info", /informational/, "nonfiction"]],
+  Math: [["num", /number/, "placevalue"], ["alg", /algebra/, "facts"], ["md", /measurement/, "measure"], ["geo", /geometry/, "shapes"]]
+};
+const CONF_AREA_DOM = { sounds: "pa", phonics: "phonics", stories: "lit", nonfiction: "info", vocab: "vocab",
+  facts: "alg", story: "alg", groups: "alg", placevalue: "num", bignum: "num", measure: "md", timemoney: "md", shapes: "geo", data: "md" };
+/* the child's latest iReady diagnostic in this subject, up to the term's end */
+function confIready(st, term, subj) {
+  return S.iready.filter(r => r.sid === st.id && r.subject === subj && (!r.date || r.date <= term.end))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(-1)[0] || null;
+}
+function confDomRank(rec, subj, dk) {
+  const d = (CONF_DOMS[subj] || []).find(x => x[0] === dk);
+  if (!rec || !d) return null;
+  const k = Object.keys(rec.domains || {}).find(k => d[1].test(normHdr(k)));
+  return k ? placementRank((rec.domains[k] || {}).p) : null;
+}
+function confRankWords(r) {
+  if (r == null) return "";
+  if (r > 0) return "above grade level";
+  if (r === 0) return "on grade level";
+  if (r === -1) return "one grade level below";
+  return Math.abs(r) + " grade levels below";
+}
+/* the area to work on at home: { area, from: "mark" | "iready" | "none" } */
+function confFocus(st, term, subj, rows) {
+  const rec = confIready(st, term, subj);
+  const cand = rows.map((r, i) => ({ v: r.v, i: i, area: confAreaOf(r.code) })).filter(x => x.area && CONF_HOME[x.area].s === subj);
+  const low = cand.length ? Math.min.apply(null, cand.map(x => x.v)) : 9;
+  if (low <= 2) {
+    const rk = x => { const r = confDomRank(rec, subj, CONF_AREA_DOM[x.area]); return r == null ? 0 : r; };
+    const pick = cand.filter(x => x.v === low).sort((a, b) => rk(a) - rk(b) || a.i - b.i)[0];
+    return { area: pick.area, from: "mark" };
+  }
+  let best = null;
+  (CONF_DOMS[subj] || []).forEach(d => {
+    const r = confDomRank(rec, subj, d[0]);
+    if (r != null && r < 0 && (!best || r < best.r)) best = { r: r, area: d[2] };
+  });
+  if (best) return { area: best.area, from: "iready" };
+  return { area: subj === "ELA" ? "readmore" : "mathtalk", from: "none" };
 }
 /* the child's reading plan from the ORF tool: of the ORF students linked to
    this child, the one read most recently */
@@ -3101,33 +3286,52 @@ function confChartSVG(pl) {
   pl.checks.forEach(c => { g += '<circle cx="' + X(c.t).toFixed(1) + '" cy="' + Y(c.y).toFixed(1) + '" r="4" fill="#000"><title>' + window.SuiteOrf.goals.fmtShort(new Date(c.t)) + ": " + c.y + "</title></circle>"; });
   return g + "</svg>";
 }
-const CONF_ARROW = { up: ["\u2191", "up from the mark before"], down: ["\u2193", "down from the mark before"], same: ["\u2192", "the same as the mark before"] };
-function confSheetHTML(st, term, now) {
+function confFocusKey(st, subj) { return st.id + "|" + subj; }
+function confSubjectHTML(st, term, now, g, paper) {
+  const rec = confIready(st, term, g.subj);
+  let h = '<section class="cf-subj" data-subj="' + g.subj + '"><h3 class="cf-subjhead">' + esc(g.label) + "</h3>";
+  if (rec) {
+    const words = confRankWords(placementRank(rec.placement)) || String(rec.placement || "").trim();
+    if (words) h += '<p class="cf-ir">iReady diagnostic' + (rec.date ? ", " + esc(fmtShort(rec.date)) : "") + ": " + esc(words) + "</p>";
+  }
+  if (g.subj === "ELA") {
+    const pl = confReading(st, now);
+    if (pl) {
+      h += '<div class="cf-reading"><h4 class="cf-minor">Reading fluency</h4><p class="cf-hint">Words read correctly in one minute</p>' + confChartSVG(pl) +
+        '<p class="cf-key">Dots: each reading check. Dashed line: the steady path to the goal. Filled square: the goal' +
+        (pl.winterDue && pl.winterGoal != null ? "; open square: the mid-year checkpoint" : "") + ".</p>" +
+        '<p class="cf-says">' + esc(confReadingWords(st, pl, now)) + "</p></div>";
+    }
+  }
+  if (g.rows.length) {
+    h += '<table class="cf-table"><thead><tr><th>On the report card so far</th><th class="cf-c">Mark</th></tr></thead><tbody>' +
+      g.rows.map(r => '<tr data-std="' + esc(r.code) + '"><td>' + esc(r.words) + '</td><td class="cf-c"><span class="cf-mark">' + r.v + "</span></td></tr>").join("") +
+      "</tbody></table>";
+  } else h += '<p class="cf-none">No report card marks yet.</p>';
+  const auto = confFocus(st, term, g.subj, g.rows), key = confFocusKey(st, g.subj);
+  const chosen = UI.confFocus && UI.confFocus[key] && CONF_HOME[UI.confFocus[key]] && CONF_HOME[UI.confFocus[key]].s === g.subj ? UI.confFocus[key] : "";
+  const area = chosen || auto.area, a = CONF_HOME[area];
+  h += '<div class="cf-home" data-area="' + area + '"><div class="cf-homehead">Focus at home: ' + esc(a.t) + "</div><ul>" +
+    a.steps.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></div>";
+  if (!paper) {
+    const why = { mark: "lowest report card mark", iready: "lowest iReady area", none: "no area below grade level" }[auto.from];
+    h += '<label class="cf-pick noprint">Focus<select data-cf-focus="' + esc(key) + '">' +
+      '<option value="">Picked for you: ' + esc(CONF_HOME[auto.area].t) + " (" + why + ")</option>" +
+      Object.keys(CONF_HOME).filter(k => CONF_HOME[k].s === g.subj && k !== auto.area).map(k =>
+        '<option value="' + k + '"' + (k === chosen ? " selected" : "") + ">" + esc(CONF_HOME[k].t) + "</option>").join("") + "</select></label>";
+  }
+  return h + "</section>";
+}
+function confSheetHTML(st, term, now, paper) {
   const teacher = String(S.settings.teacher || "").trim();
   let h = '<article class="confsheet" data-sid="' + esc(st.id) + '">' +
     '<header class="cf-head"><div><h2 class="cf-name">' + esc(fullName(st)) + "</h2>" +
     '<div class="cf-sub">Grade 2 \u00b7 ' + esc(term.name) + " conference</div></div>" +
     '<div class="cf-meta">' + (teacher ? esc(teacher) + "<br>" : "") + esc(window.SuiteOrf ? window.SuiteOrf.goals.fmtLong(now) + ", " + now.getFullYear() : todayISO()) + "</div></header>";
-  const pl = confReading(st, now);
-  if (pl) {
-    h += '<section class="cf-reading"><h3>Reading fluency</h3><p class="cf-hint">Words read correctly in one minute</p>' + confChartSVG(pl) +
-      '<p class="cf-key">Dots: each reading check. Dashed line: the steady path to the goal. Filled square: the goal' +
-      (pl.winterDue && pl.winterGoal != null ? "; open square: the mid-year checkpoint" : "") + ".</p>" +
-      '<p class="cf-says">' + esc(confReadingWords(st, pl, now)) + "</p></section>";
-  }
-  const groups = confStandards(st, term).filter(g => g.rows.length);
-  h += '<section class="cf-stds"><h3>What we\u2019re learning, and how it\u2019s going</h3><p class="cf-hint">Standards assessed so far this term</p>';
-  if (!groups.length) h += '<p class="cf-none">No standards marked yet this term.</p>';
-  groups.forEach(g => {
-    h += '<table class="cf-table"><thead><tr><th>' + esc(g.label) + '</th><th class="cf-c">Mark</th><th class="cf-c"><span class="cf-sr">Trend</span></th></tr></thead><tbody>' +
-      g.rows.map(r => {
-        const a = CONF_ARROW[r.trend];
-        return '<tr data-std="' + esc(r.code) + '"><td>' + esc(r.words) + '</td><td class="cf-c"><span class="cf-mark">' + r.v + "</span></td>" +
-          '<td class="cf-c cf-arrow"' + (a ? ' title="' + a[1] + '"><span aria-hidden="true">' + a[0] + '</span><span class="cf-sr">' + a[1] + "</span>" : ">") + "</td></tr>";
-      }).join("") + "</tbody></table>";
-  });
-  if (groups.length) h += '<p class="cf-key">Marks run from 1 to 4; 3 means meeting the end-of-year grade 2 standard. \u2191 \u2193 \u2192 compare the two most recent marks.</p>';
-  return h + "</section></article>";
+  const groups = confStandards(st, term);
+  groups.forEach(g => { h += confSubjectHTML(st, term, now, g, paper); });
+  if (groups.some(g => g.rows.length)) h += '<p class="cf-key">Marks run from 1 to 4; 3 means meeting the end-of-year grade 2 standard. Each is the report card mark from the grades so far.</p>';
+  return h + "</article>";
 }
 function confRoster() {
   const all = sortedStudents();
@@ -3144,16 +3348,23 @@ function renderConferences() {
     '<label class="fld">Student<select id="cf-who"><option value="all">Whole class</option>' +
     roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.confWho ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
     '<span style="flex:1"></span><button class="btn primary" id="cf-print">' + (UI.confWho && UI.confWho !== "all" ? "Print this sheet" : "Print all sheets") + "</button></div>" +
-    '<p class="hint" style="margin-top:8px">One page per child, black and white. Math and ELA both, whatever the subject switch says. Each mark is the term mark (Setup \u2192 Term marks).</p></div>' +
+    '<p class="hint" style="margin-top:8px">One page per child, black and white. Reading and math both, whatever the subject switch says: the latest iReady placement, the report card mark for each standard with one so far (Setup \u2192 Term marks), and one thing to work on at home. Change a child\u2019s home focus under it before printing.</p></div>' +
     '<div class="cf-preview">' + confRoster().map(st => confSheetHTML(st, term, now)).join("") + "</div></div>";
   el.innerHTML = h;
   document.getElementById("cf-term").onchange = e => { UI.confTerm = e.target.value; renderConferences(); };
   document.getElementById("cf-who").onchange = e => { UI.confWho = e.target.value; renderConferences(); };
   document.getElementById("cf-print").onclick = printConferences;
+  el.querySelectorAll("select[data-cf-focus]").forEach(sel => {
+    sel.onchange = () => {
+      UI.confFocus = UI.confFocus || {};
+      if (sel.value) UI.confFocus[sel.dataset.cfFocus] = sel.value; else delete UI.confFocus[sel.dataset.cfFocus];
+      renderConferences();
+    };
+  });
 }
 function printConferences() {
   const term = confTerm(), now = new Date();
-  document.getElementById("printsheet").innerHTML = confRoster().map(st => confSheetHTML(st, term, now)).join("");
+  document.getElementById("printsheet").innerHTML = confRoster().map(st => confSheetHTML(st, term, now, true)).join("");
   /* a toast is fixed, so it would print on every child's page */
   const t = document.getElementById("toast");
   if (t) { clearTimeout(toastT); t.classList.remove("show"); t.style.display = "none"; }
@@ -4442,7 +4653,7 @@ function ygFromFile(o) {
   if (!o || o.kind !== "classroom-suite/year-goals" || !Array.isArray(o.groups) || !o.groups.length) return null;
   const groups = o.groups.map((g, i) => ({
     id: uid(), n: Number(g.n) || i + 1, name: String(g.name || "Group " + (i + 1)), goal: String(g.goal || ""), need: String(g.need || ""),
-    codes: (Array.isArray(g.codes) ? g.codes : []).filter(c => byCode[c]), bar: Number(g.bar) === 4 ? 4 : 3,
+    codes: (fl20Codes(Array.isArray(g.codes) ? g.codes : []) || []).filter(c => byCode[c]), bar: Number(g.bar) === 4 ? 4 : 3,
     members: (Array.isArray(g.students) ? g.students : []).map(x => typeof x === "string" ? { name: x } : { name: String(x.name || ""), start: x.start && typeof x.start === "object" ? x.start : undefined })
       .filter(m => m.name)
   })).filter(g => g.codes.length && g.members.length);
@@ -4634,7 +4845,7 @@ function renderSetup() {
     const doms = [];
     CATALOG.filter(s => s.s === subj).forEach(s => { if (!doms.includes(s.d)) doms.push(s.d); });
     doms.forEach(d => {
-      const list = CATALOG.filter(s => s.s === subj && s.d === d && (S.settings.showSubs || s.lvl === 1));
+      const list = CATALOG.filter(s => s.s === subj && s.d === d && stdListed(s));
       html += '<div style="margin:8px 0"><div class="tiny muted" style="font-weight:640;margin-bottom:4px">' + esc(d) +
         ' <button class="btn sm ghost" onclick="toggleDomain(\'' + esc(subj) + "','" + esc(d) + "',true)\">all on</button>" +
         '<button class="btn sm ghost" onclick="toggleDomain(\'' + esc(subj) + "','" + esc(d) + "',false)\">all off</button></div>";
@@ -4784,7 +4995,7 @@ function removeStudent(id) {
   save(); renderSetup();
 }
 function toggleDomain(subj, dom, on) {
-  CATALOG.filter(s => s.s === subj && s.d === dom && (S.settings.showSubs || s.lvl === 1)).forEach(s => S.active[s.c] = on);
+  CATALOG.filter(s => s.s === subj && s.d === dom && stdListed(s)).forEach(s => S.active[s.c] = on);
   save(); renderSetup();
 }
 function rebuildTerms() {
@@ -6705,7 +6916,7 @@ function ireadyMappingCardHTML() {
       '<div class="row"><strong class="small" style="flex:1;min-width:170px">' + esc(d.label) + "</strong>" +
       "<span>" + (targets.length ? targets.map(t => codeHTML(t)).join(" ") : '<span class="tiny muted">not mapped \u2014 ignored</span>') + "</span></div>" +
       '<details style="margin-top:6px"><summary class="tiny muted" style="cursor:pointer">change</summary><div style="columns:2;margin-top:6px">' +
-      CATALOG.filter(x => x.s === subj && (S.settings.showSubs || x.lvl === 1)).map(x =>
+      CATALOG.filter(x => x.s === subj && stdListed(x)).map(x =>
         '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-irdom="' + esc(d.key) + '" data-code="' + x.c + '"' +
         (targets.indexOf(x.c) >= 0 ? " checked" : "") + "><span>" + esc(x.c + " " + x.lbl) + "</span></label>").join("") +
       "</div></details></div>";
@@ -7425,7 +7636,7 @@ function unitMapHTML() {
           ? codes.map(c => codeHTML(c)).join(" ")
           : '<span class="tiny muted">no standards attached</span>') + "</span></div>" +
         '<details style="margin-top:6px"><summary class="tiny muted" style="cursor:pointer">choose standards</summary><div style="columns:2;margin-top:6px">' +
-        CATALOG.filter(x => x.s === cat && (S.settings.showSubs || x.lvl === 1)).map(x =>
+        CATALOG.filter(x => x.s === cat && stdListed(x)).map(x =>
           '<label class="row tiny" style="gap:6px;padding:1px 0"><input type="checkbox" data-usub="' + esc(sb.id) + '" data-unit="' + u + '" data-code="' + x.c + '"' +
           (codes.indexOf(x.c) >= 0 ? " checked" : "") + "><span>" + esc(dispCode(x.c) + " " + x.lbl) + "</span></label>").join("") +
         "</div></details></div>";
