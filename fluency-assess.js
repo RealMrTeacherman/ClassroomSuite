@@ -1,5 +1,5 @@
 /* ============================================================
-   fluency-assess.js (v90)
+   fluency-assess.js
    Injected into the running-records tool, which is the teacher's own file.
    Like every other addition to it, this comes off by deleting its one
    <script> tag. The tool's code lives in a closure, so nothing here reads
@@ -273,9 +273,7 @@
     return out;
   }
 
-  /* Taken as Save is pressed, before the tool's own handler clears the
-     passage; kept only if the tool did save (its results card is gone
-     afterwards). If it refused ("Pick a student first") the notes stay. */
+  /* If it refused ("Pick a student first") the notes stay. */
   var pending = null, candidate = null;
   function onSaveClick(btn) {
     var sel = $("#selStudent");

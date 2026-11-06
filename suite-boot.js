@@ -10,7 +10,7 @@
    The planner is protected, so its lastTaught() is wrapped rather than
    edited. It is a top-level function declaration, so it lives on window and
    every caller that reaches it by name — suggest(), provenance(), and the
-   sub plan's stale-text warning — gets this one (v54). */
+   sub plan's stale-text warning — gets this one. */
 (function () {
   if (typeof window.lastTaught !== "function" || typeof window.sortedDayKeys !== "function") return;
   if (window.lastTaught.__skipsSub) return;
@@ -71,7 +71,7 @@
   window.__suiteUnbake = unbake;
 
   /* Wait until the planner has loaded its subjects (S starts as an empty
-     shell) rather than trust script timing. v125: the planner draws for the
+     shell) rather than trust script timing. the planner draws for the
      first time only after this file has run, so the day is never drawn from
      the old answer and there is nothing to redraw. */
   var tries = 0;
@@ -82,15 +82,13 @@
   })();
 })();
 
-/* ---- v51's reordering of the planner's cards was removed in v117: the Week
-   view sorts its subjects by the day's schedule itself (inDayOrder), and the
-   Today view is laid out by planner/day-view.js. ---- */
+
 
 /* ---- a fresh install gets the current schedule on its first load ----
    See `fresh` in suite-migrate.js. By the time this deferred file runs, the
    planner has booted and written its defaults, so the fixes can run on them
    now. If they change anything the planner is showing stale data, so reload
-   once; the second load is not fresh, so this cannot loop (v51). */
+   once; the second load is not fresh, so this cannot loop. */
 (function () {
   var M = window.SuiteMigrate;
   if (!M || !M.fresh || typeof M.runAll !== "function") return;
@@ -108,7 +106,7 @@
   })();
 })();
 
-/* ---- v80: the open planner never writes over a pull ----
+/* ---- the open planner never writes over a pull ----
    Reported: saved changes in the planner kept disappearing.
 
    The planner reads its four keys once, at boot, and after that every save
@@ -182,11 +180,11 @@
       if (typeof window.invalidateDayCache === "function") window.invalidateDayCache();
       /* the saved day on screen is edited through `draft`; give it the
          other computer's fields too, or the next keystroke reverts them.
-         v124: and a day open here unsaved that the other device has saved
+         and a day open here unsaved that the other device has saved
          becomes that saved day, so edits here go to it, not to a draft */
       if (d && dk && isObj(mem[dk])) { adopt(d, JSON.parse(JSON.stringify(mem[dk]))); d.__key = dk; }
     }
-    /* v124: an unsaved day (a draft) on screen takes the other device's
+    /* an unsaved day (a draft) on screen takes the other device's
        edits the same way. Before, only saved days did: the screen kept this
        device's copy and the next tap stashed it back over the pull and sent
        it, so a day had to be saved before the other device's edits showed.
@@ -203,7 +201,7 @@
     if (NAMES[k] && isObj(val)) { try { fold(k, val); } catch (e) { } }
     var p = orig.apply(this, arguments);
     if (NAMES[k]) base[k] = read(k);    /* the device path writes before its first await */
-    /* v81: persist() warns when days fail to save; settings, drafts and
+    /* persist() warns when days fail to save; settings, drafts and
        the planner's own record failed in silence */
     if (k !== "lp:days:v2" && p && typeof p.then === "function") p.then(function (okd) {
       if (okd === false && typeof window.toast === "function") window.toast("Couldn\u2019t save \u2014 browser storage may be full. Export a backup from the sync menu.");
@@ -233,9 +231,9 @@
   window.SuitePlannerLive = { absorb: absorb, fold: fold, get base() { return base; } };
 })();
 
-/* ---- v81: the ORF tool's writes merge with what arrived underneath ----
+/* ---- the ORF tool's writes merge with what arrived underneath ----
    fluency/index.html keeps running-records-v1 in memory and writes the whole
-   copy on every change, like the planner did (v80); the write guard in
+   copy on every change, like the planner did; the write guard in
    suite-sync.js keeps a pulled check or student from being written over.
    (v111: the tool now refreshes its memory itself, FluencyLive.absorb.) Its base starts as what
    the tool read at boot, which is what is stored now. */
@@ -244,11 +242,8 @@
   window.SuiteSync.adopted("running-records-v1");
 })();
 
-/* ---- v83: the ORF tool's "Restore from backup" can be undone ----
-   The tool replaces everything it holds with the backup, and sync then
-   carries that to every computer: the checks recorded since the backup was
-   saved are gone everywhere. The gradebook and the sync file both have an
-   undo; this was the one replace in the suite without one.
+/* The gradebook's restore
+   has an undo; this was the one replace in the suite without one.
 
    Just before the tool's own handler runs (a capture listener on the
    document fires before the input's), what is stored now is kept. If the
@@ -343,10 +338,9 @@
   } catch (e) { }
 })();
 
-/* ---- v89's removal of the planner's Team tab was itself removed in v116: the
-   tab and its sharing are gone from the planner. ---- */
 
-/* ---- v88: the planner's district calendar, for the suite calendar ----
+
+/* ---- the planner's district calendar, for the suite calendar ----
    The planner carries Creswell's calendar in its own file (YEAR: first and
    last day, and every day school is closed, grading days among them). That
    file is the teacher's own and is not edited, and the gradebook cannot
@@ -367,9 +361,7 @@
   } catch (e) { }
 })();
 
-/* (v87's block that hid the ORF tool's Growth, Reports, Gradebook and
-   Students tabs and moved its Records card onto Assess is gone: since v132
-   the page has only Assess and Passages, with Saved checks on Assess.) */
+
 
 /* Starts sync and the service worker on the tools that have no boot code of
    their own. The gradebook does both itself and does not load this file.
@@ -418,22 +410,22 @@
     : location.pathname.indexOf("/groups") >= 0 ? []
     : ["running-records-v1"];
 
-  /* v87: the gradebook, open in another tab, puts its roster on the ORF
+  /* the gradebook, open in another tab, puts its roster on the ORF
      tool's (see pushRosterToOrf there). The tool reads storage only when it
      starts, so say so rather than let a new child be missing from Assess. */
   if (mine.indexOf("running-records-v1") >= 0) {
     window.addEventListener("storage", function (e) {
       if (e.key !== "running-records-v1" || e.storageArea !== window.localStorage) return;
-      if (window.FluencyLive && window.FluencyLive.absorb(["running-records-v1"])) return;   /* v111: shown at once */
+      if (window.FluencyLive && window.FluencyLive.absorb(["running-records-v1"])) return;   /* shown at once */
       banner("The class list or checks changed in another tab.", "Reload", function () { location.reload(); });
     });
   }
   window.SuiteSync.onChanged(function (changed) {
     if (!changed.some(function (k) { return mine.indexOf(k) >= 0; })) return;
-    /* v80: the planner folds a pull into what it is showing; the banner
+    /* the planner folds a pull into what it is showing; the banner
        is only for when it cannot redraw yet (see above) */
     if (window.SuitePlannerLive && window.SuitePlannerLive.absorb(changed)) return;
-    if (window.FluencyLive && window.FluencyLive.absorb(changed)) return;   /* v111: the ORF tool redraws in place */
+    if (window.FluencyLive && window.FluencyLive.absorb(changed)) return;   /* the ORF tool redraws in place */
     banner("Newer data arrived from another machine.", "Reload", function () { location.reload(); });
   });
 
@@ -445,7 +437,7 @@
 })();
 
 /* ---- v79's renaming (Pocket Chart, Running Records) and its Team-note fix were
-   removed in v116: the names are right in the two files themselves. ---- */
+   removed in the names are right in the two files themselves. ---- */
 
 /* ---- v93/v98 (moved, v112): the Today view laid out as the day now lives in
    planner/day-view.js, called by the planner itself. ---- */

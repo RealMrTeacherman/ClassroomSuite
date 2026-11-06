@@ -36,7 +36,7 @@
       watch: [], specials: {}, lessons: {},
       blocks: [
         { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "MTRF", subject: "", detail: "", emergency: "" },
-        /* v136: Reading in four parts again (v120 had merged the first two) */
+        /* Reading in four parts again (v120 had merged the first two) */
         { start: "8:15", end: "8:30", title: "Phonics", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "8:30", end: "8:50", title: "Reading small groups", days: "MTRF", subject: "reading", detail: "", emergency: "" },
         { start: "8:50", end: "9:10", title: "Whole-group comprehension", days: "MTRF", subject: "reading", detail: "", emergency: "" },
@@ -72,7 +72,7 @@
            have no blocks at all, so a Wednesday sub plan printed an empty
            schedule. */
         { start: "8:00", end: "8:15", title: "Arrival & Morning Meeting", days: "W", subject: "", detail: "", emergency: "" },
-        { start: "8:15", end: "9:00", title: "Reading", days: "W", subject: "reading", detail: "", emergency: "" },   /* v120: ECRI starts it */
+        { start: "8:15", end: "9:00", title: "Reading", days: "W", subject: "reading", detail: "", emergency: "" },   /* ECRI starts it */
         { start: "9:00", end: "9:15", title: "Structured break", days: "W", subject: "", detail: "", emergency: "" },
         { start: "9:15", end: "9:45", title: "Math", days: "W", subject: "math", detail: "", emergency: "" },
         { start: "9:45", end: "10:30", title: "Assembly / Enrichment / World Wednesday", days: "W", subject: "enrich", detail: "", emergency: "" },
@@ -88,7 +88,7 @@
   function read() {
     try {
       var raw = localStorage.getItem(KEY);
-      /* v81: memory matches storage from here; writes merge after this */
+      /* memory matches storage from here; writes merge after this */
       if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);
       if (raw) return normalise(JSON.parse(raw));
     } catch (e) { }
@@ -106,7 +106,7 @@
   function write(v) {
     try { localStorage.setItem(KEY, JSON.stringify(v)); }
     catch (e) {
-      /* v81: this failed in silence; say so, as every other tool does */
+      /* this failed in silence; say so, as every other tool does */
       if (typeof window.toast === "function") window.toast("Couldn\u2019t save the sub plan notes \u2014 browser storage may be full");
     }
   }
@@ -117,7 +117,7 @@
     if (Array.isArray(src.watch)) b.watch = src.watch.filter(function (w) { return w && w.name; })
       .map(function (w) { return { name: String(w.name), note: String(w.note || "") }; });
     if (src.specials && typeof src.specials === "object") b.specials = src.specials;
-    /* v94: what the sub needs on each of the planner's blocks, by the
+    /* what the sub needs on each of the planner's blocks, by the
        planner block's start and name; and old block text not yet placed */
     if (src.details && typeof src.details === "object") {
       b.details = {};
@@ -132,7 +132,7 @@
         return { title: String(x.title || ""), start: String(x.start || ""), end: String(x.end || ""), days: String(x.days || ""),
           subject: String(x.subject || ""), detail: String(x.detail || ""), emergency: String(x.emergency || ""), partly: !!x.partly };
       });
-    /* v136: a day's learning targets and materials as he edited them */
+    /* a day's learning targets and materials as he edited them */
     if (src.lessons && typeof src.lessons === "object") {
       Object.keys(src.lessons).forEach(function (k) {
         var x = src.lessons[k];
@@ -283,14 +283,14 @@
       .slice().sort(function (a, b) { return clock(a.start) - clock(b.start); });
   }
 
-  /* ---------- v94: the day's blocks are the planner's ----------
+  /* ---------- the day's blocks are the planner's ----------
      The sub plan kept its own list of blocks (times, names, days, subject),
      typed separately from the planner's schedule, and the two drifted. Now
      the planner's schedule (Settings) is the one list: times, names, days,
      subject and the standing note come from it. What only a sub needs, "What
      to do" and "If you cannot find it", is kept here in S.details, on the
      planner block by its start and name ("10:15|Math core lesson"), the same
-     key as the planner's notes for one day (v93). Written once, it shows on
+     key as the planner's notes for one day. Written once, it shows on
      every day that block runs. The old list stays in S.blocks: it is what a
      device with no planner schedule still prints. */
   function bkey(t, l) { return String(t || "") + "|" + String(l || ""); }
@@ -383,7 +383,7 @@
        lesson by name, with its "I can" targets and materials, which is
        what a sub needs; "Unit 2 · Lesson 3" alone is not. */
     /* A day stored as a probe or a test (it has a `k`) is named from the
-       guide even with the guide switched off since (v61). */
+       guide even with the guide switched off since. */
     var RP = window.RevealPacing, step = RP && (RP.on(sb) || (sb && sb.id === "math" && p.k)) ? RP.find(p) : null;
     var BS = window.BenchmarkScope, bw = BS && BS.on(sb) ? BS.week(p) : null;
     if (step) {
@@ -414,7 +414,7 @@
       free: free
     };
   }
-  /* v136: the learning targets and materials are the curriculum's, and he
+  /* the learning targets and materials are the curriculum's, and he
      can change them for one day in the panel ("This day's lessons"). The
      edit is kept by day and subject, with the lesson it was made for: if
      the day's lesson changes in the planner, the edit no longer applies and
@@ -431,7 +431,7 @@
     if (o) { l.baked = { targets: l.targets, materials: l.materials }; l.targets = o.targets.slice(); l.materials = o.materials.slice(); l.edited = true; }
     return l;
   }
-  /* v136: a subject with several blocks (Reading: Phonics, small groups,
+  /* a subject with several blocks (Reading: Phonics, small groups,
      whole-group comprehension, small groups) has one where its lesson is
      taught. The lesson, its targets and its materials print there, not on
      whichever block comes first: the comprehension lesson printed at 8:15,
@@ -465,7 +465,7 @@
     var rec = lp.days[iso];
     return rec && Array.isArray(rec.flags) ? rec.flags.filter(function (f) { return f && f !== "Sub"; }) : [];
   }
-  /* v93: a note on one block for this day only, written on its row in the
+  /* a note on one block for this day only, written on its row in the
      planner's Today view: { "9:30|Recess": "Indoor recess, games in the bin" }.
      The key is the planner's block (start time and name), which need not
      match a block here, so they print together, in time order, by name. */
@@ -487,7 +487,7 @@
     var onDay = {};
     blocksFor(iso).forEach(function (b) { if (b.key) onDay[b.key] = true; });
     var note = dayNote(iso), flags = dayFlags(iso), h = "";
-    /* v94: a note on a block prints on that block; one whose block is gone prints here */
+    
     var blk = dayBlockNotes(iso).filter(function (x) { return !onDay[bkey(x.t, x.l)]; });
     if (!note && !flags.length && !blk.length) return "";
     if (flags.length) h += "<p><b>Heads up today:</b> " + esc(flags.join(" · ")) + "</p>";
@@ -521,7 +521,7 @@
   function specialFor(iso, title) {
     var pair = S.specials[dayKeyOf(iso)];
     if (!pair) return "";
-    /* v94: "Specials 2 \u2014 PE", from the planner, already says what it is */
+    /* "Specials 2 \u2014 PE", from the planner, already says what it is */
     if (/\u2014|\s-\s/.test(String(title || ""))) return "";
     if (/specials\s*1/i.test(title)) return pair[0] || "";
     if (/specials\s*2/i.test(title)) return pair[1] || "";
@@ -562,7 +562,7 @@
     "#subprint .notes{border:1px solid #C9D1D8;border-radius:5pt;height:150pt;margin-top:6pt}" +
     "#subprint .muted{color:#55636E}";
 
-  /* ---------- v89: groups and Walk to WIN, from Small Groups ----------
+  /* ---------- groups and Walk to WIN, from Small Groups ----------
      A sub plan says which math group each child is in and which station
      each group starts at (the Small Groups board, suite:groups:v1), and on
      a Walk to WIN day where each of our children goes and who comes to our
@@ -696,7 +696,7 @@
     gb.forEach(function (b, bi) {
       var l = lessonOut(iso, b.subject), sp = specialFor(iso, b.title);
       var off = !!(l && !l.taught);
-      /* v136: the lesson on its own block; the subject's other blocks
+      /* the lesson on its own block; the subject's other blocks
          (phonics, small groups) say what they are instead */
       var cell = off ? '<span class="muted">Not happening today</span>'
         : l && l.where && ghome[b.subject] === bi ? esc(l.label + " · " + l.where)
@@ -730,8 +730,7 @@
       return (gb.settings && gb.settings.teacher) || "";
     } catch (e) { return ""; }
   }
-  /* Printing a sub plan marks that day with the planner's own "Sub" flag
-     (v54). The planner's open-text subjects then skip it when they carry
+  /* Printing a sub plan marks that day with the planner's own "Sub" flag. The planner's open-text subjects then skip it when they carry
      text forward, so instructions written for the sub never become the next
      day's "What we did" or its "after …" line. The flag shows on the day's
      Notes & schedule changes chips and can be tapped off there (an
@@ -770,7 +769,7 @@
   function doPrint(kind, iso) {
     if (!hasContent()) { alert("Add your standing notes first — the editor is on this panel."); return; }
     var box = document.getElementById("subprint");
-    /* v89: Small Groups' code is loaded when the planner opens; on the rare
+    /* Small Groups' code is loaded when the planner opens; on the rare
        print before it has arrived, wait for it rather than print without it */
     withWin(function () {
       box.innerHTML = (kind === "glance" ? buildGlance(iso, teacherName()) : buildFull(iso, teacherName()));
@@ -796,7 +795,7 @@
       "box-shadow:0 2px 10px rgba(16,24,32,.12);cursor:pointer;color:#14202A;" +
       "font:600 13px 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}" +
       "#subbtn:hover{border-color:#10655C;color:#10655C}" +
-      /* v149: on a phone it sat above the switcher, a second floating layer
+      /* on a phone it sat above the switcher, a second floating layer
          over the cards' right edge (+ and Skip). It docks in the switcher's
          band now, as a round icon in the free bottom-left corner. */
       "@media (max-width:520px){#subbtn{right:auto;left:14px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;padding:0;justify-content:center;font-size:17px}" +
@@ -828,7 +827,7 @@
     document.head.appendChild(s);
   }
 
-  /* v94: the Blocks editor when the planner has a schedule. Times, names and
+  /* the Blocks editor when the planner has a schedule. Times, names and
      standing notes are the planner's and are shown, not edited; the two sub
      fields are edited here, once per block. */
   var editDay = null;
@@ -883,7 +882,7 @@
     });
     return h;
   }
-  /* v136: this day's lessons, their targets and materials editable for the
+  /* this day's lessons, their targets and materials editable for the
      day. Filled with what will print (the curriculum's, or his edit). */
   function lessonsHTML(blocks) {
     var seen = {}, rows = [];
@@ -1051,7 +1050,7 @@
     panel.querySelectorAll("[data-rmw]").forEach(function (el) {
       el.onclick = function () { S.watch.splice(+el.dataset.rmw, 1); persist(); paint(); };
     });
-    /* v94: the planner-schedule editor */
+    /* the planner-schedule editor */
     panel.querySelectorAll("[data-d]").forEach(function (el) {
       el.onchange = function () {
         var k = el.dataset.k, f = el.dataset.d;
@@ -1137,7 +1136,7 @@
       rd.onload = function () {
         try {
           var obj = JSON.parse(rd.result);
-          /* v136: a standing-notes file says nothing about a day's lesson
+          /* a standing-notes file says nothing about a day's lesson
              edits unless it carries some; keep this browser's */
           var keep = S.lessons, src = obj.sub || obj;
           S = normalise(src);
@@ -1157,7 +1156,7 @@
        draft that had not been saved, produced a confident-looking plan for
        the wrong day. */
     flushPlanner();
-    /* v81: the standing notes were read once, when the planner opened, so
+    /* the standing notes were read once, when the planner opened, so
        notes changed on the other computer since then were shown stale and
        the next edit here wrote the stale copy back over them. Read them
        fresh each time the panel opens. */

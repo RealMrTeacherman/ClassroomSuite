@@ -205,7 +205,7 @@ header::after{
 
 /* ---------- save bar ---------- */
 .savebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 0}
-/* v118: the day sidebar (a wide screen only; sideLayout builds it) */
+/* the day sidebar (a wide screen only; sideLayout builds it) */
 .todaygrid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:0 28px;align-items:start}
 .tmain{min-width:0}
 .tside{position:sticky;top:16px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;padding:2px 2px 6px;margin-top:2px}
@@ -236,7 +236,7 @@ html:not([data-suite-theme]) .tside .panel.daynotes{flex-direction:column;align-
 html:not([data-suite-theme]) .tside .panel.daynotes textarea.notes{flex:none;width:100%;box-sizing:border-box}
 html:not([data-suite-theme]) .tside .panel.daynotes .flags{flex-wrap:wrap;overflow:visible;gap:6px}
 html:not([data-suite-theme]) .tside .panel.daynotes .flag{min-height:30px;padding:0 10px;font-size:12px}
-/* v119: on a very wide screen (1700px and up) the lessons column is wide
+/* on a very wide screen (1700px and up) the lessons column is wide
    enough that one column of text runs too long to read, so each lesson card
    uses two: the stepper and the lesson on the left, the notes box down the
    right, the card's full height. The sidebar stays 330px. */
@@ -294,8 +294,7 @@ textarea.notes:focus{
 .flag:hover{border-color:var(--line-2)}
 .flag[aria-pressed="true"]{background:var(--teal);color:#FFF6E8;border-color:var(--teal)}
 
-/* ---------- list rows: the school year's closures in Settings (v125: the
-   Today timeline that also used them is gone) ---------- */
+
 .tl{list-style:none;margin:0;padding:0}
 .tl li{display:flex;gap:12px;padding:9px 0;border-top:1.5px solid var(--line)}
 .tl li:first-child{border-top:none}
@@ -319,7 +318,7 @@ textarea.notes:focus{
   text-transform:uppercase;letter-spacing:.1em}
 .wday .wd{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:9px}
 .wrow{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:3px 0;min-width:0}
-/* v149: an unplanned day shows what it would get, quieter than a saved one */
+/* an unplanned day shows what it would get, quieter than a saved one */
 .wsugg{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
 .wrow.sugg b{font-weight:500;color:var(--ink-3)}
 .wrow.sugg .dot{opacity:.55}
@@ -366,7 +365,7 @@ textarea.notes:focus{
   box-shadow:0 8px 26px rgba(44,30,21,.3);
 }
 .toast.show{transform:translate(-50%,0);opacity:1}
-/* v149: a toast that can take something back */
+/* a toast that can take something back */
 .toast.act{pointer-events:auto}
 .toast .tundo{margin-left:14px;background:none;border:0;padding:4px 2px;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 
@@ -438,7 +437,7 @@ textarea.notes:focus{
 .field input[type=text]{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--shell)}
 .field small{font-size:11.5px;color:var(--ink-3)}
 
-/* ---------- v140: lesson materials (planner/materials.js) ----------
+/* ---------- lesson materials (planner/materials.js) ----------
    Quiet: a row of small chips under the notes, a type tag and a name. */
 .mats{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
 .mats:empty,.sub.skip .mats{display:none}
@@ -556,14 +555,13 @@ const K = { settings:'lp:settings:v2', days:'lp:days:v2', me:'lp:me:v1', pending
 
 
 /* lp:me:v1, synced. Kept for its name, which Walk to WIN reads as a hint;
-   v140: the planner's five looks went (none could draw since v92), and with
+   the planner's five looks went (none could draw since v92), and with
    them `theme`. A theme still in an old copy is ignored. */
 let ME = {id:'', name:'', share:false, code:''};
 
 function newId(){ return 'u'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
 
-/* v116: the browser's own storage. (A second path for Claude's artifact
-   storage, used only by the retired team sharing, was removed.) */
+/* the browser's own storage. */
 const store = {
   async get(key){
     try { const v = window.localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e){ return null; }
@@ -575,7 +573,7 @@ const store = {
 
 /* ============================== defaults ============================== */
 const DEFAULT_SUBJECTS = [
-  /* v120: no Phonics subject. ECRI is the start of the Reading block (v100, v120). */
+  /* no Phonics subject. ECRI is the start of the Reading block. */
   {id:'reading', name:'Reading',        curriculum:'Benchmark',         schema:'uwd', color:'#16706B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
   {id:'writing', name:'Writing',        curriculum:'Benchmark',         schema:'uwd', color:'#7A4A6B', start:{unit:1,week:1,day:1}, weeksPerUnit:3,  daysPerWeek:5, on:true},
   {id:'math',    name:'Math',           curriculum:'Reveal',            schema:'ul',  color:'#D89A1C', start:{unit:1,lesson:1},     lessonsPerUnit:10, on:true},
@@ -594,7 +592,7 @@ function mtrfBlocks(dow){
   return [
     {t:'8:00',  l:'Arrival & blocks',            s:'',        n:'Manipulative tubs at every table spot'},
     {t:'8:05',  l:'Morning Meeting',             s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
-    /* v136: Reading runs in four parts on M/T/Th/F (v120 had merged the first two) */
+    /* Reading runs in four parts on M/T/Th/F (v120 had merged the first two) */
     {t:'8:15',  l:'Phonics',                     s:'reading', n:'ECRI slides on the carpet'},
     {t:'8:30',  l:'Reading small groups',        s:'reading', n:'Blue chart · Build Automaticity packets'},
     {t:'8:50',  l:'Whole-group comprehension',   s:'reading', n:'Benchmark Teacher’s Guide · anchor chart skill'},
@@ -619,7 +617,7 @@ function mtrfBlocks(dow){
 function wedBlocks(){
   return [
     {t:'8:00',  l:'Morning Meeting',               s:'',        n:'Feelings check-in · schedule · attendance & lunch count · jobs · yoga dice'},
-    {t:'8:15',  l:'Reading',                       s:'reading', n:'Starts with ECRI phonics'},   /* v120: one Reading block */
+    {t:'8:15',  l:'Reading',                       s:'reading', n:'Starts with ECRI phonics'},   /* one Reading block */
     {t:'9:00',  l:'Structured Break',              s:'',        n:'Recess'},
     {t:'9:15',  l:'Math',                          s:'math',    n:''},
     {t:'9:45',  l:'Assembly / Enrichments / Math', s:'math',    n:'Varies by week — extra math when there’s no assembly or enrichment'},
@@ -860,8 +858,7 @@ function stashDraft(){
 }
 async function persistSettings(){ await store.set(K.settings, S); }
 
-/* A lesson position as one number from the start of the year (curriculum.js
-   uses it). v116: kept when the team sharing it sat among was removed. */
+
 function absIndex(sb,p){
   if(!p) return null;
   if(sb.schema==='uwd') return ((((p.unit||1)-1)*(sb.weeksPerUnit||3))+((p.week||1)-1))*(sb.daysPerWeek||5)+((p.day||1)-1);
@@ -910,7 +907,7 @@ window.addEventListener('resize', ()=>{ clearTimeout(growTimer); growTimer=setTi
 const main = document.getElementById('main');
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* v125: nothing is drawn until every script on the page has loaded (boot,
+/* nothing is drawn until every script on the page has loaded (boot,
    below), so the day is drawn once, already laid out, instead of drawn bare
    and then rebuilt in front of him. A render() asked for sooner is skipped;
    the first draw comes after it and includes whatever it was for. */
@@ -1019,14 +1016,14 @@ function renderToday(){
            </div>
     </div>`}`;
   wireToday();
-  sideLayout();                                    /* v118: the day sidebar, on a wide screen */
+  sideLayout();                                    /* the day sidebar, on a wide screen */
   fitSide(); setTimeout(fitSide, 300);
   markNow();
-  if(window.DayView) window.DayView.afterToday();   /* v112: the day laid out (was suite-boot.js) */
-  if(window.PlannerMaterials) window.PlannerMaterials.afterToday();   /* v140: each lesson's materials */
+  if(window.DayView) window.DayView.afterToday();   /* the day laid out (was suite-boot.js) */
+  if(window.PlannerMaterials) window.PlannerMaterials.afterToday();   /* each lesson's materials */
 }
 
-/* v118: on a screen 1100px wide or more, a sidebar beside the lessons holds
+/* on a screen 1100px wide or more, a sidebar beside the lessons holds
    the day: every block (tap one to go to it), then the day notes and the
    save buttons, moved there from the page (moved, so their handlers stay).
    Narrower screens never run this, so they keep the page exactly as it was.
@@ -1093,7 +1090,7 @@ if(window.matchMedia){
   if(mq.addEventListener) mq.addEventListener('change', redo); else if(mq.addListener) mq.addListener(redo);
 }
 
-/* v110: the lesson on now (A2). A card whose time holds the clock, on the day
+/* the lesson on now (A2). A card whose time holds the clock, on the day
    shown when that is today and never a skipped one, is outlined with a Now
    tag (styled in suite-theme.css). Re-marked every minute without a redraw.
    window.PlannerDay.__now, if set, stands in for the clock (tests). */
@@ -1111,7 +1108,7 @@ function markNow(){
   const now = (window.PlannerDay && window.PlannerDay.__now) ? window.PlannerDay.__now() : new Date();
   if(!(cursor instanceof Date) || key(cursor)!==key(now)) return;
   const m = now.getHours()*60 + now.getMinutes();
-  /* v118: the block on now in the sidebar's day */
+  /* the block on now in the sidebar's day */
   document.querySelectorAll('.agenda .ag').forEach(b=>{
     const r = spanOf(b.dataset.span);
     if(!r || m<r[0] || m>=r[1]) return;
@@ -1120,7 +1117,7 @@ function markNow(){
     /* keep it in view in the list, a little below the top, without moving the page */
     const list=b.closest('ol'); if(list) list.scrollTop=Math.max(0, b.parentNode.offsetTop - list.offsetTop - 48);
   });
-  rail.querySelectorAll('.sub').forEach(c=>{   /* v114: in the day's columns, not straight in the rail */
+  rail.querySelectorAll('.sub').forEach(c=>{   /* in the day's columns, not straight in the rail */
     if(c.classList.contains('skip')) return;
     const r = spanOf((c.querySelector('.subtime')||{}).textContent);
     if(!r || m<r[0] || m>=r[1]) return;
@@ -1131,7 +1128,7 @@ function markNow(){
 }
 setInterval(()=>{ if(view==='today') markNow(); }, 60000);
 
-/* v112: the day's block list is added by DayView (below, in its own script) */
+/* the day's block list is added by DayView (below, in its own script) */
 function cardHTML(sb){ const html = cardBase(sb); return window.DayView ? window.DayView.cardBlocks(sb, html) : html; }
 function cardBase(sb){
   const when = subjectSpan(blocksFor(cursor), sb.id);
@@ -1179,7 +1176,7 @@ function wireToday(){
     const ro = main.querySelector(`[data-edit="${sb.id}"]`);
     ro.querySelector('span').textContent = fmt(sb,e.pos);
     ro.classList.remove('roll'); void ro.offsetWidth; ro.classList.add('roll');
-    if(window.PlannerMaterials) window.PlannerMaterials.refresh(sb.id);   /* v140: the new lesson's materials */
+    if(window.PlannerMaterials) window.PlannerMaterials.refresh(sb.id);   /* the new lesson's materials */
     touch();
   });
 
@@ -1405,7 +1402,7 @@ function renderWeek(){
     stashDraft(); cursor=parseKey(b.dataset.jump); draft=null; view='today'; render();
   });
 }
-/* v117: subjects in the order of that day's schedule, by each one's first
+/* subjects in the order of that day's schedule, by each one's first
    block; one with no block that day keeps its usual place, after them.
    (suite-boot.js did this after every draw since v51; now the planner does.) */
 function inDayOrder(d, subs){
@@ -1413,7 +1410,7 @@ function inDayOrder(d, subs){
   const first = id => { for(let i=0;i<bl.length;i++) if(bl[i] && bl[i].s===id) return i; return 1e6; };
   return subs.map((s,i)=>({s,i,k:first(s.id)})).sort((a,b)=>(a.k-b.k)||(a.i-b.i)).map(x=>x.s);
 }
-/* v149: what each unplanned school day of the week would get, walked forward
+/* what each unplanned school day of the week would get, walked forward
    the way Today suggests it: from the last day taught, one step per day that
    has the subject on its schedule; a saved day or a draft counts as itself.
    (Today's suggestion for that day only looks back, so every unplanned day in
@@ -1544,7 +1541,7 @@ function wireSettings(){
 
   const cl=document.getElementById('closelist');
   if(cl){
-    const groups=[]; 
+    const groups=[];
     Object.keys(YEAR.closed).sort().forEach(k=>{
       const g=groups[groups.length-1];
       if(g && g.label===YEAR.closed[k] && addDays(parseKey(g.end),1).getTime()===parseKey(k).getTime()) g.end=k;
@@ -1700,7 +1697,7 @@ function toast(msg){
   t.textContent=msg; t.classList.remove('act'); t.classList.add('show');
   clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),2600);
 }
-/* v149: a schedule change that live sync carries to every device gets a way back */
+/* a schedule change that live sync carries to every device gets a way back */
 function toastUndo(msg, undo){
   const t=document.getElementById('toast');
   t.textContent=msg;
@@ -1833,7 +1830,7 @@ function seedFirstDay(){
 
 /* ---------- boot ---------- */
 (async function boot(){
-  /* v125: DOMContentLoaded comes after every script, deferred ones included
+  /* DOMContentLoaded comes after every script, deferred ones included
      (day-view.js, suite-boot.js, sub-plans.js), so the first draw has them
      all. Data is still read now, as before: those scripts expect it loaded. */
   const allLoaded = new Promise(r => document.readyState==='loading'

@@ -135,15 +135,7 @@ body {
 }
 
 
-/* ---- The gradebook's sync flag ------------------------------------------
-   Its colours were written for a dark header the gradebook no longer has:
-   on the quiet look's white header it was 2.17:1. The state is now an
-   attribute and each look colours it for its own header. */
-.saveflag[data-state="connected"] { color: #2F7A56; }
-.saveflag[data-state="error"] { color: #B4472F; }
-.saveflag[data-state="needsPermission"] { color: #8A5C0E; }
-
-/* ---- Desktop audit (v46) ------------------------------------------------ */
+/* ---- Desktop audit ------------------------------------------------ */
 /* Hints ran up to 93em — about 150 characters a line — across a wide
    gradebook card. 75ch is the upper end of comfortable reading. */
 .hint, .card li { max-width: 75ch; }
@@ -274,7 +266,7 @@ body {
   header, .timerbar { top: env(safe-area-inset-top, 0px); }
 }
 
-/* ==== Mobile pass (v45) =================================================
+/* ==== Mobile pass =================================================
    From a measured audit on 390, 375 and 320px screens. Every
    rule here is inside a width or pointer query, so a desktop is unchanged. */
 
@@ -298,8 +290,7 @@ body {
 @media (max-width: 760px) {
   /* A long open-text entry in the planner's timeline could not wrap, made
      the page up to 207px wider than the screen, and dragged the fixed
-     switcher and Sub plan button off the right edge. (v125: that timeline
-     is gone; its list rows remain, in Settings' school-year list.) */
+     switcher and Sub plan button off the right edge. */
   .tllabel { min-width: 0; overflow-wrap: anywhere; }
 
   /* Pickers with an inline min-width, and file inputs, overflowed at 375
@@ -359,7 +350,7 @@ body {
 }
 
 /* ==========================================================================
-   v79 — the 2026 look, aligned across all four tools
+   the 2026 look, aligned across all four tools
 
    Every rule here starts `html:not([data-suite-theme])`. Until v92 that kept
    them to 2026 while 2006 and 2046 set the attribute; nothing sets it now, so
@@ -425,7 +416,7 @@ body {
   html:not([data-suite-theme]) .tabs .tab[aria-selected="true"] { color: var(--suite-ink) !important; font-weight: 600 !important; border-bottom-color: var(--suite-accent) !important; }
   html:not([data-suite-theme]) .dsub { font: 400 13px var(--suite-sans); letter-spacing: 0; }
   /* the planner's chips; `.board .chip` is a name on the projected math board,
-     sized by the board to be read across the room (v84) */
+     sized by the board to be read across the room */
   html:not([data-suite-theme]) :is(.todaybtn, .chip):not(.board .chip) { font: 600 13px var(--suite-sans) !important; letter-spacing: 0 !important; text-transform: none !important; }
   html:not([data-suite-theme]) .todaybtn { border-radius: var(--x-r) !important; padding: 8px 14px !important; border: 1px solid var(--suite-line-2) !important; color: var(--suite-ink) !important; }
   html:not([data-suite-theme]) .todaybtn:hover { border-color: var(--suite-accent) !important; color: var(--suite-accent) !important; }
@@ -454,7 +445,7 @@ body {
   html:not([data-suite-theme]) .freein { background: var(--suite-paper-hi) !important; color: var(--suite-ink) !important; border: 1px solid var(--suite-line-2) !important; border-radius: var(--x-r) !important; box-shadow: none !important; font: 400 15px var(--suite-sans) !important; }
   html:not([data-suite-theme]) .freein::placeholder { color: var(--suite-ink-3) !important; }
 
-  /* ---- v108: the Today view as A2 on the design canvas ----
+  /* ---- the Today view as A2 on the design canvas ----
      Each subject in its own planner colour (--c, set on each card): a solid
      band, and its name, time and lesson code in deeper mixes of it, dark
      enough for text where gold and rust alone are not. The lesson on now is
@@ -564,14 +555,14 @@ body {
   html:not([data-suite-theme]) #reading { padding: 0 12px 90px !important; }
 }
 
-/* v108: on a phone the day notes bar's flags are one row that scrolls
+/* on a phone the day notes bar's flags are one row that scrolls
    sideways, still full-size to tap (the bar itself: the 2026 look above) */
 @media screen and (max-width: 700px) {
   html:not([data-suite-theme]) .panel.daynotes .flags { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
   html:not([data-suite-theme]) .panel.daynotes .flags .flag { flex: 0 0 auto; }
 }
 
-/* v116: phones (760px and under). Measured on an iPhone 14 and a 360px
+/* phones (760px and under). Measured on an iPhone 14 and a 360px
    Android: buttons and menus were 36-37px tall and checkboxes 22px; the
    gradebook's tabs scrolled out of sight to the left; the planner's Week
    view was 10-11.5px text. Nothing here reaches a computer or projector. */

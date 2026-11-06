@@ -46,7 +46,7 @@
      resources; note = the guide's instruction for a non-lesson day;
      after = the lesson a non-lesson day follows; d = days. assumedDay marks
      the two cells the guide left blank; the unit totals confirm 1. */
-  var UNITS = 
+  var UNITS =
 [{"u":1,"title":"Math Is ...","instr":7,"review":2,"probe":0,"extra":1,"total":10,"steps":[{"k":"diag","t":"Course Diagnostic","after":0,"d":1},{"k":"open","t":"Unit 1 Opener","note":"Administer the Math Attitude Survey, Introduce the Unit Focus Question and STEM in Action Video, Complete the Ignite! activity","after":0,"d":1},{"k":"L","n":1,"t":"Math Is Mine","std":["1.NBT.B.3"],"tg":["I can tell my math story.","I can recognize the ways in which we are all doers of math."],"m":["blank paper","crayons, markers, or colored pencils"],"d":1},{"k":"L","n":2,"t":"Math Is Exploring and Thinking","std":["1.OA.A.2"],"tg":["I can make sense of a problem and explore solutions pathways.","I can think about numbers in different ways."],"tr":["Number Cards 0–10"],"d":1},{"k":"L","n":3,"t":"Math Is In My World","std":["1.NBT.C.6"],"tg":["I can represent a real-world situation using mathematics.","I can explain how to use tools to solve a problem."],"m":["base-ten blocks"],"tr":["Number Chart 1–100"],"d":1},{"k":"L","n":4,"t":"Math Is Explaining and Sharing","std":["1.NBT.C.4"],"tg":["I can explain my thinking.","I can listen to the ideas of my classmates."],"tr":["Number Cards 0–10"],"d":1},{"k":"L","n":5,"t":"Math Is Finding Patterns","std":["1.OA.C.6"],"tg":["I can describe and extend a pattern.","I can use patterns to solve problems."],"d":1},{"k":"L","n":6,"t":"Math Is Ours","std":["1.NBT.A.1"],"tg":["I can explain how to work well on my own and in a group.","I can describe the steps I can take to solve math problems."],"m":["markers, crayons, or colored pencils","poster-sized paper"],"d":1},{"k":"review","t":"Unit Review and Fluency Practice","after":6,"d":1}]},
 {"u":2,"title":"Place Value to 1,000","instr":6,"review":2,"probe":0.5,"extra":0.5,"total":9,"steps":[{"k":"open","t":"Unit 2 Opener","note":"Administer the Readiness Diagnostic, Introduce the Unit Focus Question and STEM in Action Video, Complete the Ignite! activity","after":0,"d":1},{"k":"L","n":1,"t":"Understand Hundreds","std":["2.NBT.A.1","2.NBT.A.1.a"],"tg":["I can explain how 10 groups of ten equal 100."],"m":["base-ten blocks"],"d":1},{"k":"L","n":2,"t":"Understand 3-Digit Numbers","std":["2.NBT.A.1","2.NBT.A.1.b"],"tg":["I can identify the digits in a 3-digit number.","I can show 3-digit numbers."],"m":["base-ten blocks"],"tr":["3-Digit Numbers"],"d":1},{"k":"L","n":3,"t":"Read and Write Numbers to 1,000","std":["2.NBT.A.3"],"tg":["I can read numbers to 1,000.","I can write numbers to 1,000."],"m":["base-ten blocks","notecards"],"d":1},{"k":"L","n":4,"t":"Decompose 3-Digit Numbers","std":["2.NBT.A.1","2.NBT.A.3"],"tg":["I can use my understanding of place value to decompose 3-digit numbers in different ways."],"m":["base-ten blocks"],"d":1},{"k":"probe","t":"Formative Math Probe: Building Numbers","note":"Administer the Formative Math Probe to gather data on students’ understanding composing and decomposing numbers based on different place-value combinations, with regrouping as needed. You may want to administer the probe at the end of the previous lesson, so class time on this day can be spent on clarifying uncovered misconceptions.","after":4,"d":0.5},{"k":"L","n":5,"t":"Compare 3-Digit Numbers","std":["2.NBT.A.4"],"tg":["I can compare 3-digit numbers.","I can use words and symbols to show comparisons."],"m":["base-ten blocks"],"tr":["Number Cards 0–10"],"d":1},{"k":"review","t":"Unit Review and Fluency Practice","after":5,"d":1},{"k":"assess","t":"Performance Task and Unit Assessment","after":5,"d":1}]},
 {"u":3,"title":"Patterns within Numbers","instr":8,"review":2,"probe":0.5,"extra":1.5,"total":12,"steps":[{"k":"open","t":"Unit 3 Opener","note":"Administer the Readiness Diagnostic, Introduce the Unit Focus Question and STEM in Action Video, Complete the Ignite! activity","after":0,"d":1},{"k":"L","n":1,"t":"Counting Problems","std":["2.NBT.A.2"],"tg":["I can count by 1s within 1,000.","I can identify patterns when counting by 1s within 1,000."],"m":["counters"],"tr":["Number Cards 0–10","Number Chart 201–300","Number Chart 401–500"],"d":1},{"k":"L","n":2,"t":"Patterns When Skip Counting by 5s","std":["2.NBT.A.2"],"tg":["I can identify patterns when skip counting by 5s.","I can describe patterns when skip counting by 5s."],"tr":["Number Chart 1–100"],"d":1},{"k":"L","n":3,"t":"Patterns When Skip Counting by 10s and 100s","std":["2.NBT.A.2"],"tg":["I can identify patterns when skip counting by 10s and 100s.","I can describe patterns when skip counting by 10s and 100s."],"m":["number cubes"],"tr":["Number Chart 1–100"],"d":1},{"k":"probe","t":"Formative Math Probe: Counting by 1s, 5s, and 10s","note":"Administer the Formative Math Probe to gather data on students’ understanding of counting by 1s, 5s, and 10s. You may want to administer the probe at the end of the previous lesson, so class time on this day can be spent on clarifying uncovered misconceptions.","after":3,"d":0.5},{"k":"L","n":4,"t":"Understand Even and Odd Numbers","std":["2.OA.C.3"],"tg":["I can determine whether the number of objects in a group is even or odd.","I can recognize the patterns within even and odd numbers."],"m":["counters"],"tr":["Number Cards 0–10"],"d":1},{"k":"L","n":5,"t":"Addition Patterns","std":["2.OA.C.3"],"tg":["I can write an equation to show an even number as a sum of doubles.","I can write an equation to show an odd number as a sum of near doubles."],"m":["connecting cubes"],"d":1},{"k":"L","n":6,"t":"Patterns and Arrays","std":["2.OA.C.4"],"tg":["I can skip count to find the total number of objects in an array.","I can represent equal groups with arrays."],"m":["counters","paper clips"],"d":1},{"k":"L","n":7,"t":"Use Arrays to Add","std":["2.OA.C.4"],"tg":["I can write equations to describe arrays.","I can represent the total number of objects using arrays."],"m":["connecting cubes","counters"],"d":1},{"k":"review","t":"Unit Review and Fluency Practice","after":7,"d":1},{"k":"assess","t":"Performance Task and Unit Assessment","after":7,"d":1}]},
@@ -113,7 +113,7 @@
     CROSS[c].or.forEach(function (o) { if (!SHOW[o]) SHOW[o] = c; });
   });
 
-  /* ---------- the Benchmark Assessments, question by question (v147) ----------
+  /* ---------- the Benchmark Assessments, question by question ----------
      Reveal's three printable Benchmark Assessments (Assessment Resource Book,
      pp. 73-78, 147-152, 213-218), 18 questions each. The guide gives a
      benchmark day no standard, so until v147 the gradebook had nothing to
@@ -121,7 +121,7 @@
      assesses, matched from the question itself (the printed book lists no
      codes); or = a gradebook code that overrides the crosswalk, as a lesson's
      does, for the 2.OA.B.2 split (B2 q16 is making a 10 to add, so adding).
-     Josh's calls (v147): B1 q14 (the array) is not graded, so it is left
+     Josh's calls: B1 q14 (the array) is not graded, so it is left
      out; and on the benchmarks reading and writing numbers (2.NBT.A.3) is
      marked with place value (2.NBT.A.1), one mark instead of two. */
   var BENCH = {
@@ -331,7 +331,7 @@
      (phonological awareness, phonics, high-frequency words) is mapped but
      kept out of "taught this day", because Phonics in the planner is ECRI.
      ====================================================================== */
-  var BM_UNITS = 
+  var BM_UNITS =
 [{"u":1,"title":"Plants and Animals in Their Habitats","eq":"How do living things get what they need to survive?","eu":["The world has many types of habitats, with different weather, seasons, animals, and plants.","Living things have different features that help them meet their needs in their habitat.","Reading about animal characters in literature can help us understand animals and their habitats."],"wordBank":["survive","habitat","season","weather"],"project":"Research a Habitat","weeks":[{"w":1,"reads":{"interactive":"The Frogs and the Well","accountable":"Life in the Ocean","wordStudy":"Meet Ranger Diaz"},"anchor":[{"kind":"Short Read 1","t":"Emperor Penguin Habitat"},{"kind":"Short Read 2","t":"Postcards from Alex"}],"practice":["The Changing Arctic"],"pa":["Oral Blending and Segmenting CVC Words","Substitute Medial Vowel Sounds"],"phonics":{"Primary Skill":"short vowels; one-syllable words; initial and final blends; consonant digraphs","Spiral Review":"consonant review"},"hfw":["a","can","and","come","are","for","big","go","has","I"],"fluency":"Expression—Characterization/Feelings","meta":["Metacognitive: Ask Questions","Metacognitive: Create Mental Images","Fix-Up: Reread to Clarify or Confirm Understanding"],"comp":["Identify Main Topic and Key Details","Explain How Images Contribute to and Clarify a Text","Recount Stories and Determine Their Central Message, Lesson, or Moral (Recount Stories)","Describe the Overall Structure of a Story"],"vocab":["Use Context as a Clue to Determine Word Meaning"],"words":{"ga":["survive","paddle"],"ds":["habitats","burrow"]},"writing":"Write to a Text-Based Prompt: Informative/Explanatory Essay","grammar":["Produce Complete Simple Sentences","Use an Apostrophe to Form Contractions and Possessives"]},{"w":2,"reads":{"interactive":"The Venus Flytrap","accountable":"Nolan and the Lionfish","wordStudy":"Bats, Bats, Bat!"},"anchor":[{"kind":"Extended Read 1","t":"Habitats Around the World"}],"practice":["A Day in the Rainforest"],"pa":["Oral Blending and Segmenting CVC Words","Blend and Segment Multisyllabic Words by a Syllable"],"phonics":{"Primary Skill":"closed syllable patterns; open syllable patterns","Secondary Skill":"initial 3-letter blends","Spiral Review":"initial and final blends; consonant digraphs"},"hfw":["have","is","jump","my","one","put","the","want","what","you"],"fluency":"Confirm or Correct Word Recognition and Understanding","meta":["Metacognitive: Ask Questions"],"comp":["Identify Main Topic and Key Details","Explain How Images Contribute to and Clarify a Text","Compare and Contrast the Most Important Points in Two Texts on the Same Topic"],"vocab":["Use Context as a Clue to Determine Word Meaning"],"words":{"ga":["unique","shallow"],"ds":["nature","tropical"]},"writing":"Write to a Text-Based Prompt: Informative/Explanatory Essay","grammar":["Produce Complete Simple Sentences (Subjects and Predicates)","Capitalize Geographic Names"]},{"w":3,"reads":{"interactive":"Rain, Rain, Go Away!","accountable":"All About Squirrels","wordStudy":"My Desert Blog"},"anchor":[{"kind":"Extended Read 2","t":"Filiberto in the Valley"},{"kind":"Unit Poem","t":"The Bat"}],"practice":["Sunnyside Animal Clinic"],"pa":["Oral Blending and Segmenting Words with Initial Blends","Delete Sounds in a Blend"],"phonics":{"Primary Skill":"long a vowel team syllable patterns (a, ai, ea, ay, a_e)","Spiral Review":"long vowels (one-syllable VCe)"},"hfw":["he","like","little","no","of","saw","this","to","we","with"],"fluency":null,"meta":["Metacognitive: Create Mental Images","Fix-Up: Read On to Clarify or Confirm Understanding"],"comp":["Recount Stories and Determine Their Central Message, Lesson, or Moral (Recount Stories)","Describe the Overall Structure of a Story","Introduce Poetry"],"vocab":["Use Context as a Clue to Determine Word Meaning"],"words":{"ga":["take advantage of","domestic","presence"],"ds":["clinic"]},"writing":"Write to a Text-Based Prompt: Informative/Explanatory Essay","grammar":["Form and Use Irregular Past Tense Verbs"]}]},
 {"u":2,"title":"Characters Facing Challenges","eq":"What can we learn when we face problems?","eu":["All stories, whether traditional or modern, have characters who face problems.","Characters in stories face problems caused by internal and external challenges.","Readers can build knowledge about solving problems in the real world by looking at how characters face challenges in stories."],"wordBank":["challenge","internal","external","solution"],"project":"Explore Challenges in a Tale","weeks":[{"w":1,"reads":{"interactive":"Lion and Mouse","accountable":"Willow and Toad","wordStudy":"King Midas"},"anchor":[{"kind":"Short Read 1","t":"The Foolish Milkmaid"},{"kind":"Short Read 2","t":"The Daydreaming Sprinter"}],"practice":["The Super School Bake-Off"],"pa":["Oral Blending and Segmenting Words with Final Blends","Delete Final Sound in a Blend"],"phonics":{"Primary Skill":"long o vowel team syllable patterns (o, oa, ow, oe, o_e)","Spiral Review":"long a vowel team syllable patterns"},"hfw":["here","look","me","play","said","see","she","try","about","because"],"fluency":"Speed/Pacing—Fast","meta":["Metacognitive: Draw Inferences","Metacognitive: Make Connections","Fix-Up: Stop and Think About the Author’s Purpose"],"comp":["Recount Stories and Determine Their Central Message, Lesson, or Moral (Determine Central Message)","Describe How Characters Respond to Major Events and Challenges","Use Illustrations and Words to Demonstrate Understanding of Characters, Setting, and Plot","Recount Stories and Determine Their Central Message, Lesson, or Moral (Recount Stories)"],"vocab":["Distinguish Shades of Meaning Among Closely Related Verbs"],"words":{"ga":["dash","jealous","foolish"],"ds":["disqualification"]},"writing":"Write to a Text-Based Prompt: Opinion Essay","grammar":["Form and Use Irregular Plural Nouns","Adjectives and Adverbs"]},{"w":2,"reads":{"interactive":"Why Monkeys Live in Trees","accountable":"Jack and the Bean Tree","wordStudy":"Bee and Daisy"},"anchor":[{"kind":"Extended Read 1","t":"Yeh-Shen"}],"practice":["Nora Saves the Day"],"pa":["Oral Blending and Segmenting Words with Initial Blends","Delete Initial Sound in a Blend"],"phonics":{"Primary Skill":"long e vowel team syllable patterns (e, e_e, ee, ea, y, ey, ie)","Secondary Skill":"plurals -s, -es","Spiral Review":"long o vowel team syllable patterns"},"hfw":["after","before","call","do","earth","father","give","her","know","large"],"fluency":"Pausing—Short Pauses","meta":["Metacognitive: Draw Inferences"],"comp":["Recount Stories and Determine Their Central Message, Lesson, or Moral (Determine Central Message)","Describe How Characters Respond to Major Events and Challenges","Use Illustrations and Words to Demonstrate Understanding of Characters, Setting, and Plot","Recount Stories and Determine Their Central Message, Lesson, or Moral (Recount Stories)"],"vocab":["Distinguish Shades of Meaning Among Closely Related Verbs"],"words":{"ga":["crept","hardworking","announced","exclaimed"],"ds":[]},"writing":"Write to a Text-Based Prompt: Opinion Essay","grammar":["Use Collective Nouns","Irregular Plural Nouns"]},{"w":3,"reads":{"interactive":"Mice on Ice","accountable":"Why Sun and Moon Live in the Sky","wordStudy":"Firefly Tricks Spider"},"anchor":[{"kind":"Extended Read 2","t":"Great Girls’ Contest"},{"kind":"Unit Poem","t":"Since Hanna Moved Away"}],"practice":["The Annual Birdhouse Competition"],"pa":["Substitute Sounds (parts of blends in the final position)","Oral Blending and Segmenting Words with Final Blends"],"phonics":{"Primary Skill":"long i vowel team syllable patterns (i, ie, y, igh, i_e)","Spiral Review":"long e vowel team syllable patterns"},"hfw":["good","many","near","off","people","right","that","two","under","very"],"fluency":null,"meta":["Metacognitive: Make Connections","Fix-Up: Read Out Loud to Support Comprehension"],"comp":["Recount Stories and Determine Their Central Message, Lesson, or Moral (Determine Central Message)","Describe How Characters Respond to Major Events and Challenges","Read a Poem: Understand Figurative Language"],"vocab":["Distinguish Shades of Meaning Among Closely Related Verbs"],"words":{"ga":["clumsy","graceful","generous","accurate"],"ds":[]},"writing":"Write to a Text-Based Prompt: Opinion Essay","grammar":["Use Reflexive Pronouns"]}]},
 {"u":3,"title":"Government at Work","eq":"Why do we need a government?","eu":["The U.S. Government provides laws and services to help protect the freedom and safety of the people.","People can contribute to their communities and their government in many different ways.","The United States can be represented by symbols and documents.","Historical fiction is a genre that bases its stories and characters on actual events and people from the past."],"wordBank":["services","community","symbols","protect"],"project":"Government Service Fact Sheet","weeks":[{"w":1,"reads":{"interactive":"Rules and Laws","accountable":"Our Flag","wordStudy":"Vote For Lulu"},"anchor":[{"kind":"Short Read 1","t":"Smoke Jumpers"},{"kind":"Short Read 2","t":"Can You Sew a Flag, Betsy Ross?"}],"practice":["FEMA: Helping the Community"],"pa":["Substitute Medial Vowel Sounds","Add Initial and Final Sounds"],"phonics":{"Primary Skill":"long u vowel team syllable patterns (u, ew, ue, u_e)","Spiral Review":"long i vowel team syllable patterns"},"hfw":["again","below","carry","does","eight","find","house","laugh","mother","school"],"fluency":"Inflection/Intonation—Pitch","meta":["Metacognitive: Distinguish Between Important and Unimportant Information","Metacognitive: Summarize and Synthesize","Fix-Up: Read More Slowly and Think About the Words"],"comp":["Identify Main Topic and Key Details","Describe a Connection Between a Series of Events, Ideas, Concepts, or Steps","Use Illustrations and Words to Demonstrate Understanding of Characters, Setting, or Plot","Acknowledge Differences in the Points of View of Characters"],"vocab":["Use Context as a Clue to Determine the Meaning of Words and Phrases"],"words":{"ga":["symbol","gear","strength"],"ds":["citizens"]},"writing":"Process Writing: Informative/Explanatory Essay","grammar":["Form and Use the Past Tense of Irregular Verbs","Use Collective Nouns"]},{"w":2,"reads":{"interactive":"A Special Lady","accountable":"Martin Luther King Jr.","wordStudy":"Community Workers"},"anchor":[{"kind":"Extended Read 1","t":"Our Government’s Laws"}],"practice":["My Mom the Safety Monitor"],"pa":["Substitute Medial Vowel Sounds","Substitute Initial and Final Sounds"],"phonics":{"Primary Skill":"r-controlled /är/ syllable patterns","Secondary Skill":"inflectional endings -ed, -ing (no spelling change)","Spiral Review":"long u vowel team syllable pattern"},"hfw":["move","never","once","round","small","their","too","walk","where","year"],"fluency":"Phrasing—Units of Meaning in Complex Sentences","meta":["Metacognitive: Distinguish Between Important and Unimportant Information"],"comp":["Identify Main Topic and Key Details","Describe a Connection Between a Series of Events, Ideas, Concepts, or Steps","Compare and Contrast Key Points in Two Texts on the Same Topic to Make Connections Across Texts"],"vocab":["Use Context as a Clue to Determine the Meaning of Words and Phrases"],"words":{"ga":["allowed","programs","local","ticket"],"ds":[]},"writing":"Process Writing: Informative/Explanatory Essay","grammar":["Form and Use the Past Tense of Irregular Verbs","Use Collective Nouns"]},{"w":3,"reads":{"interactive":"The New Guy","accountable":"Here Comes the Mail","wordStudy":"The President’s House"},"anchor":[{"kind":"Extended Read 2","t":"Getting a Message to General Washington"},{"kind":"Unit Poem","t":"Words Like Freedom"}],"practice":["Colonel Tye"],"pa":["Blend and Segment Multisyllabic Words by Syllable","Delete Initial and Final Sounds"],"phonics":{"Primary Skill":"r-controlled /ûr/ syllable patterns (er, ir, ur)","Spiral Review":"r-controlled /är/ syllable patterns"},"hfw":["all","away","better","by","change","done","even","found","learn","only"],"fluency":null,"meta":["Metacognitive: Summarize and Synthesize","Fix-Up: Reread to Clarify or Confirm Understanding"],"comp":["Acknowledge Differences in the Points of View of Characters","Use Illustrations and Words to Demonstrate Understanding of Characters, Setting, or Plot","Read a Poem: Understand Imagery"],"vocab":["Use Context as a Clue to Determine the Meaning of Words and Phrases"],"words":{"ga":["eager","urgent","puzzled","enemy"],"ds":[]},"writing":"Process Writing: Informative/Explanatory Essay","grammar":["Use Reflexive Pronouns"]}]},
@@ -491,8 +491,7 @@
   /* The planner's own stepper copies the whole position (Object.assign),
      so with the guide off, a probe day's `k` rode along onto every day after
      it: "U2 · L6" on screen, { unit 2, lesson 6, k: "probe" } in storage,
-     and every one of them read as the probe once the guide was back on
-     (v61). Off the guide, a position is a plain unit and lesson. */
+     and every one of them read as the probe once the guide was back on. Off the guide, a position is a plain unit and lesson. */
   function plain(sb, q) {
     if (sb && sb.id === "math" && q && q.k) { q = Object.assign({}, q); delete q.k; }
     return q;
@@ -536,7 +535,7 @@
     return n + (todayTaught ? 1 : 0);
   }
 
-  /* own: a lesson's own Oregon codes (v145), shown in place of the crosswalk's */
+  /* own: a lesson's own Oregon codes, shown in place of the crosswalk's */
   function stdChips(codes, own) {
     return codes.map(function (c) {
       var x = CROSS[c], or = own || (x ? x.or : []);
@@ -628,7 +627,7 @@
      before the first day the guide drew the card, which missed any day
      saved ahead of time: today, if it was saved that morning, and anything
      planned for later in the week. Those kept their old counts, so the
-     chain after them ran off the end of the unit (v61). The Math days that
+     chain after them ran off the end of the unit. The Math days that
      already existed when the guide first drew are in `pacingOld`, whatever
      their dates; a subject stamped by v60, which has no list, keeps the
      date rule. */
@@ -651,7 +650,7 @@
   }
   /* A planner that has never taught a Math day starts the year where the
      guide does, on the Unit 1 diagnostic, rather than on Lesson 1-1, two
-     days in (v61). The first-day plan the planner seeds is saved but has
+     days in. The first-day plan the planner seeds is saved but has
      every subject skipped, so "never taught" is the test, and its Math is
      moved too, since the next day carries forward from it. Only the
      untouched default { unit 1, lesson 1 } is moved, and only on skipped
@@ -670,7 +669,7 @@
       if (e && !e.taught && isDefault(e.pos)) { e.pos = posOf(FLAT[0]); changedDays = true; }
     });
     if (changedDays) { invalidateDayCache(); persist(); }
-    /* v149: not a day with a draft: a Unit 1 Lesson 1 there was chosen by
+    /* not a day with a draft: a Unit 1 Lesson 1 there was chosen by
        hand (nudged forward from the diagnostic) and came back on reload */
     var e = draft && draft.entries && draft.entries.math;
     var drafted = typeof PENDING !== "undefined" && PENDING && PENDING[key(cursor)];
@@ -969,7 +968,7 @@
     ".rv-table select{max-width:100%;font-size:14px;padding:5px 6px;border:1.5px solid var(--line-2);border-radius:8px;background:var(--card)}";
   document.head.appendChild(css);
 
-  /* ================= The week ahead, for families (v64) =================
+  /* ================= The week ahead, for families =================
      A button on the Week tab builds bullet points for a family email:
      Math from the Reveal guide, Reading and phonics from Benchmark (the
      teacher's call: Benchmark's phonics skill and sight words match what the
@@ -1034,7 +1033,7 @@
   }
   function uniq(a) { var o = []; a.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
 
-  /* ---- in families' words (v68) ----
+  /* ---- in families' words ----
      The teacher asked for Math in parent-friendly language, summarised,
      rather than the guide's "I can" targets one per line ("Identify
      patterns when skip counting by 5s"). Each lesson has a plain phrase
@@ -1237,7 +1236,7 @@
 
     var m = sub("math");
     if (m && m.on) {
-      /* v68: the week's lessons as one plain-language line per unit, the
+      /* the week's lessons as one plain-language line per unit, the
          opener folded into it ("Starting Unit 3, Patterns within Numbers:
          counting by 1s ..."), a unit's review and test one line after it */
       var mp = project(m, from, to), lines = [], units = [], segs = [], seg = {};
@@ -1294,7 +1293,7 @@
         var u = bm ? window.BenchmarkScope.unit(p.unit) : null, w = bm ? window.BenchmarkScope.week(p) : null;
         if (u && rUnits.indexOf(u) < 0) rUnits.push(u);
         if (w && w.phonics && w.phonics["Primary Skill"]) skills.push(w.phonics["Primary Skill"]);
-        /* v68: the week's own Tier 2 / Tier 3 words, not the unit's word
+        /* the week's own Tier 2 / Tier 3 words, not the unit's word
            bank, and one of the week's comprehension goals */
         if (w && w.words) words = words.concat(w.words.ga || [], w.words.ds || []);
         if (w && !goalOpts.length) goalOpts = famGoalOptions(w);
@@ -1325,7 +1324,7 @@
     }
     return { from: days[0], to: days[4], sections: out, spellKey: spellKey, goalOpts: goalOpts || [], goal: goal || null };
   }
-  /* ---- spelling words (v66): pasted into the sheet, one list per week ---- */
+  /* ---- spelling words: pasted into the sheet, one list per week ---- */
   function spellingStore() {
     var rd = sub("reading");
     return (rd && rd.spelling && typeof rd.spelling === "object") ? rd.spelling : FAM.spell || (FAM.spell = {});
@@ -1498,7 +1497,7 @@
     ".fam-prev p{margin:8px 0 2px}.fam-prev ul{margin:2px 0 6px;padding-left:20px}.fam-prev li{margin:2px 0}" +
     ".fam-prev:focus{outline:2px solid var(--ink-3);outline-offset:2px}";
 
-  /* v125: the planner's first draw waits for every script, this one
+  /* the planner's first draw waits for every script, this one
      included, so Math is never drawn without all of this and there is no
      redraw to do here. */
 })();

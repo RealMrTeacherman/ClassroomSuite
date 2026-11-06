@@ -1,4 +1,4 @@
-/* planner/materials.js (v140): lesson materials, part of the planner.
+/* planner/materials.js: lesson materials, part of the planner.
 
    Files, links and notes kept on a curriculum lesson, so the slides for
    Reveal U3 L4 are on that lesson's card whichever day it lands on, and
@@ -19,7 +19,7 @@
    - Names. A file's name, a link and a note go through the same name check
      as the planner before they leave the device. The contents of a file are
      not read: these are curriculum resources (his decision, v140).
-   - Never synced by the folder or the sync file, and never in localStorage.
+   - Never in a backup file, and never in localStorage.
 
    On the card the button says "Files & links": the Reveal card already has
    a "Materials" disclosure, the guide's own list of what to gather.

@@ -1,4 +1,4 @@
-/* suite-edition.js (v91) — which copy of the suite this is.
+/* suite-edition.js — which copy of the suite this is.
 
    This is the one file where the two copies of the suite are allowed to
    differ. Everything else ships byte for byte. `npm run share` swaps in
@@ -11,7 +11,7 @@
 
      groupLook  the math board's four groups: "animals" (Fox, Bear,
                 Tiger, Lion) or "colors" (Red, Blue, Yellow, Green)
-     firebase   v106: this copy's Firebase project, so Planner sync asks
+     firebase   this copy's Firebase project, so Planner sync asks
                 only for an email and password. Firebase's web config is
                 public by design (its security rules, tools/firestore.rules,
                 protect the data); the Creslane copy has none, so no other

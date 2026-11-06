@@ -1,5 +1,5 @@
 /* ============================================================
-   suite-orf.js (v82)
+   suite-orf.js
    The one copy of what every tool needs to read an ORF check.
 
    Before v82 the norms table lived in four files and the name parsing in
@@ -32,9 +32,9 @@
                         (the surname without its suffix)
      lastFirst(n)       "Last, First"
      firstName(n)       the first name, or the only name
-     goals              v86: the reading-goals engine (planFor, tableGoals,
+     goals              the reading-goals engine (planFor, tableGoals,
                         springResult, normGoals, normComp, dates)
-     miscues            v86: clean, features, patterns(records)
+     miscues            clean, features, patterns(records)
    ============================================================ */
 (function () {
   "use strict";
@@ -72,7 +72,7 @@
     return "spring";
   }
 
-  /* ---- v88: the season lines and the suite calendar ----
+  /* ---- the season lines and the suite calendar ----
      The windows a check falls in are three MM-DD lines on the school
      calendar (gradebook Setup). The defaults draw exactly the windows above:
      fall from Aug 1, winter from Dec 1, spring from Mar 1. */
@@ -161,11 +161,11 @@
 
 
   /* ============================================================
-     v86: the reading goals (moved from fluency-extras.js, unchanged) and
+     the reading goals (moved from fluency-extras.js, unchanged) and
      the missed-word patterns (the ORF tool's own rules), so the gradebook
      and the ORF page read one copy. Pure: no storage, no page.
 
-     v132: how the goals are set, moved here with the engine when
+     how the goals are set, moved here with the engine when
      fluency-extras.js lost its Growth tab (the ORF app was spun off).
 
      ---- How goals are set: the H&T table, the way Creslane set them -------
@@ -370,7 +370,7 @@
     return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
   }
   /* The school year a date falls in starts on August 1. */
-  /* v88: the school year turns over on the calendar's fall line (Setup,
+  /* the school year turns over on the calendar's fall line (Setup,
      default 08-01: the August 1 this always used) */
   function lineOr(line) { return /^\d{2}-\d{2}$/.test(String(line || "")) ? String(line) : SEASON_LINES.fall; }
   function yearStart(now, line) {
@@ -470,7 +470,7 @@
       return best;
     }
     var grade = HT[goalsState.grade] ? +goalsState.grade : 2;
-    /* v88: the calendar's lines and dates, when the caller has them */
+    /* the calendar's lines and dates, when the caller has them */
     var lines = seasonLines(goalsState.seasons), line = lines.fall;
     var y0 = yearStart(now, line).getTime();
     var springDate = dueIn(now, goalsState.springDue || "05-14", line);
@@ -673,7 +673,7 @@
     return STATUS_LABELS[pl.status] || "";
   }
 
-  /* v137: the scorecard's words for where a child is, moved here from the
+  /* the scorecard's words for where a child is, moved here from the
      gradebook so the Assess tab's comparison and the scorecard can never
      disagree. Exceeding goal = more than the margin above the aim line, or
      already at the goal; on track = within the margin either way; needs
@@ -762,7 +762,7 @@
 
 
   /* ============================================================
-     v89: the suggested reading groups (moved from groups/orf-suggest.js,
+     the suggested reading groups (moved from groups/orf-suggest.js,
      unchanged but for the windows, which can follow the calendar's lines).
      The running-records tool's Reports grouping, reproduced because its
      file is not edited; test-orf-suggest.js holds the two equal. The
@@ -780,7 +780,7 @@
       PCTS.forEach(function (p) { row["p" + p] = norms(2)[p][i]; });
       NORMS[win] = row;
     });
-    /* v89: with the calendar's lines when the caller has them; without, the
+    /* with the calendar's lines when the caller has them; without, the
        tool's own month rule (the same windows as the default lines) */
     var LINES = null;
     function windowOf(date) { return LINES ? SEASONS[seasonIndex(new Date(date), LINES)] : windowFor(date); }
@@ -882,7 +882,7 @@
     return { suggest: suggest, latest: latest, percentileOf: percentileOf, windowFor: windowFor, kmeans1d: kmeans1d };
   })();
 
-  /* ---- v90: what the student said, per check (suite:orfnotes:v1) ----
+  /* ---- what the student said, per check (suite:orfnotes:v1) ----
      Written by fluency-assess.js when a check is saved, read by the
      gradebook. One entry per reading id:
        { paused: <seconds the timer was paused>,

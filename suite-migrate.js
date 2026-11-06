@@ -186,7 +186,7 @@
       }
 
       var want = wedBlocks();
-      /* v120: by time, not by position (merging 8:15 into Reading moved every index) */
+      /* by time, not by position (merging 8:15 into Reading moved every index) */
       var at = function (t) { for (var k = 0; k < want.length; k++) if (want[k].t === t) return want[k]; return null; };
       if (!wed.length) wed = want;
       else {
@@ -377,7 +377,7 @@
 
 
 
-  /* The end of the day, as the teacher described it (v52).
+  /* The end of the day, as the teacher described it.
 
      "Closing clean-up is the last ten minutes of whatever our last
      in-classroom activity is." Tue, Thu and Fri end in the room, so it stays
@@ -418,7 +418,7 @@
       var clean = find(tpl, "2:15", /clean/i);
       if (!clean) return;
       clean.t = "1:45";
-      /* Shoutouts (2:20) and bussers out (2:25) stay, per the teacher (v53):
+      /* Shoutouts (2:20) and bussers out (2:25) stay, per the teacher:
          v52 removed them on the guess that PE ran to dismissal. */
       T[d] = tpl.slice().sort(function (a, b) { return clock(a.t) - clock(b.t); });
     });
@@ -458,7 +458,7 @@
      a bare 2:30 Dismissal in their place. They happen on Monday too, so put
      them back — only where the day still has exactly what v52 left: PE at
      1:55, clean-up at 1:45, and that 2:30 Dismissal with neither block
-     present. Flagged, once, like endOfDay() (v53). */
+     present. Flagged, once, like endOfDay(). */
   function mondayShoutouts() {
     if (done()["monday-shoutouts-2026"]) return;
     var st;
@@ -517,7 +517,7 @@
         out.push(like(b, { start: "2:20", end: "2:30", title: "Shoutouts, dismissal", days: "M" }));
         hit = true; return;
       }
-      /* v52's Monday rows, from before shoutouts came back (v53) */
+      /* v52's Monday rows, from before shoutouts came back */
       if (row(b, "1:55", "2:30", "Specials 2", "M")) {
         out.push(like(b, { start: "1:55", end: "2:20", title: "Specials 2", days: "M" }));
         hit = true; return;
@@ -542,7 +542,7 @@
     try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
   }
 
-  /* Walk to WIN, from Monday 28 September 2026 (v55). WIN Time on Monday
+  /* Walk to WIN, from Monday 28 September 2026. WIN Time on Monday
      and Thursday is Walk to Read; on Tuesday and Friday, Walk to Math. It
      starts next week, so nothing changes before that date: the first load
      on or after it renames the blocks. Only the planner's own labels are
@@ -599,7 +599,7 @@
     try { localStorage.setItem("suite:subplan:v1", JSON.stringify(sp)); } catch (e) { }
   }
 
-  /* v94: three standing block notes he reworded, because sub plans now
+  /* three standing block notes he reworded, because sub plans now
      print them for a stranger to read: WIN says which walk is which day,
      Shoutouts says what a Mighty Mustang is, and Math small groups are on a
      digital slide now, not the yellow chart. The old text is the planner's
@@ -633,7 +633,7 @@
     if (touched) { try { localStorage.setItem(S_KEY, JSON.stringify(st)); } catch (e) { } }
   }
 
-  /* v120: no Phonics subject at all (v100 had switched it off). Converging,
+  /* no Phonics subject at all (v100 had switched it off). Converging,
      every load, so a device syncing an old copy is brought along too:
      - the Phonics subject is removed (its past positions stay in the saved
        days, unseen);
@@ -657,7 +657,7 @@
       for (var i = 0; i < tpl.length - 1; i++) {
         var a = tpl[i], b = tpl[i + 1];
         if (!a || !b || a.t !== "8:15" || a.l !== "Phonics" || b.t !== "8:30" || b.s !== "reading") continue;
-        /* v136: the Mon/Tue/Thu/Fri pair (Phonics, Reading small groups) is
+        /* the Mon/Tue/Thu/Fri pair (Phonics, Reading small groups) is
            the schedule again and is no longer merged; Wednesday's still is. */
         if (b.l === "Reading" && !b.n && /^ECRI/.test(a.n || "")) {
           tpl.splice(i, 2, { t: "8:15", l: "Reading", s: "reading", n: "Starts with ECRI phonics" }); touched = true;
@@ -675,7 +675,7 @@
   }
 
 
-  /* v136: Reading on Mon, Tue, Thu and Fri is four parts again:
+  /* Reading on Mon, Tue, Thu and Fri is four parts again:
        8:15 Phonics · 8:30 Reading small groups · 8:50 Whole-group
        comprehension · 9:10 Reading small groups.
      v120 had merged the first two into "Phonics, then small groups"
@@ -814,7 +814,7 @@
     subPlanWalkToWin();
     standingNotes2026();                 /* after mondayShoutouts(), which can add the old Shoutouts note */
     phonicsGone();                       /* v120 (v100 switched it off) */
-    readingFourParts();                  /* v136: after phonicsGone(), which relinks any Phonics block first */
+    readingFourParts();                  /* after phonicsGone(), which relinks any Phonics block first */
     repairDays();
     skipUnscheduled();
   }
@@ -824,7 +824,7 @@
      predate them (a Wednesday with STEAM at 11:45 and dismissal at 12:45).
      They converged on the second load, so a newly added home-screen app
      opened on the wrong Wednesday. `fresh` tells suite-boot.js to run them
-     again once the planner has written its defaults (v51). */
+     again once the planner has written its defaults. */
   var fresh = false;
   try { fresh = !localStorage.getItem(S_KEY); } catch (e) { }
   runAll();

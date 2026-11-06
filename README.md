@@ -48,18 +48,14 @@ once, as one app, at the suite root. On iOS each home-screen app keeps its
 own storage, so a new icon means removing and re-adding the app: back up
 first. Installing is a convenience: everything works in a bookmarked tab too.
 
-## Syncing your data
+## Moving your data
 
-**A computer (Chrome or Edge)** watches one folder: Sync → **Choose the sync
-folder**, one your phone also reaches (iCloud Drive, kept downloaded). It
-merges what lands there within seconds and keeps a current `classroom.json`.
+Everything saves on the device as you work.
 
-**A phone or iPad** taps: **Send** after changes (Save to Files, into that
-folder) and **Get the latest** when starting (pick `classroom.json`). Getting
-merges and can be undone.
-
-**A computer that can reach neither:** **Email the sync file** from any
-device; saved into a watched Downloads folder, it merges on its own.
+**A backup file** carries all of it: Sync → **Save a backup** (into
+Downloads on a computer; Save to Files on a phone). On another device, Sync
+→ **Restore a backup** replaces what is there with the file, and can be
+undone. Keep a recent one somewhere safe.
 
 **Live, through Firebase:** Sync → **Planner sync**, signed in with your
 Firebase email and password. The planner, the math board, the reading cards,

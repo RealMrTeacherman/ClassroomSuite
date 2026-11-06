@@ -31,7 +31,7 @@
   html:fullscreen .board{padding-bottom:clamp(10px,1.2vw,20px)}
   html:fullscreen #suitenav,html:fullscreen #suitebanner{display:none!important}
 
-  /* ---- v79: header and tabs (teacher chrome, suite tokens, every look) ---- */
+  /* ---- header and tabs (teacher chrome, suite tokens, every look) ---- */
   .g-head{background:var(--suite-panel,#fff);border-bottom:1px solid var(--suite-line,rgba(16,24,32,.09));padding-top:env(safe-area-inset-top,0px);flex:none}
   .g-brand,.g-tabs{max-width:1240px;margin:0 auto;padding-left:20px;padding-right:20px}
   .g-brand{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;padding-top:12px;padding-bottom:2px}
@@ -66,7 +66,7 @@
   .board button.primary,.drawer button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
   .tools{display:flex;gap:8px;flex-wrap:wrap}
   .board button.flag{border-color:#B01E55;color:#B01E55}
-  /* v97: after arranging, the offer to send the groups to the gradebook */
+  /* after arranging, the offer to send the groups to the gradebook */
   .gb-offer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:2px solid var(--rule);border-radius:14px;
     padding:8px 10px 8px 16px;font-size:clamp(.9rem,1.1vw,1.1rem);font-weight:600}
   .gb-offer[hidden]{display:none}
@@ -74,7 +74,7 @@
   @media print{ .gb-offer{display:none!important} }
 
   .grid{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(10px,1.2vw,20px);min-height:0}
-  /* v141: two to six groups. Two or three in a row, four as 2x2, five or six as 3x2 */
+  /* two to six groups. Two or three in a row, four as 2x2, five or six as 3x2 */
   .grid[data-n="2"]{grid-template-rows:1fr}
   .grid[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr}
   .grid[data-n="5"],.grid[data-n="6"]{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -103,7 +103,7 @@
 
   .names{margin-top:clamp(5px,min(1vw,1.2vh),14px);padding-top:clamp(4px,min(.8vw,1vh),12px);border-top:2px dashed var(--rule);display:flex;flex-wrap:wrap;
     gap:calc(var(--name-k,1) * clamp(5px,.6vw,10px));align-content:flex-start;overflow:auto;min-height:0;flex:1 1 auto}
-  /* v115: on a wide, short screen (his school computer: 1920x1080 at 125%,
+  /* on a wide, short screen (his school computer: 1920x1080 at 125%,
      about 1536x740 in a window) the headers were sized by width alone and
      took the height the names needed (names 14px, group names 68px). The
      medallion, group name, station and gaps now take the smaller of a width
@@ -175,7 +175,7 @@
     .board{height:auto}
     .drawer{max-height:none}
   }
-  /* ---------- v141: the group editor, in Setup ---------- */
+  /* ---------- the group editor, in Setup ---------- */
   .ged-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:6px}
   .ged-count{display:inline-flex;align-items:center;gap:0;border:2px solid var(--rule);border-radius:12px;background:var(--card);overflow:hidden}
   .drawer .ged-count button{border:0;border-radius:0;padding:6px 14px;font-size:1.1rem;line-height:1}
@@ -213,7 +213,7 @@
     .board{height:auto;padding:0}
     .group{break-inside:avoid}
   }
-  /* ---------- reading groups (v73) ----------
+  /* ---------- reading groups ----------
      A desk tool, not a projector one: it keeps the volunteer tracker's
      quiet look, and every class is prefixed r- so nothing collides with
      the math board's .board, .page or .field. */
@@ -467,7 +467,7 @@
   var ANIMALS = {
     fox: { color: "#C9481E", tint: "#FBE7DE" }, bear: { color: "#6E4630", tint: "#F2E7E0" },
     tiger: { color: "#D08207", tint: "#FDF0D9" }, lion: { color: "#A9722B", tint: "#F7EBD9" },
-    /* v141: two more slots, and two more animals to choose from */
+    /* two more slots, and two more animals to choose from */
     owl: { color: "#6B4FA0", tint: "#EEE8F7" }, frog: { color: "#2E7D32", tint: "#E2F2E3" },
     penguin: { color: "#3D4F63", tint: "#E4EAF0" }, turtle: { color: "#0E7C7B", tint: "#DDF1F0" }
   };
@@ -475,12 +475,12 @@
   var STATION_COLORS = ["#0F6B6B", "#4B3FA8", "#B01E55", "#2E6B2E", "#1D5C8C", "#8A4B10"];
   var MAXG = 6, MING = 2;
 
-  /* v91: the board has a look, animals or colors. Slot i is Fox or Red,
+  /* the board has a look, animals or colors. Slot i is Fox or Red,
      Bear or Blue, and so on: placements, stations and pages belong to the
      slot, so switching moves no one. Each color has a shape too, so a child
      who can't tell red from green still finds their group. In the colors
      look the station bars go to one dark slate, so the only color on a card
-     is its group's. v141: the look is the set every group starts from; a
+     is its group's. the look is the set every group starts from; a
      group can choose its own picture (`pic`, or an uploaded `img`) and
      colour (`color`), and there are two to six slots. */
   var LOOKS = {
@@ -541,7 +541,7 @@
      suite:groups:v1 = { v:1, math:{ title, look ("animals"|"colors", v91),
        stations[n], pageStations[n],
        groups:[{animal, name, station, pages:{stationIndex:text},
-                pic?, color?, img? (v141)}] x n, n = 2..6 (v141; 4 before),
+                pic?, color?, img?}] x n, n = 2..6 (v141; 4 before),
        place:{ gradebookStudentId: groupIndex },
        guests:{ id:{ name, group } } } }
      Names are never stored here: a student is a gradebook id, so renaming
@@ -549,7 +549,7 @@
      place and guests are maps keyed by id so the suite's merge takes each
      student's move on its own, whichever device made it. A group's `img`
      is a small square picture (a data: URL) the teacher uploaded; it
-     travels with the board, and the name check passes it by (v141). */
+     travels with the board, and the name check passes it by. */
   var STATION_NAMES = ["Teacher Table", "iReady Goal", "Desk Work", "McGraw Hill", "Station 5", "Station 6"];
   var PAGE_DEFAULT = [false, false, true, false, false, false];
   function newGroup(look, i) { return { animal: ORDER[i], name: LOOKS[look].names[i], station: i, pages: {} }; }
@@ -569,12 +569,12 @@
     if (!o || typeof o !== "object" || !o.math) return d;
     var m = o.math, out = d.math;
     if (typeof m.title === "string" && m.title.trim()) out.title = m.title;
-    /* v91: a board saved before looks existed takes its build's look, and
+    /* a board saved before looks existed takes its build's look, and
        its names follow if they are still the standard ones. load() saves
        that once, so sub plans and the other devices see it too. */
     var hadLook = !!LOOKS[m.look];
     out.look = hadLook ? m.look : EDITION_LOOK;
-    /* v141: as many groups as were saved, two to six */
+    /* as many groups as were saved, two to six */
     var n = Array.isArray(m.groups) ? Math.max(MING, Math.min(MAXG, m.groups.length)) : 4;
     out.stations = STATION_NAMES.slice(0, n).map(function (def, i) {
       var v = Array.isArray(m.stations) ? m.stations[i] : null;
@@ -616,7 +616,7 @@
     var parsed = null;
     try { var raw = localStorage.getItem(KEY); parsed = raw ? JSON.parse(raw) : null; G = normalize(parsed); } catch (e) { G = defaults(); parsed = null; }
     if (window.SuiteSync && window.SuiteSync.adopted) window.SuiteSync.adopted(KEY);   /* v81 */
-    /* v91: a saved board with no look yet gets one written, once */
+    /* a saved board with no look yet gets one written, once */
     if (parsed && parsed.math && !LOOKS[parsed.math.look]) save();
   }
   var saveT = null;
@@ -658,7 +658,7 @@
     try { var st = JSON.parse(localStorage.getItem(ROSTER_KEY) || "null"); return st && st.settings ? st.settings.orfSeason : null; } catch (e) { return null; }
   }
 
-  /* ---------- v89: skill groups from the gradebook ----------
+  /* ---------- skill groups from the gradebook ----------
      The gradebook publishes the skill groups its Skill groups tab
      shows (suite:suggest:v1: for Math, the standard, and each group as
      gradebook ids, lowest first). The board offers them in Setup; nothing
@@ -716,7 +716,7 @@
     box.appendChild(btns);
   }
 
-  /* ---------- v97: and back again ----------
+  /* ---------- and back again ----------
      After arranging, the board's groups can go to the gradebook. The board
      never writes the gradebook's data: it leaves a request in
      suite:boardGroups:v1 (the board's groups in slot order, first slot first,
@@ -789,7 +789,7 @@
   /* ---------------- art (unchanged from the approved board) ---------------- */
   function animalSVG(kind) {
     var s = function (b) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + "</svg>"; };
-    /* v141: four more, drawn the same way: flat shapes, dark eyes, no outline */
+    /* four more, drawn the same way: flat shapes, dark eyes, no outline */
     if (kind === "owl") return s('<path d="M24 22 L34 34 L22 38 Z" fill="#4E3878"/><path d="M76 22 L66 34 L78 38 Z" fill="#4E3878"/>' +
       '<ellipse cx="50" cy="56" rx="30" ry="33" fill="#6B4FA0"/><ellipse cx="50" cy="70" rx="17" ry="16" fill="#D9CCEE"/>' +
       '<circle cx="37" cy="47" r="12" fill="#FBF8FF"/><circle cx="63" cy="47" r="12" fill="#FBF8FF"/>' +
@@ -830,10 +830,10 @@
       '<ellipse cx="43" cy="64" rx="10" ry="7.5" fill="#FBF1E2"/><ellipse cx="57" cy="64" rx="10" ry="7.5" fill="#FBF1E2"/>' +
       '<path d="M50 55 L56 61 L44 61 Z" fill="#2B1710"/><circle cx="41" cy="48" r="3.8" fill="#2B1710"/><circle cx="59" cy="48" r="3.8" fill="#2B1710"/>');
   }
-  /* v91: the colors look. Solid, simple shapes: they read from the back of
+  /* the colors look. Solid, simple shapes: they read from the back of
      the room and on a projector that washes colors out. */
   function shapeSVG(i) { var c = LOOKS.colors.slots[i]; return shapeOf(c.shape, c); }
-  /* v141: any shape in any colour (c: {color, fill}) */
+  /* any shape in any colour (c: {color, fill}) */
   function shapeOf(shape, c) {
     var s = function (b) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + "</svg>"; };
     var paint = ' fill="' + c.fill + '" stroke="' + c.color + '" stroke-width="5" stroke-linejoin="round"';
@@ -852,7 +852,7 @@
     return s('<path d="M' + pts.join(" L") + ' Z"' + paint + "/>");
   }
   function medallionSVG(look, i) { var d = slotDefault(look, i); return picSVG(d.pic, d); }
-  /* v141: a picture by name, in a group's colours */
+  /* a picture by name, in a group's colours */
   function picSVG(pic, c) { return ANIMAL_PICS.indexOf(pic) >= 0 ? animalSVG(pic) : shapeOf(pic, c); }
   function imgTag(dataUrl) { return "<img alt=\"\" " + "src=\"" + esc(dataUrl) + "\">"; }
   function medallionHTML(m, i) {
@@ -873,7 +873,7 @@
     if (i === 1) return o + '<rect x="3" y="4.5" width="18" height="12" rx="1.8" ' + w + '/><path d="M1.6 19.5h20.8" ' + w + '/><circle cx="12" cy="10.5" r="3.4" ' + w + '/><circle cx="12" cy="10.5" r="1" fill="currentColor"/></svg>';
     if (i === 2) return o + '<path d="M5 3.5h9.5L19 8v12.5H5z" ' + w + '/><path d="M14.5 3.5V8H19" ' + w + '/><path d="M8 12.5h8M8 16.5h5.5" ' + w + "/></svg>";
     if (i === 3) return o + '<path d="M12 6.4C10 4.6 7.4 4.1 4.5 4.3v13c2.9-.2 5.5.3 7.5 2.1 2-1.8 4.6-2.3 7.5-2.1v-13c-2.9-.2-5.5.3-7.5 2.1z" ' + w + '/><path d="M12 6.4v13.1" ' + w + "/></svg>";
-    /* v141: a fifth station (blocks, hands-on) and a sixth (headphones, listening) */
+    /* a fifth station (blocks, hands-on) and a sixth (headphones, listening) */
     if (i === 4) return o + '<rect x="3.5" y="12.5" width="7.5" height="7.5" rx="1" ' + w + '/><rect x="13" y="12.5" width="7.5" height="7.5" rx="1" ' + w + '/><rect x="8.2" y="4" width="7.5" height="7.5" rx="1" ' + w + "/></svg>";
     return o + '<path d="M4 15v-3a8 8 0 0 1 16 0v3" ' + w + '/><rect x="3" y="14" width="4.5" height="6.5" rx="1.6" ' + w + '/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.6" ' + w + "/></svg>";
   }
@@ -895,7 +895,7 @@
     ab.classList.toggle("flag", !arranging && loose > 0);
 
     grid.innerHTML = "";
-    grid.setAttribute("data-n", m.groups.length);             /* v141: 2-6 groups */
+    grid.setAttribute("data-n", m.groups.length);             /* 2-6 groups */
     grid.style.setProperty("--n", m.groups.length);
     m.groups.forEach(function (g, gi) {
       var a = groupLook(m, gi), si = g.station;
@@ -967,7 +967,7 @@
 
   /* Every name on the board shows, as big as it can. Starts at full size and
      steps down together until no group's list overflows; a floor keeps a very
-     full board readable (it scrolls past that, as before). v115: with room
+     full board readable (it scrolls past that, as before). with room
      to spare, it steps up instead. */
   function fitNames() {
     if (tab !== "math" || !grid.clientHeight) return;
@@ -977,7 +977,7 @@
       return Array.prototype.some.call(grid.querySelectorAll(".names"), function (n) { return n.scrollHeight > n.clientHeight + 1; });
     }
     while (guard++ < 20 && k > 0.5 && over()) { k = Math.round((k - 0.05) * 100) / 100; grid.style.setProperty("--name-k", String(k)); }
-    /* v115: and when they all fit with room to spare, they grow (up to 1.8x)
+    /* and when they all fit with room to spare, they grow (up to 1.8x)
        until the fullest group is full: names are what the room reads */
     if (k === 1 && !over()) {
       guard = 0;
@@ -990,7 +990,7 @@
     }
   }
   window.addEventListener("resize", fitNames);
-  /* v141: the board is also resized by Setup opening and closing above it;
+  /* the board is also resized by Setup opening and closing above it;
      names fitted while it was squeezed stayed small after it closed (v139
      too, after editing a station). Re-fit whenever the board's size changes. */
   if (window.ResizeObserver) {
@@ -1127,8 +1127,8 @@
   function rotate() { var n = M().groups.length; M().groups.forEach(function (g) { g.station = (g.station + 1) % n; }); save(); render(); }
   function lineUp() { M().groups.forEach(function (g, i) { g.station = i; }); save(); render(); }
 
-  /* v91: switch the whole board's look. Everyone stays where they are.
-     v141: a look is the set every group starts from, so choosing it puts
+  /* switch the whole board's look. Everyone stays where they are.
+     a look is the set every group starts from, so choosing it puts
      each group's own picture and colour back to the set's (asked first). */
   function customised() { return M().groups.some(function (g) { return g.pic || g.color || g.img; }); }
   function setLook(look, sure) {
@@ -1169,7 +1169,7 @@
     if (el) el.textContent = "Sends " + n[0] + " to the first station, " + n[1] + " to the second, and so on.";
   }
 
-  /* ---------- v141: how many groups ----------
+  /* ---------- how many groups ----------
      Group i and station i are added and taken away together, so the
      stations stay one per group and Rotate still moves everyone one along.
      Taking a group away: its children go to "Not in a group" (visitors in
@@ -1224,7 +1224,7 @@
     removeGroup(gi); save(); render(); buildEditor(); buildLookPick();
   }
 
-  /* ---------- v141: the group editor ----------
+  /* ---------- the group editor ----------
      One card per group: its picture (tap for the pictures, an upload, and
      the colours), its name, and its station, the one it starts at: group i
      and station i, as Line up sets them. Typing saves as it goes; the board
@@ -1360,7 +1360,7 @@
   }
 
   /* ---------------- sub slides ---------------- */
-  /* v141: the approved deck is four groups with a look's own pictures and
+  /* the approved deck is four groups with a look's own pictures and
      colours; any other board is drawn by SubSlides.fillGeneral, from the
      same parts, with its pictures made here as PNGs */
   function usesTemplate() { return M().groups.length === 4 && !customised(); }
@@ -1416,7 +1416,7 @@
       document.head.appendChild(s);
     });
   }
-  /* v131: the deck's template (about 400 KB) is fetched when a deck is made,
+  /* the deck's template (about 400 KB) is fetched when a deck is made,
      not on every open of the board; the service worker keeps it offline */
   function loadDeckTemplate() {
     if (window.SUB_DECK_TEMPLATE) return Promise.resolve();
@@ -1428,7 +1428,7 @@
       document.head.appendChild(s);
     });
   }
-  /* v91: the colors look's medallion pictures, only when a colors deck is made */
+  /* the colors look's medallion pictures, only when a colors deck is made */
   function loadColorMedallions() {
     if (M().look !== "colors" || window.SUB_DECK_COLORS) return Promise.resolve();
     return new Promise(function (res, rej) {
@@ -1499,7 +1499,7 @@
   }
   function importOld(obj) {
     if (!obj || !Array.isArray(obj.groups)) return null;
-    /* v141: the old board had four groups; this one may have fewer */
+    /* the old board had four groups; this one may have fewer */
     if (M().groups.length < Math.min(4, obj.groups.length)) setCount(Math.min(4, obj.groups.length));
     var m = M(), notes = [], placed = {}, counts = { matched: 0, visitors: 0 };
     if (typeof obj.title === "string" && obj.title.trim()) m.title = obj.title.trim();
@@ -1595,16 +1595,16 @@
     else if (e.key === "f" || e.key === "F") toggleFull();
   });
 
-  /* Another tab, or the sync file, changed the roster or the groups. */
+  /* Another tab, live sync or a restore changed the roster or the groups. */
   function refresh() {
     if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === "INPUT")) return;
-    /* v81: a move made in the last 200ms was still waiting to be written,
+    /* a move made in the last 200ms was still waiting to be written,
        and load() dropped it. Write it first; the write merges with what
        arrived, so load() then reads both. */
     if (saveT) saveNow();
     if (rSaveT) rSaveNow();
     load(); rLoad(); readRoster(); render(); rRender();
-    /* v141: another device changed the groups: redraw the editor, unless typing in it */
+    /* another device changed the groups: redraw the editor, unless typing in it */
     var dr = document.getElementById("drawer");
     if (dr && dr.classList.contains("open") && !dr.contains(document.activeElement)) { buildEditor(); buildLookPick(); }
   }
@@ -1616,7 +1616,7 @@
   }
   window.addEventListener("pagehide", function () { saveNow(); rSaveNow(); });
 
-  /* ================= READING GROUPS (v73) =================
+  /* ================= READING GROUPS =================
      suite:readgroups:v1 = { v:1, current:"u1", scope:"unit"|"0"|"1"|"2",
        blanks, days:{mon..fri:bool},
        units:{ u1..u10:{ name, start, weeks:[3], subs:{orange..pink},
@@ -1965,7 +1965,7 @@
       (c.visitors ? ", " + c.visitors + " as visitors" : "") + "."].concat(res.notes));
   }
 
-  /* ---- suggested groups from the running-records tool (v74) ----
+  /* ---- suggested groups from the running-records tool ----
      Read-only use of running-records-v1: the same "Suggested groups" the
      tool's Reports tab shows (orf-suggest.js), offered for the current
      unit. Nothing moves until the teacher presses Use; only students with
@@ -1974,7 +1974,7 @@
   var ORF_KEY = "running-records-v1";
   var sugBasis = "rate", sugMap = {}, sugUndo = null;
   function readOrf() { try { var raw = localStorage.getItem(ORF_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
-  /* v82: suite-orf.js's rule, the one the gradebook links by. A lone name
+  /* suite-orf.js's rule, the one the gradebook links by. A lone name
      is read as the tool reads it (a surname), which SuiteNames.match below
      still finds as a first name; and a suffix is dropped for matching, as
      this page always did. */
@@ -1992,7 +1992,7 @@
     var p = splitName(name), f = norm(p.first), l = norm(p.last);
     var hit = roster.filter(function (s) { return norm(s.first) === f && norm(s.last) === l; });
     if (hit.length === 1) return hit[0];
-    /* v76: a name the child goes by (gradebook → Setup → Also called) */
+    /* a name the child goes by (gradebook → Setup → Also called) */
     var nick = window.SuiteNames ? window.SuiteNames.match(roster, p.first, p.last) : null;
     if (nick) return nick;
     hit = roster.filter(function (s) { return norm(s.first) === f; });
@@ -2001,7 +2001,7 @@
   function shortDate(iso) { var d = new Date(iso); return isNaN(d) ? "" : MONTHS[d.getMonth()] + " " + d.getDate(); }
   function sugGroups() {
     var db = readOrf();
-    /* v89: the gradebook's own suggestions (suite-orf.js), in the windows
+    /* the gradebook's own suggestions (suite-orf.js), in the windows
        of the suite calendar; nothing is worked out here */
     var gs = window.SuiteOrf && window.SuiteOrf.suggest ? window.SuiteOrf.suggest.suggest(db, sugBasis, calLines()) : [];
     gs.forEach(function (g, i) {
@@ -2149,7 +2149,7 @@
     });
   })();
 
-  /* ---- tabs: #reading, #win (v78) or the math board; per device, not synced ---- */
+  /* ---- tabs: #reading, #win or the math board; per device, not synced ---- */
   var tab = "math";
   function setTab(t) {
     tab = t === "reading" || t === "win" ? t : "math";

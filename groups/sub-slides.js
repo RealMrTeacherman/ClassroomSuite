@@ -25,7 +25,7 @@
   var EMU_PT = 12700;
   var STATION_HEX = ["0F6B6B", "4B3FA8", "B01E55", "2E6B2E"];
   var TINTS = { fox: "FBE7DE", bear: "F2E7E0", tiger: "FDF0D9", lion: "F7EBD9" };
-  /* v91: the colors look. In slot order (Red, Blue, Yellow, Green): the
+  /* the colors look. In slot order (Red, Blue, Yellow, Green): the
      card's border and name color, and the tint behind each name. The
      animal colors they replace are the template's own, in the same order.
      Station bars go to one slate, as on the board. The medallion pictures
@@ -225,7 +225,7 @@
     return { files: files, warnings: warnings };
   }
 
-  /* ---------- v141: any board ----------
+  /* ---------- any board ----------
      The approved deck is four cards in four corners with each look's own
      pictures. A board with another number of groups, or with a picture or
      colour of its own, gets a deck drawn from the same parts: the template's

@@ -93,7 +93,7 @@
     border-bottom:2px solid transparent;
   }
   .passage.locked .w{cursor:default}
-  /* v116: about 6px more each side, about the gap to the next word, so a tap
+  /* about 6px more each side, about the gap to the next word, so a tap
      meant for a neighbour still lands on the neighbour */
   .passage .w.short{position:relative}
   .passage .w.short::after{content:"";position:absolute;top:-3px;bottom:-3px;left:-6px;right:-6px}
@@ -138,7 +138,7 @@
   #toast.on{opacity:1;transform:translateX(-50%)}
   #toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px}
   #toast .toast-act{font:inherit;font-size:14px;font-weight:600;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.5);border-radius:6px;padding:4px 10px;cursor:pointer}
-  /* v138: a saved check's student, tap to move the check */
+  /* a saved check's student, tap to move the check */
   .who{font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:3px}
   .who:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
   .mv-back{position:fixed;inset:0;background:rgba(16,24,32,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -354,7 +354,7 @@ function saveDB(){
     catch(e){ toast("Couldn't save — your last change is only on screen."); }
   }, 120);
 }
-/* v111: a change made in the last 120ms is saved as the page goes, instead of
+/* a change made in the last 120ms is saved as the page goes, instead of
    lost with it. store.set writes before its first await, so this lands even
    as the page closes. */
 function flushSave(){
@@ -365,7 +365,7 @@ function flushSave(){
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushSave(); });
 
-/* v111: checks and students arriving from another device or tab are shown at
+/* checks and students arriving from another device or tab are shown at
    once, instead of after a reload. Anything typed here is saved first (the
    suite's write guard merges it with what arrived); then the lists are
    redrawn from storage, but not the reading in progress: renderSelectors
@@ -392,7 +392,7 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&l
 let toastT=null;
 function toast(msg, act){
   const t=$("#toast"); t.textContent=msg; t.classList.toggle("act", !!act);
-  /* v138: an optional button (Undo), with longer to reach it */
+  /* an optional button (Undo), with longer to reach it */
   if(act){
     const b=document.createElement("button"); b.className="toast-act"; b.textContent=act.label;
     b.addEventListener("click", ()=>{ t.classList.remove("on","act"); clearTimeout(toastT); act.fn(); });
@@ -467,7 +467,7 @@ function currentPassage(){
 }
 function renderSelectors(){
   const s=$("#selStudent"), prevS=s.value;
-  /* v132: the class list is the gradebook's (v87); a sample student left
+  /* the class list is the gradebook's; a sample student left
      from before is not offered */
   const kids=DB.students.filter(st=>!st.demo);
   s.innerHTML = kids.length
@@ -483,7 +483,7 @@ function renderSelectors(){
   $("#assessHint").textContent = pass
     ? `${wordCount(pass.text)} words in this passage.`
     : "Add a passage on the Passages tab to get started.";
-  /* v133: the class list or passages can change while nothing is being read
+  /* the class list or passages can change while nothing is being read
      (the gradebook's roster arriving, a passage saved); Start and the cue
      follow, instead of waiting for the next reset */
   if(S.phase==="idle") setPhase("idle");
@@ -497,7 +497,7 @@ function renderPassage(){
   el.innerHTML = S.tokens.map((t,i)=>{
     if(t.br) return `<div class="br"></div>`;
     if(!t.word) return `<span class="p">${esc(t.raw)} </span>`;
-    /* v116: a short word ("a", "I", "it") is a narrow target when marking at
+    /* a short word ("a", "I", "it") is a narrow target when marking at
        speed; it gets a wider invisible tap area (see .w.short) */
     return `<span class="w${String(t.raw).replace(/[^A-Za-z0-9]/g,'').length <= 2 ? ' short' : ''}" data-i="${i}" tabindex="0" role="button">${esc(t.raw)}</span> `;
   }).join("");
@@ -515,7 +515,7 @@ function paintMarks(){
   const isLast = S.editLap===S.laps.length-1;
   $$("#passage .w").forEach(sp=>{
     const i = +sp.dataset.i;
-    const short = sp.classList.contains("short");   /* v116: kept through each repaint */
+    const short = sp.classList.contains("short");   /* kept through each repaint */
     sp.className = short ? "w short" : "w";
     const m = cur.marks[i];
     if(m==="e") sp.classList.add("e");
@@ -725,7 +725,7 @@ function showResults(){
     S.editLap=+c.dataset.lap; paintMarks(); showResults();
   }));
 }
-/* v137: this read beside the student's last check and their goals
+/* this read beside the student's last check and their goals
    (fluency-compare.js), worked out before Save the way the scorecard will */
 function drawCompare(r){
   const box=$("#lastCompare"); if(!box) return;
@@ -1014,7 +1014,7 @@ $("#recordList").addEventListener("click", e=>{
   saveDB(); renderRecords();
 });
 
-/* ---------- v138: move a saved check to a different student ----------
+/* ---------- move a saved check to a different student ----------
    For a check saved under the wrong name. The box says whose record it
    leaves and whose it joins, and when it was one of their first check of
    the year (the start their goals are set from). Only studentId changes:

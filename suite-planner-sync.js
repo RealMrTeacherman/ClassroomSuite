@@ -2,9 +2,8 @@
    suite-planner-sync.js (v99; Firebase since v105, the only store since
    v113) — the planner and the projected boards, kept in step live.
 
-   The folder route needs a computer to watch a folder and a phone to tap
-   Send and Get. The planner holds no student records, so it alone also
-   travels through his private Firebase project: two Firestore documents,
+   The planner holds no student records, so it (with the boards and lesson
+   materials) travels through his private Firebase project: two Firestore documents,
    suite/planner and suite/boards, each { text, rev, at, from, note }. Every
    page listens to both and runs a round ~300 ms after another device
    writes; planner changes push 10 s after the last edit, board changes 3 s.
@@ -12,9 +11,8 @@
    ways against this device's base and tries again.
 
    It carries these keys and no others (PLANNER_KEYS), plus the boards
-   (BOARD_KEYS) and the Walk to WIN summary (LIVE_KEY). They stay on the
-   folder route too, so Send, Get and Email still reach a device that has
-   not set this up. Each route merges against its own base.
+   (BOARD_KEYS) and the Walk to WIN summary (LIVE_KEY). A backup file
+   carries them too, for a device that has not set this up.
 
    What keeps it safe is not the transport:
    - Only these keys ever reach the store, and a test holds the list to keys
@@ -42,13 +40,13 @@
    listens, with
    a safety round every few minutes while on screen. Sign-in is a Firebase
    email and password, not a Google account; tools/firestore.rules lets the
-   display's account read, and write only suite/boards (v142). The SDK is vendored
+   display's account read, and write only suite/boards. The SDK is vendored
    (vendor/firebase/, Apache-2.0) and loads only on a device set up for it.
    Everything Firebase-specific is the FB object below.
 
    Nothing waits on the network: every request has a 15 s timeout, and the
    first round starts after the page is up. Reads ask the server, never a
-   cached copy. The GitHub route this began as (v99-v112) is in CHANGELOG.
+   cached copy. The GitHub route this began as is in CHANGELOG.
    ========================================================================== */
 (function () {
   "use strict";
@@ -61,12 +59,12 @@
   var CONF_KEY = "suite:plannerHub:v1", OK_KEY = "suite:plannerHubOk:v1", BASE_IDB = "plannerHubBase";
   var FILE = "planner.json";
   var PUSH_AFTER = 10000, TIMEOUT = 15000, PULL_GAP = 30000, TRIES = 3;
-  /* v101: the projected boards, by id */
+  /* the projected boards, by id */
   var BOARD_KEYS = ["suite:groups:v1", "suite:readgroups:v1"];
   var BOARDS_FILE = "boards.json", BBASE_IDB = "boardsHubBase";
-  var LIVE_KEY = "suite:winLive:v1";   /* v102: not a folder-route key, so handled beside the merge */
+  var LIVE_KEY = "suite:winLive:v1";   /* not a folder-route key, so handled beside the merge */
   var BOARD_PUSH_AFTER = 3000, DISPLAY_POLL = 25000;
-  /* v105: where this file was loaded from, to find vendor/firebase/ beside it */
+  /* where this file was loaded from, to find vendor/firebase/ beside it */
   var HERE = (document.currentScript && document.currentScript.src) || "";
   var onGroups = /\/groups(\/|\/index\.html)?$/.test(location.pathname);
   var onPlanner = /\/planner(\/|\/index\.html)?$/.test(location.pathname);
@@ -76,8 +74,7 @@
     try {
       var c = JSON.parse(localStorage.getItem(CONF_KEY) || "null");
       if (!c || typeof c !== "object") return null;
-      /* v113: a device set up for GitHub before it was removed was told so in
-         the panel; v140 clears that setting (its token too) silently instead */
+      
       if (c.token && !c.fb) { localStorage.removeItem(CONF_KEY); return null; }
       return c;
     } catch (e) { return null; }
@@ -85,8 +82,7 @@
   function saveConf(c) { try { localStorage.setItem(CONF_KEY, JSON.stringify(c)); } catch (e) { } }
   function configured() { var c = conf(); return !!(c && c.fb && c.fb.projectId && c.email); }
   function display() { var c = conf(); return !!(c && c.readonly); }
-  /* v107: sync covers everything it can, so a connected device always keeps the
-     boards (and the WIN summary) in step; the per-device switch is gone */
+  
   function boardsOn() { return configured(); }
   function noteConf(patch) { var c = conf(); if (!c) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); saveConf(c); }
 
@@ -182,12 +178,12 @@
       if (typeof keys[k] !== "string") return;
       var v; try { v = JSON.parse(keys[k]); } catch (e) { return; }
       eachText(v, [], function (path, text, isKey) {
-        /* v101: a board's `place` maps random gradebook ids ("x7ada3k") to
+        /* a board's `place` maps random gradebook ids ("x7ada3k") to
            groups; split into words, an id can contain "ada" by chance */
         if (path.length >= 2 && path[path.length - 2] === "place") return;
-        /* v102: the WIN summary's notes are keyed by gradebook id too */
+        /* the WIN summary's notes are keyed by gradebook id too */
         if (isKey && path.length >= 2 && path[path.length - 2] === "notes") return;
-        /* v141: a group's uploaded picture is a data: URL; read as words, its
+        /* a group's uploaded picture is a data: URL; read as words, its
            base64 can spell a name by chance */
         if (!isKey && path[path.length - 1] === "img" && /^data:image\/[a-z]+;base64,/.test(text)) return;
         var found = namesIn(text, known.words);
@@ -248,7 +244,7 @@
       return "Settings";
     }
     if (key === "lp:me:v1") return "the planner\u2019s name for you";
-    /* v101: the boards */
+    /* the boards */
     if (key === "suite:groups:v1") {
       var gi = p[1] === "groups" && p[2] != null ? " \u00b7 group " + (+p[2] + 1) : "";
       if (p[1] === "title") return "Math board \u00b7 title";
@@ -288,13 +284,13 @@
   /* one file: { sha, text }, or { sha: null, text: null } if it is not there yet ("sha" is Firebase's rev) */
   function fetchFile(name) { return FB.get(name); }
   function putFile(name, text, sha, message) {
-    /* v101: a display never writes, whatever asks it to. v142: except the
+    /* a display never writes, whatever asks it to. except the
        boards (the math board and reading groups), which he arranges on it
        too; never the planner, the WIN summary or lesson materials */
     if (display() && name !== BOARDS_FILE) return Promise.reject(err("display"));
     return FB.put(name, text, sha, message);
   }
-  /* ---------- v105: Firebase, as a store for the same two files ---------- */
+  /* ---------- Firebase, as a store for the same two files ---------- */
   function withTimeout(p) {
     var t = null;
     return Promise.race([p, new Promise(function (res, rej) { t = setTimeout(function () { rej(err("net", "Firebase did not answer")); }, TIMEOUT); })])
@@ -406,7 +402,7 @@
       FB.unsub = []; FB.listening = false; FB.seen = {};
     }
   };
-  /* ---------- v140: lesson materials ----------
+  /* ---------- lesson materials ----------
      planner/materials.js keeps files, links and notes on curriculum lessons.
      In the store: suite/materials is the index ({text: JSON {v, items}, rev,
      at, from}), changed only inside a transaction so two devices' edits both
@@ -415,7 +411,7 @@
      suite/ rule already published: the owner writes, the display reads.
      Cloud Storage would be the usual home, but a project made since late
      2024 needs the paid plan for it. Nothing here touches PLANNER_KEYS, the
-     folder route or the sync file: materials travel only live. */
+     backup file: materials travel only live. */
   var MAT_DOC = "materials", CHUNK = 700 * 1024;
   function matIndex(text) {
     var v = parse(text || "") || {};
@@ -501,13 +497,13 @@
     return { roster: known.roster, hits: known.roster ? namesIn(String(text || ""), known.words) : [] };
   }
 
-  /* v106: this copy's own project, from suite-edition.js, if it has one */
+  /* this copy's own project, from suite-edition.js, if it has one */
   function editionFirebase() {
     var e = window.SuiteEdition && window.SuiteEdition.firebase;
     return e && e.apiKey && e.projectId && e.appId ? e : null;
   }
   var otherProject = false;   /* "Use a different Firebase project" was pressed */
-  /* v113: suite-edition.js is loaded by the Small Groups page only, so on the
+  /* suite-edition.js is loaded by the Small Groups page only, so on the
      planner, gradebook or ORF tool the built-in project was unknown and the
      panel asked for the config (v106's bug). It is loaded here when missing,
      once, from beside this file; the panel redraws when it arrives. */
@@ -543,7 +539,7 @@
     return putFile(FILE, JSON.stringify(payload), sha, "Planner from " + SS.device);
   }
 
-  /* ---------- v101: the boards, without their guests ----------
+  /* ---------- the boards, without their guests ----------
      A guest is a visiting child, typed by name: suite:groups:v1 keeps them
      at math.guests, suite:readgroups:v1 at units.<u>.guests. They never
      leave the device. Everything else on a board is a random id or typed
@@ -599,9 +595,9 @@
   }
   function saveBase(keys) { base = onlyPlanner(keys); L.idbSet(BASE_IDB, base); }
 
-  /* ---------- v101: the boards' base and state ---------- */
+  /* ---------- the boards' base and state ---------- */
   var bbase = null, bstate = "off", bdetail = "", bhold = null, bempty = false;
-  var winRemote = null;   /* v103: { at, from } of the WIN summary the store holds, as of the last round */
+  var winRemote = null;   /* { at, from } of the WIN summary the store holds, as of the last round */
   function loadBBase() {
     if (bbase) return Promise.resolve(bbase);
     return L.idbGet(BBASE_IDB).then(function (b) { bbase = b && typeof b === "object" ? b : {}; return bbase; },
@@ -615,12 +611,10 @@
   function saveBBase(keys) { bbase = onlyBoards(keys); L.idbSet(BBASE_IDB, bbase); }
 
   var busy = false, again = false, applying = false, lastRound = 0, pushTimer = null, boardTimer = null;
-  L.setBusy(function () { return busy; });
 
   function round() {
     if (!configured()) { setState("off"); return Promise.resolve([]); }
     if (busy) { again = true; return Promise.resolve([]); }
-    if (L.folderBusy()) { setTimeout(round, 1500); return Promise.resolve([]); }
     busy = true; lastRound = Date.now();
     clearTimeout(pushTimer); pushTimer = null;
     clearTimeout(boardTimer); boardTimer = null;
@@ -630,7 +624,7 @@
       return readRemote().then(function (remote) {
         var mine = localKeys();
         if (display()) {
-          /* v101: a display shows what the store has, and sends nothing */
+          /* a display shows what the store has, and sends nothing */
           var take = {};
           PLANNER_KEYS.forEach(function (k) { if (remote.keys[k] !== undefined && remote.keys[k] !== mine[k]) take[k] = remote.keys[k]; });
           if (Object.keys(take).length) {
@@ -661,7 +655,7 @@
         });
       });
     }
-    /* v101: the boards, after the planner */
+    /* the boards, after the planner */
     var boardChanged = [];
     function boardAttempt(n) {
       return fetchFile(BOARDS_FILE).then(function (got) {
@@ -683,7 +677,7 @@
           var st = stripGuests(k, v);
           if (st != null) mine[k] = st;
         });
-        /* v142: the display merges its own moves too, as any device does.
+        /* the display merges its own moves too, as any device does.
            But on its first round it has no base, and its copy (from an
            emailed file, maybe days old) would read as edits and overwrite
            the Mac's: then it takes the store's as it is, as it always did,
@@ -701,7 +695,7 @@
           try { boardChanged = boardChanged.concat(L.apply({ keys: put, updatedAt: new Date().toISOString() })); }
           finally { applying = false; }
         }
-        /* v102: the WIN summary. A display shows the store's; an editing
+        /* the WIN summary. A display shows the store's; an editing
            device sends its own when it is the newer one. */
         var myLive = localStorage.getItem(LIVE_KEY), when = function (j) { var o = parse(j); return o && typeof o.at === "string" ? o.at : ""; };
         var sendLive;
@@ -756,9 +750,8 @@
       /* only the planner page shows planner data from memory; everywhere
          else reads it from storage when it is needed */
       if (changed.length && onPlanner) L.notify(changed);
-      /* v101: and the Small Groups page holds the boards */
+      /* and the Small Groups page holds the boards */
       if (boardChanged.length && onGroups) L.notify(boardChanged);
-      L.drain();
       if (again) { again = false; setTimeout(round, 0); }
       return changed;
     });
@@ -769,9 +762,9 @@
     clearTimeout(pushTimer);
     pushTimer = setTimeout(round, PUSH_AFTER);
   }
-  /* v101: a change to a board reaches the projector in seconds */
+  /* a change to a board reaches the projector in seconds */
   function scheduleBoards() {
-    if (!boardsOn()) return;   /* v142: the display's moves go out too */
+    if (!boardsOn()) return;   /* the display's moves go out too */
     clearTimeout(boardTimer);
     boardTimer = setTimeout(round, BOARD_PUSH_AFTER);
   }
@@ -799,7 +792,7 @@
   window.addEventListener("pagehide", function () { if (pushTimer || boardTimer) round(); });
   window.addEventListener("online", function () { if (configured()) round(); });
 
-  /* v101: a display checks on its own while it is on screen */
+  /* a display checks on its own while it is on screen */
   setInterval(function () {
     if (!configured() || !display() || document.hidden || busy) return;
     /* the display listens; this is only a safety check every few minutes */
@@ -854,7 +847,7 @@
     badfile: "The planner in Firebase isn\u2019t a planner file, so nothing was changed.",
     /* v101 */
     display: "This computer is the display: it changes the boards, never the planner.",
-    /* v105: Firebase */
+    /* Firebase */
     fbconfig: "That doesn\u2019t look like a Firebase config. Paste the firebaseConfig block from your project\u2019s settings.",
     fbcreds: "Enter the email and password of a user you made in Firebase.",
     fbauth: "Firebase turned that email or password down.",
@@ -866,7 +859,7 @@
     badboards: "The boards in Firebase aren\u2019t a boards file, so nothing was changed.",
     off: "Connect planner sync first."
   };
-  /* v103: Walk to WIN, said plainly, so a stalled slide says where it stalled */
+  /* Walk to WIN, said plainly, so a stalled slide says where it stalled */
   function clock(at) {
     if (at === "") return "before any change on that device";
     var t = Date.parse(at || ""); if (!t) return "at an unknown time";
@@ -895,9 +888,9 @@
   function boardsStatus() {
     if (!boardsOn()) return "Off on this device";
     if (bstate === "off") return "On";
-    /* v102: "On" alone, with nothing ever sent, read as working (it misled) */
+    /* "On" alone, with nothing ever sent, read as working (it misled) */
     if (bstate === "idle" && display() && bempty) return "On, but nothing has been sent yet. Arrange a board here, or on the Mac or phone.";
-    /* v142: a project still on the old rules refuses the display's moves */
+    /* a project still on the old rules refuses the display's moves */
     if (bstate === "fbdenied" && display()) return "Firebase won\u2019t take this computer\u2019s changes to the boards yet. Publish the current security rules (tools/firestore.rules, v142) in the Firebase console, then Sync now. Until then, moves made here stay on this computer only.";
     if (bstate === "idle") return "On \u00b7 live: changes here and on your other devices go out in seconds";
     if (bstate === "held") return heldText(bhold, "board");
@@ -906,7 +899,7 @@
   function heldText(h) {
     h = h || hold;
     if (!h) return "";
-    if (h.reason === "roster") return "Paused: this device has no class list yet, so it can\u2019t check for names. Get the latest once.";
+    if (h.reason === "roster") return "Paused: this device has no class list yet, so it can\u2019t check for names. Restore a backup from your main computer once.";
     var n = h.hits.length;
     return "Paused: a student\u2019s name is in " + h.hits[0].where + (n > 1 ? " and " + (n - 1) + " more" : "") + ".";
   }
@@ -923,7 +916,7 @@
   /* ---------- the panel ---------- */
   var css = document.createElement("style");
   css.textContent =
-    /* v101: two lists of held places can outgrow a phone; the panel scrolls rather than run off it */
+    /* two lists of held places can outgrow a phone; the panel scrolls rather than run off it */
     '#suitesheet.hub{width:min(340px,calc(100vw - 40px));max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px);overflow-y:auto}' +
     '#suitesheet.hub label{display:block;font-size:12.5px;color:#55636E;padding:4px 6px 0}' +
     '#suitesheet.hub input{display:block;box-sizing:border-box;width:100%;min-height:36px;margin-top:3px;padding:0 10px;' +
@@ -981,9 +974,9 @@
     function close() { box.remove(); }
 
     if (!configured()) {
-      /* v105: Firebase, first */
+      /* Firebase, first */
       box.appendChild(el("i", "", "Keeps the planner, the math board, the reading cards and the Walk to WIN slides in step live through your own Firebase project, the boards by student id only. Never the gradebook, reading checks or sub plans, and nothing is sent while a note names a student."));
-      /* v106: with this copy's project built in, only the sign-in is asked for */
+      /* with this copy's project built in, only the sign-in is asked for */
       var built = otherProject ? null : editionFirebase();
       if (built) box.appendChild(el("div", "hubstatus", "Your suite\u2019s Firebase project: " + built.projectId));
       var f1 = el("label", "", "Firebase config"), j1 = el("textarea");
@@ -1002,7 +995,7 @@
       f4.appendChild(j4); f4.appendChild(document.createTextNode("This computer only displays (sign in as the display user)"));
       box.appendChild(f4);
       box.appendChild(el("i", "", (built ? "" : "The config is in your Firebase project\u2019s settings, under Your apps. ") +
-        "Sign in with the user you made for this device. Bring a second device up to date first (Get the latest, or the sync folder), so its first round starts from the same plans."));
+        "Sign in with the user you made for this device. Bring a second device up to date first (Restore a backup from the first device), so its first round starts from the same plans."));
       if (msg) box.appendChild(el("div", "hubmsg", msg));
       box.appendChild(button("Connect", function () {
         var go = this; go.disabled = true;
@@ -1035,7 +1028,7 @@
       if (state === "held" && hold && hold.reason === "names") hits(hold);
       box.appendChild(button("Sync now", function () { round().then(function () { open(); }); }));
 
-      /* v101: the projected boards */
+      /* the projected boards */
       box.appendChild(el("div", "hubhead", "Boards and Walk to WIN slides"));
       box.appendChild(el("i", "", display()
         ? "The math board and reading groups can be arranged here as on any device, and changes go both ways in seconds, by student id only; names come from this computer\u2019s own gradebook copy. The Walk to WIN slides come from your Mac (their lists name other classes\u2019 children, so they never go to Firebase)."
@@ -1057,7 +1050,7 @@
   function paintBanner() {
     if (!(onPlanner || onGroups) || !document.body) return;
     var b = document.getElementById("suitehubheld");
-    /* v101: the Small Groups page is projected too; it shows the boards' hold */
+    /* the Small Groups page is projected too; it shows the boards' hold */
     var h = onPlanner ? (state === "held" ? hold : null) : (bstate === "held" ? bhold : null);
     var what = onPlanner ? "Planner sync" : "Board sync";
     if (!h || bannerShut) { if (b) b.remove(); return; }
@@ -1081,7 +1074,7 @@
   /* The phone's Get offer, the update notice and the planner's reload
      banner all sit where this does. Whichever comes and goes, this sits
      above them rather than under. */
-  var OTHERS = ["suiteget", "suiteupdate", "suitebanner"];
+  var OTHERS = ["suiteupdate", "suitebanner"];
   function lift() {
     var b = document.getElementById("suitehubheld");
     if (!b) return;
@@ -1121,7 +1114,7 @@
     get boardHeld() { return bhold ? { reason: bhold.reason, hits: bhold.hits.map(function (h) { return { where: h.where, word: h.word }; }) } : null; },
     boardsStatus: boardsStatus,
     winLines: function () { return boardsOn() ? winLines() : []; },   /* v103 */
-    /* v140: lesson materials (planner/materials.js) and the name check they use */
+    /* lesson materials (planner/materials.js) and the name check they use */
     materials: MAT,
     names: namesInText,
     onState: function (f) { listeners.push(f); },

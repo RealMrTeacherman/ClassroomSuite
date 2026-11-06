@@ -5,13 +5,27 @@
    subfolder such as user.github.io/classroom/, or anywhere else, with no
    edits. Registering "../sw.js" from an app directory gives this worker a
    scope of the suite root, which needs no special response header. */
-const CACHE = "classroom-suite-v150-c32e865a";
+const CACHE = "classroom-suite-v152-adf71087";
 
 const SHELL = [
   "./",
   "index.html",
   "gradebook/",
   "gradebook/index.html",
+  "gradebook/gb-core.js",
+  "gradebook/gb-enter.js",
+  "gradebook/gb-students.js",
+  "gradebook/gb-report.js",
+  "gradebook/gb-conferences.js",
+  "gradebook/gb-class-goal.js",
+  "gradebook/gb-group-goals.js",
+  "gradebook/gb-setup.js",
+  "gradebook/gb-fluency.js",
+  "gradebook/gb-pdf.js",
+  "gradebook/gb-roster.js",
+  "gradebook/gb-bridges.js",
+  "gradebook/gb-assign.js",
+  "gradebook/gb-boot.js",
   "manifest.json",
   "gradebook/manifest.json",
   "planner/",
@@ -67,7 +81,7 @@ const SHELL = [
    over, and the previous one keeps serving the old site forever. That failure
    is invisible from the page, so a single stale path could freeze every future
    update. Individual adds mean a missing file costs only that file. */
-/* v103: every file an update caches is fetched past the browser's own HTTP
+/* every file an update caches is fetched past the browser's own HTTP
    cache (`cache: "reload"`), and the background refresh revalidates
    (`cache: "no-cache"`). GitHub Pages lets a browser keep a file for ten
    minutes, so an update installed within ten minutes of the last load stored
@@ -114,7 +128,7 @@ self.addEventListener("fetch", e => {
      hosts). Those must never be answered from the cache, or a device would
      merge against yesterday's copy, and must never be stored in it: each of
      Firestore's listen requests has a URL of its own, so caching them only
-     filled the cache. Left to the browser entirely. v140: this list named
+     filled the cache. Left to the browser entirely. this list named
      the routes removed in v96 and v113 and none of Firebase's hosts. Google's
      font hosts are deliberately left out: those we do want cached offline. */
   if ((/\.googleapis\.com$/.test(url.hostname) && url.hostname !== "fonts.googleapis.com") ||

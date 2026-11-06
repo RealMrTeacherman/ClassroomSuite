@@ -4,7 +4,7 @@
    Sits in <head> and runs synchronously. It warms the font connections, and
    since v92 clears the old look preference.
 
-   The suite had three looks until v91: 2026, 2006 ("textured") and 2046,
+   The suite had three looks until 2026, 2006 ("textured") and 2046,
    chosen from Look in the corner switcher and applied here, before the first
    paint, as `data-suite-theme` on the root element. v92 kept 2026 only. The
    attribute is never set now; suite-theme.css still prefixes its 2026 rules
@@ -29,7 +29,7 @@
     });
   } catch (e) { /* the fonts still load, just a little later */ }
 
-  /* v92: a device that chose 2006 or 2046 kept "suite:theme:v1". Nothing
+  /* a device that chose 2006 or 2046 kept "suite:theme:v1". Nothing
      reads or writes it now, so it goes. It was never synced, and nothing can
      set it again, so this converges on every load rather than using a flag. */
   try { localStorage.removeItem("suite:theme:v1"); } catch (e) { }

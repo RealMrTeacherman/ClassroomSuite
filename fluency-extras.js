@@ -2,7 +2,7 @@
    fluency-extras.js
    Injected into the ORF tool (fluency/index.html) by one <script> tag.
 
-   One thing since v132: COMPREHENSION on the Assess tab. After a read, a
+   One thing since COMPREHENSION on the Assess tab. After a read, a
    row of chips (Not asked, 0-3 of 3) sits above "Save this check", and the
    choice is filed under the saved check's id in suite:orfcomp:v1, which the
    gradebook's ORF tab reads (and edits, on a child's checks).

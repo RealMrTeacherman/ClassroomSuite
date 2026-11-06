@@ -1,5 +1,5 @@
 /* ============================================================
-   groups/win.js (v78) — Walk to WIN
+   groups/win.js — Walk to WIN
    The grade's lists (who goes to which teacher for Walk to Read on
    Monday/Thursday and Walk to Math on Tuesday/Friday) are pasted in as the
    school sends them. This finds this class's children on them, puts them on
@@ -26,7 +26,7 @@
   if (window.SuiteWin) return;
 
   var KEY = "suite:win:v1", ROSTER_KEY = "gb2_standards_v1";
-  /* v102: what the projected slide needs, for the school computer.
+  /* what the projected slide needs, for the school computer.
      LIVE_KEY is a summary of this class's matches (by gradebook id), made
      here on the Mac or phone and sent with the boards (suite-planner-
      sync.js); it holds no pasted list text and none of the other rooms'
@@ -303,7 +303,7 @@
       if (!L || !L.subjects) { delete W.lists[id]; return; }
       L.fix = L.fix || {}; L.fix.read = L.fix.read || {}; L.fix.math = L.fix.math || {};
     });
-    summarise();   /* v102: a roster change, or lists arriving by sync, update the summary */
+    summarise();   /* a roster change, or lists arriving by sync, update the summary */
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(W)); }
@@ -311,7 +311,7 @@
     summarise();
   }
 
-  /* ================= v102: the slide, live on a display ================= */
+  /* ================= the slide, live on a display ================= */
   function isDisplay() {
     try { var c = JSON.parse(localStorage.getItem(HUB_KEY) || "null"); return !!(c && c.readonly); } catch (e) { return false; }
   }
@@ -349,7 +349,7 @@
     Object.keys(W.teachers).forEach(function (k) { var t = W.teachers[k] || {}; teachers[k] = { call: t.call || "", room: t.room || "" }; });
     return { me: W.me || "", teachers: teachers, lists: lists };
   }
-  /* v103: a failure here used to be swallowed, so a summary that could not
+  /* a failure here used to be swallowed, so a summary that could not
      be made on real lists was simply never sent, and nothing said why */
   var liveErr = "";
   function summarise() {
@@ -371,7 +371,7 @@
       liveErr = "";
     } catch (e) { liveErr = "could not save the summary: " + (e && e.message || e); }
   }
-  /* v103: what the Planner sync panel says about WIN on this device */
+  /* what the Planner sync panel says about WIN on this device */
   function liveStatus() {
     var o; try { o = JSON.parse(localStorage.getItem(LIVE_KEY) || "null"); } catch (e) { o = null; }
     var lists = o && o.live && o.live.lists ? Object.keys(o.live.lists).length : 0;
@@ -470,7 +470,7 @@
       var ts = teachersOf(L);
       /* the teacher whose name the device or planner carries, if any one does */
       var hints = [];
-      /* v88: the suite calendar's teacher (gradebook Setup) first */
+      /* the suite calendar's teacher (gradebook Setup) first */
       try { hints.push(String(((JSON.parse(localStorage.getItem(ROSTER_KEY) || "{}") || {}).settings || {}).teacher || "")); } catch (e) { }
       try { hints.push(String((JSON.parse(localStorage.getItem("lp:me:v1") || "{}") || {}).name || "")); } catch (e) { }
       try { hints.push(String(localStorage.getItem("suite:device:v1") || "")); } catch (e) { }
@@ -515,7 +515,7 @@
         var p = a[S.id].place[s.id];
         if (p.how === "list" || p.how === "fix") {
           (cards[p.key] = cards[p.key] || []).push({ s: s, note: p.line ? (lineById(sub, p.line) || {}).note
-            : ((L.notes && L.notes[S.id] && L.notes[S.id][s.id]) || "") });   /* v102: a display's notes come with the summary */
+            : ((L.notes && L.notes[S.id] && L.notes[S.id][s.id]) || "") });   /* a display's notes come with the summary */
         } else if (p.how === "unsure") {
           unsure.push({ s: s, sub: S });
         }
@@ -580,7 +580,7 @@
     return "";
   }
   /* largest type that fits: shrink until nothing overflows */
-  /* v115: on the page (not presenting), the slide's box is 16:9 at full width,
+  /* on the page (not presenting), the slide's box is 16:9 at full width,
      taller than a short screen (1536x740 on his school computer) leaves it,
      so it ran off the bottom. Its height is capped at what is left below its
      top; fitSlide then fits the text to that box, as it does when presenting. */
@@ -651,7 +651,7 @@
     });
     return out;
   }
-  /* v89: for sub plans. On a date: the subject Walk to WIN runs that day
+  /* for sub plans. On a date: the subject Walk to WIN runs that day
      (by the list's own days), where each of this class goes, and who comes
      to this room. Worked out by the same matching as the board, so the sub
      plan and the slide never disagree. null when there is no WIN that day. */
@@ -834,7 +834,7 @@
       var st = document.getElementById("w-stage");
       if (!st || (document.fullscreenElement || document.webkitFullscreenElement) !== st) return;
       if (["ArrowLeft", "ArrowRight", "PageUp", "PageDown"].indexOf(e.key) < 0) return;
-      /* v102: on a display, the list on screen is the summary's */
+      /* on a display, the list on screen is the summary's */
       var on = withLive(function () {
         var L = current();
         return L ? { ids: SUBJECTS.map(function (S) { return S.id; }).filter(function (id) { return L.subjects[id]; }), sub: slideSubject(L) } : null;

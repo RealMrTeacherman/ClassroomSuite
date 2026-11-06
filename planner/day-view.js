@@ -1,9 +1,9 @@
-/* planner/day-view.js (v112): the Today view laid out as the day, part of the planner.
-   Moved unchanged from suite-boot.js (v93, v98, v110), where it was built while
+/* planner/day-view.js: the Today view laid out as the day, part of the planner.
+   Moved unchanged from suite-boot.js, where it was built while
    the planner was thought protected. Loaded after curriculum.js and
    suite-boot.js, as it ran before, so a card's additions land in the same
    order. */
-/* ---- v93: the day, in one place ----
+/* ---- the day, in one place ----
    The Today view had the subject cards ("Where we are") and, under them, a
    read-only timeline of the day's schedule ("The day, block by block") that
    repeated them. He planned on the cards and never used the timeline. Now
@@ -14,7 +14,7 @@
    is taken away. (v112: built in suite-boot.js while the planner was thought
    protected; moved here unchanged. The planner calls cardBlocks from
    cardHTML, afterToday from renderToday, withDayNotes from copySubPlan.
-   v125: the planner draws for the first time only after this file has run,
+   the planner draws for the first time only after this file has run,
    so the day is never drawn without it, and the planner no longer builds
    the timeline at all.)
 
@@ -63,11 +63,11 @@
     S.subjects.forEach(function (s) { if (s && s.on && !seen[s.id]) out.push({ kind: "card", id: s.id }); });
     return out;
   }
-  /* v110: spanOf and markNow are the planner's own now; named here as before for tests */
+  /* spanOf and markNow are the planner's own now; named here as before for tests */
   window.PlannerDay = { dayPlan: dayPlan, key: bkey,
     spanOf: function (t) { return window.spanOf(t); }, markNow: function () { return window.markNow(); } };
 
-  var CMID_MAX = 220;   /* v114: how much of a card's middle shows before Show more */
+  var CMID_MAX = 220;   /* how much of a card's middle shows before Show more */
   var STYLE = [
     ".rail.byday .dayrow{grid-column:1/-1;display:flex;gap:12px;align-items:flex-start;padding:7px 4px 7px 2px;border-top:1.5px solid var(--line)}",
     ".rail.byday .dayrow time{font-family:var(--mono);font-size:11px;color:var(--ink-2);flex:0 0 82px;padding-top:3px}",
@@ -85,7 +85,7 @@
     ".sub .cblocks .cbn{display:block;color:var(--ink-3)}",
     "@media (max-width:760px){.rail.byday .dayrow time{flex-basis:70px}.rail.byday .drday{font-size:16px}}",
     "@media print{.rail.byday .dradd{display:none}}",
-    /* v114 (F), v115: the day in three sections, Morning, Midday and
+    /* v114 (F), the day in three sections, Morning, Midday and
        Afternoon, broken after morning recess and after lunch, one under the
        other in a single column (v114 had them side by side). Lesson cards
        keep everything; a long one shows CMID_MAX of its middle, then Show
@@ -100,7 +100,7 @@
     ".rail.byday .fcolempty{font-size:13px;color:var(--ink-3);padding:4px 2px}" +
     ".rail.byday .fcol>.sub,.rail.byday .fcol>.blockcell{margin:0 0 10px}" +
     "@media screen and (min-width:761px){" +
-      /* v115: one long column (three side by side read as confusing); the
+      /* one long column (three side by side read as confusing); the
          sections stay as headings down it */
       ".rail.byday{display:block}" +
       ".rail.byday .fcol+.fcol{margin-top:14px}" +
@@ -115,11 +115,11 @@
       ".rail.byday .more{flex:none;align-self:flex-start;margin:6px 0 4px;background:none;border:0;padding:2px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}" +
       ".rail.byday .more:hover{color:var(--ink)}" +
     "}",
-    /* v115: Today is one reading column, the date, day notes and lessons all
+    /* Today is one reading column, the date, day notes and lessons all
        the same width (v98 widened the page for its grid) */
     "@media screen and (min-width:761px){html:not([data-suite-theme]):has(.rail.byday){--x-w:960px}}" +
-    /* v118: with the day sidebar beside it, the page is the column plus the sidebar */
-    "@media screen and (min-width:1100px){html:not([data-suite-theme]):has(.todaygrid .rail.byday){--x-w:max(1340px, min(1880px, calc(100vw - 96px)))}}",   /* v119: grows with a wide screen, to 1880px */
+    /* with the day sidebar beside it, the page is the column plus the sidebar */
+    "@media screen and (min-width:1100px){html:not([data-suite-theme]):has(.todaygrid .rail.byday){--x-w:max(1340px, min(1880px, calc(100vw - 96px)))}}",   /* grows with a wide screen, to 1880px */
     "@media not screen,(max-width:760px){.rail.byday>.blockcell,.rail.byday .cmid{display:contents}.rail.byday .more{display:none}}"
   ].join("\n");
   function style() {
@@ -194,7 +194,7 @@
       t.focus();
     });
   }
-  /* ---------- v98: the day as a regular grid ----------
+  /* ---------- the day as a regular grid ----------
      Cards stay direct children of the rail (other code finds them there).
      A run of plain block rows goes into one .blockcell; each card's middle
      (curriculum detail, starting point, its blocks) into a .cmid, so the
@@ -342,7 +342,7 @@
         btn.textContent = open ? "Show less" : "Show more";
         btn.setAttribute("aria-expanded", open ? "true" : "false");
       }
-      /* v114: opened in place, in its column; nothing to hand back */
+      /* opened in place, in its column; nothing to hand back */
     });
   }
   function setOpen(c, open) {
@@ -373,7 +373,7 @@
   document.addEventListener("input", function (e) { if (e.target && e.target.closest && e.target.closest(".rail.byday")) remeasure(); });
   document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest(".rail.byday .dradd")) remeasure(); }, true);
 
-  /* v108's dayNotesBar() and markNow() moved into the planner in v110: it draws
+  /* v108's dayNotesBar() and markNow() moved into the planner in it draws
      the notes bar in place and marks the lesson on now itself. */
   function layout() {
     var rail = document.querySelector(".rail");
@@ -399,7 +399,7 @@
     rail.appendChild(frag);
     rail.classList.add("byday");
     gridCells(rail);                                       /* v98 */
-    if (typeof window.markNow === "function") window.markNow();   /* v110: the planner's own; the grid rebuilt cells */
+    if (typeof window.markNow === "function") window.markNow();   /* the planner's own; the grid rebuilt cells */
   }
   function afterToday() {
     try { layout(); } catch (x) { if (window.console) console.error("planner day layout:", x); }
@@ -418,5 +418,5 @@
     });
   }
 
-  window.DayView = { cardBlocks: cardBlocks, afterToday: afterToday, withDayNotes: withDayNotes };   /* v112: the planner calls these */
+  window.DayView = { cardBlocks: cardBlocks, afterToday: afterToday, withDayNotes: withDayNotes };   /* the planner calls these */
 })();

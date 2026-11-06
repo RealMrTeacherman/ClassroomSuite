@@ -1,5 +1,5 @@
 /* ============================================================
-   fluency-compare.js (v137)
+   fluency-compare.js
    The Assess tab's results box, once the last word is marked: this read
    beside the student's last saved check, and a bar from where they started
    the year to their next goal, with today's point on the aim line marked.
@@ -76,7 +76,7 @@
     } catch (e) { return null; }
   }
 
-  /* v138: a student's plan as saved, no draft (the move box's warnings) */
+  /* a student's plan as saved, no draft (the move box's warnings) */
   function planOf(db, sid, now) {
     if (!window.SuiteOrf || !window.SuiteOrf.goals || !db) return null;
     var G = window.SuiteOrf.goals;

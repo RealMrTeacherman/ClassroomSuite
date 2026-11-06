@@ -1,5 +1,5 @@
 /* ============================================================
-   suite-names.js (v76)
+   suite-names.js
    Nicknames: "Theo" is Theodore, "Kade" is Kaden.
 
    The roster comes from school (legal names); the running-records roster
