@@ -119,6 +119,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
   border-radius:var(--radius-sm);background:var(--panel);margin:10px 0}
 .notice b{font-weight:600}
 .notice.warn{border-left:4px solid var(--s2)}
+.wl-table td{vertical-align:top}.wl-who{white-space:nowrap}
+.wl-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.wl-list .tag.flag{padding:1px 8px;border-radius:12px;margin-right:4px}
 .notice.ok{border-left:4px solid var(--accent)}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--accent);box-shadow:none;font-weight:500}
 .btn.ghost:hover{background:var(--accent-soft)}
@@ -153,6 +156,8 @@ code.std{font-family:var(--sans);font-weight:600;font-size:12.5px;color:var(--ac
 .scale button[data-v="4"][aria-pressed="true"]{background:var(--s4);border-color:var(--s4);color:#fff}
 .mark{display:inline-flex;align-items:center;justify-content:center;width:25px;height:23px;border-radius:5px;font-weight:600;font-size:13px;border:1px solid transparent}
 .mark.v1{background:var(--s1-bg);color:var(--s1);border-color:var(--s1-line)}
+/* v149: the idle "no work" toggle reads as a button, not a green status */
+.btn.ghost[data-miss],.btn.ghost[data-miss-all]{border:1px solid var(--line-strong);color:var(--ink-2,#475569);font-weight:500}
 /* Text on a mark's own pale tint takes a deeper ink of the same hue: the gold
    at #A87621 is 3.57:1 on its tint. The fill and border keep the mark colour. */
 .mark.v2{background:var(--s2-bg);color:#7F5A14;border-color:var(--s2-line)}
@@ -297,7 +302,9 @@ table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13
 .rc-cell .mark{width:28px;height:25px}
 .mark.rc-thin{border-style:dashed !important;border-color:var(--s2) !important}
 .mark.rc-over{border:2px solid var(--ink) !important}
-.mark.rc-ir{border-style:dotted !important;border-width:2px !important;border-color:var(--s4) !important}
+/* v149: from iReady alone = hollow (no fill), dotted in its own colour, so it can't be
+   mistaken for the filled, dashed "fewer than 3 scores" mark */
+.mark.rc-ir{background:var(--panel) !important;border-style:dotted !important;border-width:2px !important;border-color:currentColor !important}
 .rc-i,.rc-ikey{position:absolute;top:0;right:1px;font-size:9.5px;font-weight:700;color:var(--s4);line-height:11px}
 .rc-ikey{position:static;font-size:12px}
 .rc-legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 12px 12px;font-size:12px;color:var(--ink-2);border-top:1px solid var(--line-2)}
@@ -323,6 +330,7 @@ table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13
 .rc-what{flex:1;min-width:0}
 .rc-set{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:11px}
 .rc-set .muted{margin-right:4px}
+.rc-setgrp{display:flex;gap:6px}
 .rc-setbtn{width:44px;height:44px;border-radius:8px;border:1px solid var(--line-strong);background:var(--panel);font:inherit;font-weight:600;font-size:15px;cursor:pointer}
 .rc-setbtn.s1{color:var(--s1)}.rc-setbtn.s2{color:var(--s2-ink)}.rc-setbtn.s3{color:var(--s3)}.rc-setbtn.s4{color:var(--s4)}
 .rc-setbtn[aria-pressed="true"].s1{background:var(--s1);color:#fff;border-color:var(--s1)}
@@ -713,7 +721,10 @@ body.gg-dragging,body.gg-dragging *{cursor:grabbing !important;-webkit-user-sele
    wide. Nothing below changes a desktop render. */
 @media (max-width:760px){
   main{padding:12px 12px 96px}
-  header.app{padding:0 12px}
+  /* v149: on a phone the header (three rows of tabs) took a quarter of the
+     screen and stayed there, leaving room for three children while grading.
+     It scrolls away now; the tabs still wrap, so none is ever out of sight. */
+  header.app{padding:0 12px;position:relative;top:auto}
   /* The title, the year and the save flag are all things you already know.
      The subject switch drives every tab, so it is the one that stays. */
   .brandrow{gap:8px;padding:8px 0 6px}
@@ -1221,6 +1232,16 @@ function hydrate(p) {
     });
     out.seeded.fl20RcLines = 1;
   }
+  /* v149: a "no work" logged before the assignment got its name kept the old
+     name (names only relabelled marks then). Where one name is on that
+     standard and date, give the "no work" that name, once. */
+  if (!out.seeded.missCtx) {
+    (out.missing || []).forEach(m => {
+      const names = [...new Set((out.scores || []).filter(x => x.std === m.std && x.date === m.date && !x.source).map(x => x.ctx || ""))];
+      if (names.length === 1 && (m.ctx || "") !== names[0]) m.ctx = names[0];
+    });
+    out.seeded.missCtx = 1;
+  }
   return out;
 }
 /* v145: "Fluency within 20" (2.OA.B.2) became two, adding (2.OA.B.2a) and
@@ -1365,7 +1386,6 @@ let UI = {
   studentSel: "",
   reportTerm: "",           /* v143: "" = the term we are in */
   rcSel: null,              /* v143: { sid, code } the why panel shows */
-  rcAll: false,             /* v143: also show standards nobody has a score on yet */
   orfOrder: "need",         /* v134: Reading progress, needs attention first or A-Z */
   studentTerm: "",          /* v104: the term the student page lists assignments for ("" = the current one, "all" = the year) */
   studentUnmarked: false,   /* v104: only the assignments still without this child's mark */   /* v104: the entry sheet, one column per standard or one block per student */
@@ -1644,13 +1664,14 @@ function renderEnter() {
       "</div>" +
       (sib.length ? '<div class="row" style="margin-top:8px;gap:8px;align-items:center"><span class="tiny muted">\u201c' + esc(UI.enterCtx) + "\u201d on this date also covers " +
         esc(sib.map(c => dispCode(c)).join(", ")) + '.</span><button class="btn sm" data-multi="' + esc([UI.enterStd].concat(sib).join(" ")) + '">Grade all ' + (sib.length + 1) + " together</button></div>" : "") +
+      sameDayHTML() +
       "</div>";
     html += '<div id="rosterlist">';
     roster.forEach(st => {
-      const todayScore = S.scores.find(x => x.sid === st.id && x.std === UI.enterStd && x.date === UI.enterDate);
+      const todayScore = S.scores.find(x => x.sid === st.id && x.std === UI.enterStd && x.date === UI.enterDate && !x.source && sameCtx(x, (UI.enterCtx || "")));
       const prior = scoresFor(st.id, UI.enterStd).filter(x => x.date !== UI.enterDate);
       const prev = prior.length ? prior[prior.length - 1] : null;
-      const miss = missingFor(st.id, UI.enterStd, UI.enterDate);
+      const miss = missingFor(st.id, UI.enterStd, UI.enterDate, (UI.enterCtx || ""));
       html += '<div class="entryrow"' + (miss ? ' style="background:var(--s1-bg)"' : "") + ">" +
         '<span class="nm">' + nameLink(st, fullName(st)) + (st.eld ? ' <span class="chip eld">ELD</span>' : "") + "</span>" +
         '<span class="prev">' + (prev ? "was " + markHTML(prev.v) + ' <span class="tiny">' + esc(prev.date.slice(5)) + "</span>" : '<span class="tiny muted">no prior</span>') + "</span>" +
@@ -1695,8 +1716,9 @@ function renderEnter() {
   if (back) back.onclick = () => chooseLesson("");
   const ctx = document.getElementById("e-ctx");
   if (ctx) {
+    UI.ctxWas = UI.enterCtx || "";
     ctx.oninput = e => { UI.enterCtx = e.target.value; };
-    ctx.onchange = () => renderEnter();
+    ctx.onchange = () => { renameCtx(UI.ctxWas, (UI.enterCtx || "").trim() === "" ? "" : UI.enterCtx); renderEnter(); };
   }
 
   if (multi) wireMulti(el, multi);
@@ -1725,16 +1747,53 @@ function renderEnter() {
   });
   el.querySelectorAll("input.note[data-sid]").forEach(inp => {
     inp.onchange = () => {
-      const rec = S.scores.find(x => x.sid === inp.dataset.sid && x.std === UI.enterStd && x.date === UI.enterDate);
+      const rec = S.scores.find(x => x.sid === inp.dataset.sid && x.std === UI.enterStd && x.date === UI.enterDate && !x.source && sameCtx(x, (UI.enterCtx || "")));
       if (rec) { rec.note = inp.value; save(); } else if (inp.value) { toast("Give a mark first, then the note saves with it"); }
     };
   });
 }
 
+/* v149: each "What was it?" is its own assignment, with its own marks, so an
+   exit ticket and a small-group check on the same skill and day both count.
+   Name the others on this standard and date, so it is plain this one is apart. */
+function sameDayHTML() {
+  const cur = UI.enterCtx || "";
+  const other = S.scores.filter(x => x.std === UI.enterStd && x.date === UI.enterDate && !x.source && (x.ctx || "") !== cur);
+  if (!other.length) return "";
+  const names = [...new Set(other.map(x => x.ctx || "no name"))];
+  return '<p class="notice samedaynote" role="note" style="margin:8px 0 0">Also on this standard and date: ' +
+    names.map(n => "\u201c" + esc(n) + "\u201d").join(" and ") + ". Its marks are kept apart from this one\u2019s.</p>";
+}
+/* v149: changing the name of an assignment already being graded renames its
+   marks with it, rather than leaving them behind as a second assignment.
+   Typing the name of one that already has marks opens that one instead. */
+function renameCtx(from, to) {
+  if (from === to) return;
+  const codes = UI.enterMulti ? (multiCodes() || [UI.enterStd]) : [UI.enterStd];
+  const mine = x => codes.indexOf(x.std) >= 0 && x.date === UI.enterDate && !x.source;
+  const olds = S.scores.filter(x => mine(x) && (x.ctx || "") === from);
+  if (!olds.length) return;
+  if (S.scores.some(x => mine(x) && (x.ctx || "") === to)) {
+    toast("\u201c" + (to || "no name") + "\u201d already has marks on this date, so it is open now");
+    return;
+  }
+  olds.forEach(x => { x.ctx = to; });
+  S.missing.forEach(m => { if (codes.indexOf(m.std) >= 0 && m.date === UI.enterDate && (m.ctx || "") === from) m.ctx = to; });
+  UI.undo = []; UI.lastAll = null;
+  save();
+  toast("Renamed: " + olds.length + (olds.length === 1 ? " mark" : " marks") + " now under \u201c" + (to || "no name") + "\u201d");
+}
 function setScore(sid, code, v) {
   UI.lastAll = null;
-  const i = S.scores.findIndex(x => x.sid === sid && x.std === code && x.date === UI.enterDate);
+  const ctx = (UI.enterCtx || "");
+  const i = S.scores.findIndex(x => x.sid === sid && x.std === code && x.date === UI.enterDate && !x.source && sameCtx(x, ctx));
   const st = S.students.find(x => x.id === sid);
+  /* v149: Undo puts back exactly what this tap replaced. It used to pop the
+     newest record, which after a change or a clear was someone else's mark. */
+  (UI.undo = UI.undo || []).push({ sid: sid, code: code, date: UI.enterDate, ctx: ctx,
+    prev: i >= 0 ? Object.assign({}, S.scores[i]) : null,
+    miss: S.missing.filter(m => m.sid === sid && m.std === code && m.date === UI.enterDate && sameCtx(m, ctx)).map(m => Object.assign({}, m)) });
+  if (UI.undo.length > 50) UI.undo.shift();
   if (i >= 0 && S.scores[i].v === v) {
     S.scores.splice(i, 1);
     UI.log.push("Cleared " + fullName(st) + " \u2014 " + code);
@@ -1745,13 +1804,17 @@ function setScore(sid, code, v) {
     S.scores.push({ id: uid(), sid: sid, std: code, v: v, date: UI.enterDate, note: "", ctx: UI.enterCtx || "" });
     UI.log.push(fullName(st) + " \u2014 " + code + " = " + v);
   }
-  clearMissingOnScore(sid, code, UI.enterDate);
+  clearMissingOnScore(sid, code, UI.enterDate, ctx);
   save(); renderEnter();
 }
 function undoLast() {
   if (UI.lastAll) { undoAll(); return; }
-  if (!S.scores.length) return;
-  S.scores.pop(); UI.log.push("Undid last entry"); save(); renderEnter();
+  const u = (UI.undo || []).pop();
+  if (!u) return;
+  S.scores = S.scores.filter(x => !(x.sid === u.sid && x.std === u.code && x.date === u.date && !x.source && sameCtx(x, u.ctx)));
+  if (u.prev) S.scores.push(u.prev);
+  S.missing = S.missing.filter(m => !(m.sid === u.sid && m.std === u.code && m.date === u.date && sameCtx(m, u.ctx))).concat(u.miss);
+  UI.log.push("Undid last entry"); save(); renderEnter();
 }
 
 /* ============================================================
@@ -2190,15 +2253,22 @@ function renderGroups() {
   if (!flags.length) {
     html += '<div class="notice ok"><b>Nothing flagged.</b><span>Come back after a few more entries.</span></div>';
   } else {
-    const slipping = flags.filter(f => f.t === "down").length;
-    html += '<div class="notice warn"><b>Worth a look</b><span>' +
-      (slipping
-        ? slipping + " student" + (slipping === 1 ? "" : "s") + " slipped on a standard" +
-          (flags.length > slipping ? ", and " + (flags.length - slipping) + " other flag" + (flags.length - slipping === 1 ? "" : "s") : "")
-        : flags.length + " flag" + (flags.length === 1 ? "" : "s") + " to read") +
-      ".</span></div>";
-    html += '<div class="card"><table><thead><tr><th>Student</th><th>What stands out</th></tr></thead><tbody>' +
-      flags.slice(0, 30).map(f => '<tr><td><span class="tag flag" style="padding:1px 8px;border-radius:12px">' + (f.t === "down" ? "Slipping" : f.t === "mix" ? "Mismatch" : f.t === "growth" ? "Flat growth" : "Thin data") + "</span> " + esc(f.who) + "</td><td>" + esc(f.why) + "</td></tr>").join("") +
+    /* v149: one row per child, every flag of theirs together, most flagged
+       first; it listed each flag on its own row, the same child up to three
+       times, and counted flags as students */
+    const TAG = { down: "Slipping", mix: "Mismatch", growth: "Flat growth", thin: "Thin data" };
+    const byKid = new Map();
+    flags.forEach(f => { if (!byKid.has(f.who)) byKid.set(f.who, []); byKid.get(f.who).push(f); });
+    const rows = [...byKid.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    const slip = rows.filter(r => r[1].some(f => f.t === "down")).length;
+    html += '<div class="notice warn"><b>Worth a look</b><span>' + rows.length + (rows.length === 1 ? " child" : " children") +
+      (slip ? ", " + slip + " slipping on a standard" : "") + ".</span></div>";
+    html += '<div class="card"><table class="wl-table"><thead><tr><th>Student</th><th>What stands out</th></tr></thead><tbody>' +
+      rows.map(([who, fs]) => {
+        const st = S.students.find(x => fullName(x) === who);
+        return '<tr data-wl="' + esc(who) + '"><td class="wl-who">' + (st ? nameLink(st, who) : esc(who)) + "</td><td><ul class=\"wl-list\">" +
+          fs.map(f => '<li><span class="tag flag">' + TAG[f.t] + "</span> " + esc(f.why) + "</li>").join("") + "</ul></td></tr>";
+      }).join("") +
       "</tbody></table></div>";
   }
 
@@ -2245,6 +2315,14 @@ function renderStudents() {
   /* surfaced here, where the roster is, rather than left for report cards */
   let html = '<div class="stack">' + duplicateNoticeHTML() + '<div class="card pad"><div class="row">' +
     '<label class="fld">Student<select id="st-sel">' + roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.studentSel ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
+    /* v149: step child by child without reopening the list */
+    (function () {
+      const i = roster.findIndex(s => s.id === UI.studentSel), p = roster[i - 1], n = roster[i + 1];
+      return '<span class="row st-step" style="gap:6px;align-self:flex-end">' +
+        '<button type="button" class="btn sm" data-st-step="' + (p ? esc(p.id) : "") + '"' + (p ? ' aria-label="Previous student: ' + esc(p.first + " " + p.last) + '"' : ' disabled aria-label="Previous student"') + '>\u2190</button>' +
+        '<span class="small muted num">' + (i + 1) + " of " + roster.length + "</span>" +
+        '<button type="button" class="btn sm" data-st-step="' + (n ? esc(n.id) : "") + '"' + (n ? ' aria-label="Next student: ' + esc(n.first + " " + n.last) + '"' : ' disabled aria-label="Next student"') + '>\u2192</button></span>';
+    })() +
     '<span style="flex:1"></span><button class="btn sm" onclick="printStudent()">Print this student</button></div></div>';
   html += studentAssignmentsHTML(st);
 
@@ -2312,6 +2390,12 @@ function renderStudents() {
   html += "</div>";
   el.innerHTML = html;
   document.getElementById("st-sel").onchange = e => { UI.studentSel = e.target.value; renderStudents(); };
+  el.querySelectorAll("[data-st-step]").forEach(b => b.onclick = () => {
+    if (!b.dataset.stStep) return;
+    UI.studentSel = b.dataset.stStep; renderStudents();
+    const again = [...el.querySelectorAll("[data-st-step]")].find(x => x.textContent === b.textContent && !x.disabled);
+    if (again) again.focus();
+  });
   const ts = document.getElementById("sa-term");
   if (ts) ts.onchange = e => { UI.studentTerm = e.target.value; renderStudents(); };
   const un = document.getElementById("sa-unmarked");
@@ -2345,9 +2429,9 @@ function studentAssignmentsHTML(st) {
     else if (!seen[k].ctx && a.ctx) seen[k].ctx = a.ctx;
   });
   list.sort((a, b) => b.date.localeCompare(a.date) || a.std.localeCompare(b.std));
-  const markOf = a => S.scores.find(x => x.sid === st.id && x.std === a.std && x.date === a.date) || null;
+  const markOf = a => S.scores.find(x => x.sid === st.id && x.std === a.std && x.date === a.date && !x.source && sameCtx(x, a.ctx || "")) || null;
   const marked = list.filter(a => markOf(a)).length;
-  const missing = list.filter(a => missingFor(st.id, a.std, a.date)).length;
+  const missing = list.filter(a => missingFor(st.id, a.std, a.date, a.ctx || "")).length;
   const total = list.length;   /* before "only ones without a mark" narrows it */
   if (UI.studentUnmarked) list = list.filter(a => !markOf(a));
   let h = '<div class="card pad"><div class="sectionhead"><h3>Assignments</h3><span class="spacer"></span>' +
@@ -2364,7 +2448,7 @@ function studentAssignmentsHTML(st) {
     return h;
   }
   h += '<div style="margin-top:6px">' + list.map(a => {
-    const m = markOf(a), miss = missingFor(st.id, a.std, a.date);
+    const m = markOf(a), miss = missingFor(st.id, a.std, a.date, a.ctx || "");
     const d = new Date(a.date + "T12:00:00");
     const when = isNaN(d) ? a.date : d.getDate() + " " + ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()];
     return '<div class="asgrow"><div class="what"><span class="when">' + esc(when) + "</span>" + codeHTML(a.std) + " " + esc(a.label) +
@@ -2376,11 +2460,11 @@ function studentAssignmentsHTML(st) {
   return h;
 }
 function gradeFor(sid, std, date, ctx, v) {
-  const i = S.scores.findIndex(x => x.sid === sid && x.std === std && x.date === date);
+  const i = S.scores.findIndex(x => x.sid === sid && x.std === std && x.date === date && !x.source && sameCtx(x, ctx || ""));
   if (i >= 0 && S.scores[i].v === v) S.scores.splice(i, 1);
   else if (i >= 0) S.scores[i].v = v;
   else S.scores.push({ id: uid(), sid: sid, std: std, v: v, date: date, note: "", ctx: ctx || "" });
-  clearMissingOnScore(sid, std, date);
+  clearMissingOnScore(sid, std, date, ctx || "");
   save(); renderStudents();
 }
 /* Each ORF check in detail, read live from the ORF tool's own records (the
@@ -2954,7 +3038,9 @@ function rcTerm() {
 function rcScoredCodes(term) {
   return rcCodes().filter(c => S.students.some(st => { const f = finalStd(st.id, c, term); return f.v || f.n; }));
 }
-function rcShownCodes(term) { return UI.rcAll ? rcCodes() : rcScoredCodes(term); }
+/* v149: every standard, always. He keys Synergy from this grid by hand, so a
+   standard nobody has scored still gets its column (blank where no mark). */
+function rcShownCodes(term) { return rcCodes(); }
 function rcThin(f) { return S.settings.rule === "powerlaw" && !f.over && !f.latest && f.n > 0 && f.n < POWER_MIN; }
 function rcSrc(x) { return x.source === "iready" ? "iReady" : x.source === "orf" ? "ORF" : "Assignment"; }
 const RC_RULE_WORDS = { powerlaw: "power law", weighted: "recent work counts more", latest: "most recent mark", mean: "straight average" };
@@ -3036,8 +3122,8 @@ function rcWhyHTML(term) {
         '<span class="rc-what">' + esc(x.ctx || "") + (x.std !== code ? ' <span class="muted">(' + esc(x.std) + ")</span>" : "") + "</span>" + markHTML(x.v) + "</div>";
     }).join("") + "</div>";
   }
-  h += '<div class="rc-set"><span class="muted small">Set it yourself</span>' + [1, 2, 3, 4].map(v =>
-    '<button type="button" class="rc-setbtn s' + v + '" data-set="' + v + '" aria-pressed="' + (f.over && f.v === v ? "true" : "false") + '">' + v + "</button>").join("") +
+  h += '<div class="rc-set"><span class="muted small">Set it yourself</span><span class="rc-setgrp">' + [1, 2, 3, 4].map(v =>
+    '<button type="button" class="rc-setbtn s' + v + '" data-set="' + v + '" aria-pressed="' + (f.over && f.v === v ? "true" : "false") + '">' + v + "</button>").join("") + "</span>" +
     (f.over ? '<button type="button" class="btn sm ghost" data-set="0">Use calculated</button>' : "") + "</div></div>";
   return h;
 }
@@ -3047,7 +3133,7 @@ function renderReport() {
   if (!S.students.length) return noStudents(el);
   const term = rcTerm();
   UI.reportTerm = term.id;
-  const codes = rcShownCodes(term), unscored = rcCodes().length - rcScoredCodes(term).length, studs = sortedStudents();
+  const codes = rcShownCodes(term), studs = sortedStudents();
   if (!UI.rcSel || !studs.some(s => s.id === UI.rcSel.sid) || codes.indexOf(UI.rcSel.code) < 0)
     UI.rcSel = codes.length ? { sid: studs[0].id, code: codes[0] } : null;
   const marks = {};
@@ -3082,7 +3168,6 @@ function renderReport() {
     '<span><span class="mark rc-thin v2" aria-hidden="true">2</span> fewer than ' + POWER_MIN + " scores: plain average" + (thin ? " (" + thin + ")" : "") + "</span>" +
     '<span><span class="mark rc-over v3" aria-hidden="true">3</span> set by you' + (over ? " (" + over + ")" : "") + "</span>" +
     (irn ? '<span><span class="mark rc-ir v2" aria-hidden="true">2</span> no scores: from iReady alone (' + irn + ")</span>" : "") +
-    (unscored ? '<label class="row small" style="gap:6px"><input type="checkbox" id="rc-all"' + (UI.rcAll ? " checked" : "") + "> Show standards with no scores yet (" + unscored + ")</label>" : "") +
     "</div></div>" + rcWhyHTML(term) + "</div>";
   el.innerHTML = h;
   rcWire(el);
@@ -3090,8 +3175,6 @@ function renderReport() {
 function rcWire(el) {
   const ts = el.querySelector("#rc-term");
   if (ts) ts.onchange = () => { UI.reportTerm = ts.value; renderReport(); };
-  const ra = el.querySelector("#rc-all");
-  if (ra) ra.onchange = () => { UI.rcAll = ra.checked; renderReport(); };
   el.onclick = e => {
     const cell = e.target.closest(".rc-cell");
     if (cell) {
@@ -3221,8 +3304,11 @@ function confStandards(st, term) {
     codes.sort((x, y) => order.indexOf(x) - order.indexOf(y));
     const rows = [];
     codes.forEach(c => {
+      /* v149: no iReady on the sheet (his iReady report goes home on its
+         own). A row needs real grades (assignments, ORF) or a mark he set:
+         a mark filled from iReady alone is left off. */
       const f = finalStd(st.id, c, term);
-      if (f.v) rows.push({ code: c, words: confWords(c), v: f.v });
+      if (f.v && !f.ir && (f.over || rcGraded(st.id, c, term))) rows.push({ code: c, words: confWords(c), v: f.v });
     });
     return { subj: subj, label: label, rows: rows };
   });
@@ -3418,12 +3504,8 @@ function confChartSVG(pl) {
 }
 function confFocusKey(st, subj) { return st.id + "|" + subj; }
 function confSubjectHTML(st, term, now, g, paper) {
-  const rec = confIready(st, term, g.subj);
+  /* v149: the iReady placement line is gone; iReady has its own document */
   let h = '<section class="cf-subj" data-subj="' + g.subj + '"><h3 class="cf-subjhead">' + esc(g.label) + "</h3>";
-  if (rec) {
-    const words = confRankWords(placementRank(rec.placement)) || String(rec.placement || "").trim();
-    if (words) h += '<p class="cf-ir">iReady diagnostic' + (rec.date ? ", " + esc(fmtShort(rec.date)) : "") + ": " + esc(words) + "</p>";
-  }
   if (g.subj === "ELA") {
     const pl = confReading(st, now);
     if (pl) {
@@ -3478,7 +3560,7 @@ function renderConferences() {
     '<label class="fld">Student<select id="cf-who"><option value="all">Whole class</option>' +
     roster.map(s => '<option value="' + s.id + '"' + (s.id === UI.confWho ? " selected" : "") + ">" + esc(s.last + ", " + s.first) + "</option>").join("") + "</select></label>" +
     '<span style="flex:1"></span><button class="btn primary" id="cf-print">' + (UI.confWho && UI.confWho !== "all" ? "Print this sheet" : "Print all sheets") + "</button></div>" +
-    '<p class="hint" style="margin-top:8px">One page per child, black and white. Reading and math both, whatever the subject switch says: the latest iReady placement, the report card mark for each standard with one so far (Setup \u2192 Term marks), and one thing to work on at home. Change a child\u2019s home focus under it before printing.</p></div>' +
+    '<p class="hint" style="margin-top:8px">One page per child, black and white. Reading and math both, whatever the subject switch says: the report card mark for each standard graded so far (Setup \u2192 Term marks) and one thing to work on at home. No iReady: that goes home on its own. Change a child\u2019s home focus under it before printing.</p></div>' +
     '<div class="cf-preview">' + confRoster().map(st => confSheetHTML(st, term, now)).join("") + "</div></div>";
   el.innerHTML = h;
   document.getElementById("cf-term").onchange = e => { UI.confTerm = e.target.value; renderConferences(); };
@@ -6246,9 +6328,9 @@ function calendarCardHTML() {
     '<p class="hint" style="margin-top:8px">An even split is only a starting point \u2014 real quarters break on grading days and skip over breaks. Set the exact end dates below from the district calendar and everything downstream follows.</p>' +
     '<table style="margin-top:8px"><thead><tr><th>Name</th><th>Starts</th><th>Ends</th></tr></thead><tbody>' +
     S.terms.map(t => "<tr>" +
-      '<td><input type="text" data-tf="name" data-id="' + t.id + '" value="' + esc(t.name) + '"></td>' +
-      '<td><input type="date" data-tf="start" data-id="' + t.id + '" value="' + t.start + '"></td>' +
-      '<td><input type="date" data-tf="end" data-id="' + t.id + '" value="' + t.end + '"></td></tr>').join("") +
+      '<td><input type="text" data-tf="name" data-id="' + t.id + '" aria-label="' + esc(t.name) + ' name" value="' + esc(t.name) + '"></td>' +
+      '<td><input type="date" data-tf="start" data-id="' + t.id + '" aria-label="' + esc(t.name) + ' starts" value="' + t.start + '"></td>' +
+      '<td><input type="date" data-tf="end" data-id="' + t.id + '" aria-label="' + esc(t.name) + ' ends" value="' + t.end + '"></td></tr>').join("") +
     "</tbody></table>" +
     '<h3 style="margin-top:16px">Reading checks</h3>' +
     '<div class="row" style="margin-top:6px">' +
@@ -6342,7 +6424,7 @@ function renderORF() {
     (orfBasis() === "eoy" ? '<th class="c">End of year</th>' : '<th class="c">Fall</th><th class="c">Winter</th><th class="c">Spring</th>') + '</tr></thead><tbody>' +
     [4, 3, 2].map(mk => {
       const p = cuts[mk];
-      return "<tr><td>" + markHTML(mk) + '</td><td><select data-cut="' + mk + '">' +
+      return "<tr><td>" + markHTML(mk) + '</td><td><select data-cut="' + mk + '" aria-label="A ' + mk + ' is at or above">' +
         [90, 75, 50, 25, 10].map(x => '<option value="' + x + '"' + (x === p ? " selected" : "") + ">" + x + "th percentile</option>").join("") +
         '</select></td>' + (orfBasis() === "eoy" ? '<td class="c num">' + normAt(p, 2) + "</td>"
           : '<td class="c num">' + normAt(p, 0) + '</td><td class="c num">' + normAt(p, 1) + '</td><td class="c num">' + normAt(p, 2) + "</td>") + "</tr>";
@@ -6519,16 +6601,19 @@ function orfTemplate() {
    WORK NOT TURNED IN
    ============================================================ */
 function missingOpen() { return S.missing.filter(m => !m.received && !m.excused); }
-function missingFor(sid, std, date) {
-  return S.missing.find(m => m.sid === sid && m.std === std && m.date === date && !m.received && !m.excused) || null;
+/* v149: an assignment is standard + date + "What was it?", and a child has a
+   mark (or a "no work") per assignment. ctx left out matches any name. */
+function sameCtx(x, ctx) { return ctx === undefined || x.ctx === undefined || (x.ctx || "") === (ctx || ""); }
+function missingFor(sid, std, date, ctx) {
+  return S.missing.find(m => m.sid === sid && m.std === std && m.date === date && sameCtx(m, ctx) && !m.received && !m.excused) || null;
 }
-function hasScore(sid, std, date) {
-  return S.scores.some(x => x.sid === sid && x.std === std && x.date === date);
+function hasScore(sid, std, date, ctx) {
+  return S.scores.some(x => x.sid === sid && x.std === std && x.date === date && !x.source && sameCtx(x, ctx));
 }
 /* called whenever a mark is entered, so the chase list clears itself */
-function clearMissingOnScore(sid, std, date) {
+function clearMissingOnScore(sid, std, date, ctx) {
   S.missing.forEach(m => {
-    if (m.sid === sid && m.std === std && m.date === date && !m.received) m.received = todayISO();
+    if (m.sid === sid && m.std === std && m.date === date && sameCtx(m, ctx) && !m.received) m.received = todayISO();
   });
 }
 function logRestAsMissing() {
@@ -6536,8 +6621,8 @@ function logRestAsMissing() {
   if (!std) return;
   const batch = [];
   sortedStudents().forEach(st => {
-    if (hasScore(st.id, std, date)) return;
-    if (missingFor(st.id, std, date)) return;
+    if (hasScore(st.id, std, date, UI.enterCtx || "")) return;
+    if (missingFor(st.id, std, date, UI.enterCtx || "")) return;
     const rec = { id: uid(), sid: st.id, std: std, date: date, ctx: UI.enterCtx || "", received: null, excused: false };
     S.missing.push(rec); batch.push(rec.id);
   });
@@ -6553,10 +6638,10 @@ function undoMissingBatch() {
 }
 function toggleMissingHere(sid) {
   const std = UI.enterStd, date = UI.enterDate;
-  const ex = missingFor(sid, std, date);
+  const ex = missingFor(sid, std, date, UI.enterCtx || "");
   if (ex) { S.missing = S.missing.filter(m => m.id !== ex.id); }
   else {
-    if (hasScore(sid, std, date)) { toast("That student already has a mark for this one"); return; }
+    if (hasScore(sid, std, date, UI.enterCtx || "")) { toast("That student already has a mark for this one"); return; }
     S.missing.push({ id: uid(), sid: sid, std: std, date: date, ctx: UI.enterCtx || "", received: null, excused: false });
   }
   save(); renderEnter();
@@ -8043,9 +8128,9 @@ function multiRosterHTML(codes) {
     "</div></div>";
   h += '<div id="rosterlist" class="mg">';
   sortedStudents().forEach(st => {
-    const recs = codes.map(c => S.scores.find(x => x.sid === st.id && x.std === c && x.date === UI.enterDate) || null);
+    const recs = codes.map(c => S.scores.find(x => x.sid === st.id && x.std === c && x.date === UI.enterDate && !x.source && sameCtx(x, (UI.enterCtx || ""))) || null);
     const same = recs.every(r => r) && recs.every(r => r.v === recs[0].v) ? recs[0].v : 0;
-    const miss = codes.every(c => hasScore(st.id, c, UI.enterDate) || missingFor(st.id, c, UI.enterDate)) && codes.some(c => missingFor(st.id, c, UI.enterDate));
+    const miss = codes.every(c => hasScore(st.id, c, UI.enterDate, UI.enterCtx || "") || missingFor(st.id, c, UI.enterDate, UI.enterCtx || "")) && codes.some(c => missingFor(st.id, c, UI.enterDate, UI.enterCtx || ""));
     const note = (recs.find(r => r && r.note) || {}).note || "";
     h += '<div class="entryrow mgrow"' + (miss ? ' style="background:var(--s1-bg)"' : "") + ">" +
       '<div class="mg-who"><span class="nm">' + esc(fullName(st)) + (st.eld ? ' <span class="chip eld">ELD</span>' : "") + "</span>" +
@@ -8076,7 +8161,7 @@ function wireMulti(el, codes) {
   if (addSel) addSel.onchange = () => { if (addSel.value) toggleMultiCode(addSel.value); };
   el.querySelectorAll("input[data-note-all]").forEach(inp => {
     inp.onchange = () => {
-      const recs = S.scores.filter(x => x.sid === inp.dataset.noteAll && x.date === UI.enterDate && codes.indexOf(x.std) >= 0);
+      const recs = S.scores.filter(x => x.sid === inp.dataset.noteAll && x.date === UI.enterDate && codes.indexOf(x.std) >= 0 && !x.source && sameCtx(x, (UI.enterCtx || "")));
       if (!recs.length) { if (inp.value) toast("Give a mark first, then the note saves with it"); return; }
       recs.forEach(r => { r.note = inp.value; }); save();
     };
@@ -8086,15 +8171,16 @@ function wireMulti(el, codes) {
    them all. Undo last puts back exactly what was there before. */
 function setAllScores(sid, codes, v) {
   const st = S.students.find(x => x.id === sid);
-  const cur = codes.map(c => S.scores.find(x => x.sid === sid && x.std === c && x.date === UI.enterDate) || null);
+  const ctx = (UI.enterCtx || "");
+  const cur = codes.map(c => S.scores.find(x => x.sid === sid && x.std === c && x.date === UI.enterDate && !x.source && sameCtx(x, ctx)) || null);
   const clear = cur.every(r => r && r.v === v);
-  UI.lastAll = { before: codes.map((c, i) => ({ std: c, rec: cur[i] ? Object.assign({}, cur[i]) : null })), sid: sid, date: UI.enterDate,
-    missing: S.missing.filter(m => m.sid === sid && m.date === UI.enterDate && codes.indexOf(m.std) >= 0).map(m => Object.assign({}, m)) };
+  UI.lastAll = { before: codes.map((c, i) => ({ std: c, rec: cur[i] ? Object.assign({}, cur[i]) : null })), sid: sid, date: UI.enterDate, ctx: ctx,
+    missing: S.missing.filter(m => m.sid === sid && m.date === UI.enterDate && codes.indexOf(m.std) >= 0 && sameCtx(m, ctx)).map(m => Object.assign({}, m)) };
   codes.forEach((c, i) => {
     if (clear) { S.scores = S.scores.filter(x => x !== cur[i]); return; }
     if (cur[i]) { cur[i].v = v; cur[i].ctx = UI.enterCtx || ""; }
     else S.scores.push({ id: uid(), sid: sid, std: c, v: v, date: UI.enterDate, note: "", ctx: UI.enterCtx || "" });
-    clearMissingOnScore(sid, c, UI.enterDate);
+    clearMissingOnScore(sid, c, UI.enterDate, ctx);
   });
   UI.log.push(clear ? "Cleared " + fullName(st) + " \u2014 all " + codes.length : fullName(st) + " \u2014 all " + codes.length + " = " + v);
   save(); renderEnter();
@@ -8102,7 +8188,7 @@ function setAllScores(sid, codes, v) {
 function undoAll() {
   const u = UI.lastAll; UI.lastAll = null;
   u.before.forEach(b => {
-    S.scores = S.scores.filter(x => !(x.sid === u.sid && x.std === b.std && x.date === u.date));
+    S.scores = S.scores.filter(x => !(x.sid === u.sid && x.std === b.std && x.date === u.date && !x.source && sameCtx(x, u.ctx)));
     if (b.rec) S.scores.push(b.rec);
   });
   /* a mark clears a student's "no work"; put those back as they were */
@@ -8110,11 +8196,11 @@ function undoAll() {
   UI.log.push("Undid last entry"); save(); renderEnter();
 }
 function toggleMissingAll(sid, codes) {
-  const date = UI.enterDate;
-  const open = codes.map(c => missingFor(sid, c, date)).filter(Boolean);
-  const unmarked = codes.filter(c => !hasScore(sid, c, date) && !missingFor(sid, c, date));
+  const date = UI.enterDate, ctx = (UI.enterCtx || "");
+  const open = codes.map(c => missingFor(sid, c, date, ctx)).filter(Boolean);
+  const unmarked = codes.filter(c => !hasScore(sid, c, date, ctx) && !missingFor(sid, c, date, ctx));
   if (open.length && !unmarked.length) { S.missing = S.missing.filter(m => open.indexOf(m) < 0); save(); renderEnter(); return; }
-  if (codes.some(c => hasScore(sid, c, date))) { toast("That student already has marks for this one"); return; }
+  if (codes.some(c => hasScore(sid, c, date, ctx))) { toast("That student already has marks for this one"); return; }
   unmarked.forEach(c => S.missing.push({ id: uid(), sid: sid, std: c, date: date, ctx: UI.enterCtx || "", received: null, excused: false }));
   save(); renderEnter();
 }
@@ -8124,7 +8210,7 @@ function logRestAsMissingMulti() {
   if (!codes) return;
   const batch = [];
   sortedStudents().forEach(st => {
-    if (codes.some(c => hasScore(st.id, c, date) || missingFor(st.id, c, date))) return;
+    if (codes.some(c => hasScore(st.id, c, date, UI.enterCtx || "") || missingFor(st.id, c, date, UI.enterCtx || ""))) return;
     codes.forEach(c => {
       const rec = { id: uid(), sid: st.id, std: c, date: date, ctx: UI.enterCtx || "", received: null, excused: false };
       S.missing.push(rec); batch.push(rec.id);

@@ -796,6 +796,11 @@
       "box-shadow:0 2px 10px rgba(16,24,32,.12);cursor:pointer;color:#14202A;" +
       "font:600 13px 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}" +
       "#subbtn:hover{border-color:#10655C;color:#10655C}" +
+      /* v149: on a phone it sat above the switcher, a second floating layer
+         over the cards' right edge (+ and Skip). It docks in the switcher's
+         band now, as a round icon in the free bottom-left corner. */
+      "@media (max-width:520px){#subbtn{right:auto;left:14px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;padding:0;justify-content:center;font-size:17px}" +
+      "#subbtn .sb-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}" +
       "#subwrap{position:fixed;inset:0;z-index:2147483100;background:rgba(16,24,32,.36);display:flex;align-items:center;justify-content:center;padding:22px}" +
       "#subpanel{width:min(960px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:14px;" +
       "box-shadow:0 20px 60px rgba(16,24,32,.3);font:15px/1.5 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;color:#14202A}" +
@@ -1187,7 +1192,7 @@
     var btn = document.createElement("button");
     btn.id = "subbtn";
     btn.type = "button";
-    btn.innerHTML = '<span aria-hidden="true">\u2637</span> Sub plan';
+    btn.innerHTML = '<span aria-hidden="true">\u2637</span><span class="sb-lbl"> Sub plan</span>';
     btn.title = "Turn a day into sub plans";
     btn.onclick = function () { openPanel(); };
     document.body.appendChild(btn);

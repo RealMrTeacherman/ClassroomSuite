@@ -319,6 +319,10 @@ textarea.notes:focus{
   text-transform:uppercase;letter-spacing:.1em}
 .wday .wd{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:9px}
 .wrow{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:3px 0;min-width:0}
+/* v149: an unplanned day shows what it would get, quieter than a saved one */
+.wsugg{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.wrow.sugg b{font-weight:500;color:var(--ink-3)}
+.wrow.sugg .dot{opacity:.55}
 .wrow em{font-style:normal;color:var(--ink-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wrow b{font-family:var(--mono);font-weight:700;font-size:10.5px;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;max-width:60%}
@@ -362,6 +366,9 @@ textarea.notes:focus{
   box-shadow:0 8px 26px rgba(44,30,21,.3);
 }
 .toast.show{transform:translate(-50%,0);opacity:1}
+/* v149: a toast that can take something back */
+.toast.act{pointer-events:auto}
+.toast .tundo{margin-left:14px;background:none;border:0;padding:4px 2px;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 
 .jump{position:relative;display:inline-block;cursor:pointer;border-bottom:1.5px dashed var(--line-2);padding-bottom:1px}
 .jump:hover{color:var(--ink-2)}
@@ -1392,7 +1399,7 @@ function renderWeek(){
       </div>
       <button class="arrow" data-wk="7" aria-label="Next week">›</button>
     </div>
-    <div class="weekgrid">${days.map(weekCard).join('')}</div>`;
+    <div class="weekgrid">${(()=>{ const pr=weekProjection(days); return days.map(d=>weekCard(d, pr[key(d)])).join(''); })()}</div>`;
   main.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{ cursor=addDays(cursor,+b.dataset.wk); render(); });
   main.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{
     stashDraft(); cursor=parseKey(b.dataset.jump); draft=null; view='today'; render();
@@ -1406,14 +1413,43 @@ function inDayOrder(d, subs){
   const first = id => { for(let i=0;i<bl.length;i++) if(bl[i] && bl[i].s===id) return i; return 1e6; };
   return subs.map((s,i)=>({s,i,k:first(s.id)})).sort((a,b)=>(a.k-b.k)||(a.i-b.i)).map(x=>x.s);
 }
-function weekCard(d){
+/* v149: what each unplanned school day of the week would get, walked forward
+   the way Today suggests it: from the last day taught, one step per day that
+   has the subject on its schedule; a saved day or a draft counts as itself.
+   (Today's suggestion for that day only looks back, so every unplanned day in
+   a row would otherwise show the same lesson.) Lesson-coded subjects only. */
+function weekProjection(days){
+  const out = {};
+  S.subjects.filter(sb=>sb.on && sb.schema!=='free').forEach(sb=>{
+    const lt = lastTaught(sb, key(days[0]));
+    let cur = lt ? lt.pos : null;
+    days.forEach(d=>{
+      const dk=key(d), st=dayStatus(d);
+      if(!st.school) return;
+      const rec = DAYS[dk];
+      if(rec && rec.saved!==false){ const e=rec.entries && rec.entries[sb.id]; if(e && e.taught && e.pos) cur=e.pos; return; }
+      const pe = PENDING[dk] && PENDING[dk].entries && PENDING[dk].entries[sb.id];
+      if(pe){ if(pe.taught && pe.pos){ cur=pe.pos; (out[dk]=out[dk]||[]).push({sb, pos:pe.pos, draft:true}); } return; }
+      const tpl = S.templates[d.getDay()] || [];
+      if(tpl.length && !tpl.some(b=>b.s===sb.id)) return;
+      const pos = cur ? advance(sb, cur) : Object.assign({}, sb.start);
+      cur = pos;
+      (out[dk]=out[dk]||[]).push({sb, pos});
+    });
+  });
+  return out;
+}
+function weekCard(d, proj){
   const dk=key(d), rec=DAYS[dk], st=dayStatus(d);
   const rows = rec && st.school
     ? inDayOrder(d, S.subjects.filter(s=>s.on && rec.entries[s.id] && rec.entries[s.id].taught && fmt(s,rec.entries[s.id].pos)!=='—'))
         .map(s=>`<div class="wrow"><span class="dot" style="--c:${esc(s.color)}"></span><em>${esc(s.name)}</em><b>${esc(fmt(s,rec.entries[s.id].pos))}</b></div>`).join('')
     : '';
   const body = !st.school ? `<div class="wrow closedlbl">${esc(st.label)}</div>`
-             : !rec ? `<div class="wrow" style="color:var(--ink-3)">Not planned yet</div>`
+             : !rec ? (proj && proj.length
+                 ? `<div class="wsugg">${proj.some(p=>p.draft)?'Draft':'Suggested'}</div>` + inDayOrder(d, proj.map(p=>p.sb)).map(sb=>{ const p=proj.find(x=>x.sb===sb);
+                     return `<div class="wrow sugg"><span class="dot" style="--c:${esc(sb.color)}"></span><em>${esc(sb.name)}</em><b>${esc(fmt(sb,p.pos))}</b></div>`; }).join('')
+                 : `<div class="wrow" style="color:var(--ink-3)">Not planned yet</div>`)
              : rows;
   return `<button class="wday ${isToday(d)?'is-today':''} ${st.school?'':'is-closed'}" data-jump="${dk}">
       <h3>${DOW[d.getDay()].slice(0,3)}${st.school&&st.early?' <i>ER</i>':''}</h3>
@@ -1473,7 +1509,7 @@ function subjectSettings(sb){
   return `<div class="setrow">
       <input type="color" class="swatch" data-set="${sb.id}:color" value="${esc(sb.color)}" aria-label="${esc(sb.name)} colour">
       <input type="text" data-set="${sb.id}:name" value="${esc(sb.name)}" style="width:120px" aria-label="Subject name">
-      <input type="text" data-set="${sb.id}:curriculum" value="${esc(sb.curriculum)}" style="width:130px" aria-label="Curriculum">
+      <input type="text" data-set="${sb.id}:curriculum" value="${esc(sb.curriculum)}" style="width:clamp(130px,24vw,240px)" aria-label="Curriculum">
       ${lim}
       <label style="margin-left:auto"><input type="checkbox" data-set="${sb.id}:on" ${sb.on?'checked':''}> Show</label>
     </div>`;
@@ -1542,15 +1578,20 @@ function wireSettings(){
     };
   });
   main.querySelectorAll('[data-delblk]').forEach(b=>b.onclick=()=>{
-    S.templates[editDow].splice(+b.dataset.delblk,1); persistSettings(); renderSettings();
+    const dow=editDow, was=JSON.parse(JSON.stringify(S.templates[dow]));
+    const gone=S.templates[dow].splice(+b.dataset.delblk,1)[0];
+    persistSettings(); renderSettings();
+    toastUndo(`Deleted “${(gone&&gone.l)||'block'}”`, ()=>{ S.templates[dow]=was; editDow=dow; persistSettings(); renderSettings(); toast('Put back'); });
   });
   document.getElementById('addblock').onclick=()=>{
     (S.templates[editDow] = S.templates[editDow]||[]).push({t:'',l:'New block',s:'',n:''});
     persistSettings(); renderSettings();
   };
   document.getElementById('resetday').onclick=()=>{
-    S.templates[editDow] = editDow===3 ? [] : mtrfBlocks(editDow);
-    persistSettings(); renderSettings(); toast('Reset to the sub-plan schedule');
+    const dow=editDow, was=JSON.parse(JSON.stringify(S.templates[dow]||[]));
+    S.templates[dow] = dow===3 ? [] : mtrfBlocks(dow);
+    persistSettings(); renderSettings();
+    toastUndo('Reset to the sub-plan schedule', ()=>{ S.templates[dow]=was; editDow=dow; persistSettings(); renderSettings(); toast('Put back'); });
   };
   document.getElementById('exp').onclick=()=>{
     const text = backupText();
@@ -1656,8 +1697,17 @@ function copySubPlan(){
 let tT=null;
 function toast(msg){
   const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
+  t.textContent=msg; t.classList.remove('act'); t.classList.add('show');
   clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),2600);
+}
+/* v149: a schedule change that live sync carries to every device gets a way back */
+function toastUndo(msg, undo){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  const b=document.createElement('button'); b.type='button'; b.className='tundo'; b.textContent='Undo';
+  b.onclick=()=>{ clearTimeout(tT); t.classList.remove('show','act'); undo(); };
+  t.appendChild(b); t.classList.add('show','act');
+  clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show','act'),8000);
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ stashDraft(); view=t.dataset.view; render(); });
 document.addEventListener('keydown',e=>{

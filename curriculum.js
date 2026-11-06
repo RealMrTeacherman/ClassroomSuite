@@ -670,8 +670,11 @@
       if (e && !e.taught && isDefault(e.pos)) { e.pos = posOf(FLAT[0]); changedDays = true; }
     });
     if (changedDays) { invalidateDayCache(); persist(); }
+    /* v149: not a day with a draft: a Unit 1 Lesson 1 there was chosen by
+       hand (nudged forward from the diagnostic) and came back on reload */
     var e = draft && draft.entries && draft.entries.math;
-    if (e && !dirty && isDefault(e.pos)) e.pos = first;
+    var drafted = typeof PENDING !== "undefined" && PENDING && PENDING[key(cursor)];
+    if (e && !dirty && !drafted && isDefault(e.pos)) e.pos = first;
   }
   function lineupNoteHTML(sb) {
     if (!sb || sb.pacingReconciled) return "";
