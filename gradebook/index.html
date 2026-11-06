@@ -853,6 +853,8 @@ const CATALOG = [
 /* v145: his split, not Oregon's. 2.OA.B.2 is one standard in the 2021 Oregon
    standards; he marks adding and subtracting apart. Both count toward
    2.OA.B.2 on the report card (rcParent), which stays the Synergy row.
+   v148: not any more. He grades them apart in Synergy too, so each half is
+   its own report card line (RC_OWN_LINE).
    `shown`: listed in Setup like a main standard, sub-standards on or off. */
 {c:"2.OA.B.2a",s:"Math",d:"Operations",lvl:2,shown:1,lbl:"Add fluently within 20",t:"Fluently add within 20 using accurate, efficient, and flexible strategies and algorithms based on place value and properties of operations."},
 {c:"2.OA.B.2b",s:"Math",d:"Operations",lvl:2,shown:1,lbl:"Subtract fluently within 20",t:"Fluently subtract within 20 using accurate, efficient, and flexible strategies and algorithms based on place value and properties of operations."},
@@ -1208,6 +1210,17 @@ function hydrate(p) {
     out.seeded.rcIreadyFill = 1;
   }
   splitFluency20(out);
+  /* v148: 2.OA.B.2's halves are separate report card lines now. A mark he
+     set on the old combined line goes to both halves, once. */
+  if (!out.seeded.fl20RcLines) {
+    Object.keys(out.overrides || {}).forEach(k => {
+      const m = /^(.*\|std:)2\.OA\.B\.2$/.exec(k);
+      if (!m) return;
+      [FL20_ADD, FL20_SUB].forEach(c => { if (!out.overrides[m[1] + c]) out.overrides[m[1] + c] = out.overrides[k]; });
+      delete out.overrides[k];
+    });
+    out.seeded.fl20RcLines = 1;
+  }
   return out;
 }
 /* v145: "Fluency within 20" (2.OA.B.2) became two, adding (2.OA.B.2a) and
@@ -1215,7 +1228,7 @@ function hydrate(p) {
    so hand marks and their missing-work records move to 2.OA.B.2a; iReady's
    rows stay on 2.OA.B.2 (they rebuild, and its Algebra score is neither
    half). Report card overrides stay on 2.OA.B.2, still the report card's
-   row. Lists of standards (class goals, year goals) take both halves; a
+   row (until v148, which gives each half its own line). Lists of standards (class goals, year goals) take both halves; a
    group, its goal and its pins take adding, as their marks were.
    Once, and flagged: anything he changes afterwards stays. */
 const FL20 = "2.OA.B.2", FL20_ADD = "2.OA.B.2a", FL20_SUB = "2.OA.B.2b";
@@ -2759,7 +2772,10 @@ function ireadyImport() {
    ============================================================ */
 function termOf(id) { return S.terms.find(t => t.id === id) || S.terms[0]; }
 function reportable(x) { return x.source !== "iready" || !!S.settings.ireadyInReport; }
+/* v148: sub-standards graded on their own line in Synergy */
+const RC_OWN_LINE = ["2.OA.B.2a", "2.OA.B.2b"];
 function rcParent(code) {
+  if (RC_OWN_LINE.indexOf(code) >= 0) return code;
   const s = byCode[code];
   if (!s || s.lvl !== 2) return code;
   const p = code.replace(/[a-z]$/, "");
@@ -2773,7 +2789,8 @@ function rcCodes() {
   return CATALOG.filter(s => want.has(s.c)).map(s => s.c);
 }
 function stdScores(sid, code) {
-  return S.scores.filter(x => x.sid === sid && reportable(x) && rcParent(x.std) === code);
+  return S.scores.filter(x => x.sid === sid && reportable(x) &&
+    (rcParent(x.std) === code || (x.std === FL20 && (code === FL20_ADD || code === FL20_SUB))));
 }
 /* v143: the scores a term's mark is figured from: that term's, or with
    "year to date" every score from the start of the year to the term's end */
@@ -2782,19 +2799,30 @@ function stdEvidence(sid, code, term) {
   return stdScores(sid, code).filter(x => x.date && x.date >= from && x.date <= term.end)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+/* v148: reading fluency is marked by the most recent score alone, whatever
+   the rule in Setup ("at least for now"). Most recent graded score: an
+   iReady domain mark only if there is nothing else. */
+const RC_LATEST_ONLY = ["2.RF.4"];
+function rcLatestOnly(code) { return RC_LATEST_ONLY.indexOf(code) >= 0; }
+function rcCalc(code, ev) {
+  if (!ev.length) return null;
+  if (!rcLatestOnly(code)) return computeMark(ev.map(x => x.v));
+  const g = ev.filter(x => x.source !== "iready");
+  return (g.length ? g : ev)[(g.length ? g : ev).length - 1].v;
+}
 function stdMark(sid, code, term) {
-  const vals = stdEvidence(sid, code, term).map(x => x.v);
-  return { raw: computeMark(vals), n: vals.length };
+  const ev = stdEvidence(sid, code, term);
+  return { raw: rcCalc(code, ev), n: ev.length };
 }
 function carriedStd(sid, code, term) {
   const vals = stdScores(sid, code).filter(x => x.date < term.start).sort((a, b) => a.date.localeCompare(b.date));
   if (!vals.length) return null;
   const earlier = S.terms.filter(t => t.end < term.start).sort((a, b) => b.end.localeCompare(a.end));
   for (const t of earlier) {
-    const inT = vals.filter(x => x.date >= t.start && x.date <= t.end).map(x => x.v);
-    if (inT.length) return { v: roundMark(computeMark(inT)), from: t.name, n: inT.length };
+    const inT = vals.filter(x => x.date >= t.start && x.date <= t.end);
+    if (inT.length) return { v: roundMark(rcCalc(code, inT)), from: t.name, n: inT.length };
   }
-  return { v: roundMark(computeMark(vals.map(x => x.v))), from: "earlier work", n: vals.length };
+  return { v: roundMark(rcCalc(code, vals)), from: "earlier work", n: vals.length };
 }
 /* an override is keyed term|student|std:CODE, beside v103's term|student|lineId */
 function stdKey(term, sid, code) { return term.id + "|" + sid + "|std:" + code; }
@@ -2810,7 +2838,7 @@ function finalStd(sid, code, term) {
     const ir = rcIreadyFill(sid, code, term);
     if (ir) return { v: ir.v, over: false, n: 0, ir: ir };
   }
-  return { v: roundMark(r.raw), over: false, n: r.n, raw: r.raw };
+  return { v: roundMark(r.raw), over: false, n: r.n, raw: r.raw, latest: rcLatestOnly(code) };
 }
 /* ============================================================
    v148: A STANDARD WITH NO SCORES, MARKED FROM iREADY ALONE
@@ -2927,7 +2955,7 @@ function rcScoredCodes(term) {
   return rcCodes().filter(c => S.students.some(st => { const f = finalStd(st.id, c, term); return f.v || f.n; }));
 }
 function rcShownCodes(term) { return UI.rcAll ? rcCodes() : rcScoredCodes(term); }
-function rcThin(f) { return S.settings.rule === "powerlaw" && !f.over && f.n > 0 && f.n < POWER_MIN; }
+function rcThin(f) { return S.settings.rule === "powerlaw" && !f.over && !f.latest && f.n > 0 && f.n < POWER_MIN; }
 function rcSrc(x) { return x.source === "iready" ? "iReady" : x.source === "orf" ? "ORF" : "Assignment"; }
 const RC_RULE_WORDS = { powerlaw: "power law", weighted: "recent work counts more", latest: "most recent mark", mean: "straight average" };
 function rcMethodLine(term) {
@@ -2937,7 +2965,8 @@ function rcMethodLine(term) {
   const span = S.settings.rcYTD ? "the year so far, through " + fmtShort(term.end) : fmtShort(term.start) + " \u2013 " + fmtShort(term.end);
   return "Figured by " + (RC_RULE_WORDS[S.settings.rule] || S.settings.rule) + " over " + span + ", from " +
     (what.length > 1 ? what.slice(0, -1).join(", ") + " and " + what[what.length - 1] : what[0]) + "." +
-    (S.settings.rcIreadyFill ? " A math or reading standard with no scores is marked from iReady alone." : "");
+    (S.settings.rcIreadyFill ? " A math or reading standard with no scores is marked from iReady alone." : "") +
+    (rcCodes().some(rcLatestOnly) ? " Reading fluency (2.RF.4) is the most recent score." : "");
 }
 function fmtShort(iso) {
   const d = new Date(String(iso) + "T12:00:00");
@@ -2975,12 +3004,14 @@ function rcWhyHTML(term) {
   const sel = UI.rcSel, st = sel && S.students.find(s => s.id === sel.sid);
   if (!st || !byCode[sel.code]) return '<div class="card pad rc-why"><p class="hint">Pick any mark to see the scores behind it.</p></div>';
   const code = sel.code, f = finalStd(st.id, code, term), ev = stdEvidence(st.id, code, term), vals = ev.map(x => x.v);
-  const rule = S.settings.rule, calc = computeMark(vals), plain = vals.length ? avg(vals) : null;
+  const lat = rcLatestOnly(code);
+  const rule = lat ? "latest" : S.settings.rule, calc = rcCalc(code, ev), plain = vals.length ? avg(vals) : null;
   const two = x => x == null ? "\u2013" : (Math.round(x * 100) / 100).toFixed(2);
   let how;
   if (!vals.length) how = "<b>No scores yet</b>" + (S.settings.rcYTD ? " this year." : " this term.");
   else if (rule === "powerlaw" && vals.length >= POWER_MIN) how = "<b>Power law " + two(calc) + "</b> \u2192 rounds to " + roundMark(calc);
   else if (rule === "powerlaw") how = "<b>Average of " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ": " + two(calc) + "</b> \u2192 " + roundMark(calc);
+  else if (lat) how = "<b>Most recent score: " + calc + "</b>";
   else how = "<b>" + esc(RC_RULE_WORDS[rule] || rule) + " " + two(calc) + "</b> \u2192 " + roundMark(calc);
   let sub = vals.length ? "Straight average " + two(plain) + " \u00b7 " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ", " + fmtShort(ev[0].date) + " \u2013 " + fmtShort(ev[ev.length - 1].date) : "";
   const irf = f.ir || (!rcGraded(st.id, code, term) ? rcIreadyFill(st.id, code, term) : null);
@@ -2993,6 +3024,7 @@ function rcWhyHTML(term) {
     '<div class="rc-result">' + '<span class="mark rc-big ' + (f.v ? "v" + f.v : "vnone") + '">' + (f.v || "\u2013") + "</span>" +
     '<div class="rc-how"><span>' + how + "</span>" + (sub ? '<span class="muted">' + sub + "</span>" : "") + "</div></div>";
   if (f.ir) h += '<p class="notice rc-thinnote">No assignment or ORF scores on this standard yet, so the mark comes from the iReady placement alone: ' + irFillWords() + ". A score on it, or setting it yourself, replaces this.</p>";
+  if (lat && vals.length && !f.over && !f.ir) h += '<p class="notice rc-thinnote">Reading fluency uses the most recent score only, not the trend.</p>';
   if (rcThin(f)) h += '<p class="notice rc-thinnote">Fewer than ' + POWER_MIN + " scores, so there\u2019s no trend to fit and this is the plain average. Worth a look before it goes on the report card.</p>";
   if (ev.length && !f.ir) {
     const fit = rule === "powerlaw" && vals.length >= POWER_MIN && !f.over ? powerFit(vals) : null;
