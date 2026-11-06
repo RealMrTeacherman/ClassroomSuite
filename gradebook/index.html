@@ -297,6 +297,7 @@ table.rc-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13
 .rc-cell .mark{width:28px;height:25px}
 .mark.rc-thin{border-style:dashed !important;border-color:var(--s2) !important}
 .mark.rc-over{border:2px solid var(--ink) !important}
+.mark.rc-ir{border-style:dotted !important;border-width:2px !important;border-color:var(--s4) !important}
 .rc-i,.rc-ikey{position:absolute;top:0;right:1px;font-size:9.5px;font-weight:700;color:var(--s4);line-height:11px}
 .rc-ikey{position:static;font-size:12px}
 .rc-legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 12px 12px;font-size:12px;color:var(--ink-2);border-top:1px solid var(--line-2)}
@@ -1200,6 +1201,12 @@ function hydrate(p) {
     out.settings.ireadyInReport = true;
     out.seeded.rcPowerLaw = 1;
   }
+  /* v148: a standard with no scores takes its mark from iReady alone. On
+     once, as he asked; turning it off in Setup stays off. */
+  if (!out.seeded.rcIreadyFill) {
+    out.settings.rcIreadyFill = true;
+    out.seeded.rcIreadyFill = 1;
+  }
   splitFluency20(out);
   return out;
 }
@@ -1315,7 +1322,7 @@ function blankState() {
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
       ireadyAutoScore: true, ireadyInReport: true, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
-      noMapPrompts: false, mathCodes: "oregon" }
+      noMapPrompts: false, mathCodes: "oregon", rcIreadyFill: true }
   };
 }
 let S = blankState();
@@ -2799,7 +2806,91 @@ function finalStd(sid, code, term) {
     const c = carriedStd(sid, code, term);
     if (c && c.v) return { v: c.v, over: false, n: 0, carried: c.from };
   }
+  if (!rcGraded(sid, code, term)) {
+    const ir = rcIreadyFill(sid, code, term);
+    if (ir) return { v: ir.v, over: false, n: 0, ir: ir };
+  }
   return { v: roundMark(r.raw), over: false, n: r.n, raw: r.raw };
+}
+/* ============================================================
+   v148: A STANDARD WITH NO SCORES, MARKED FROM iREADY ALONE
+   His rule, for a standard nobody has scored for this child, taught yet
+   or not: the latest iReady diagnostic (up to the term's end) places
+   Mid 2 or higher -> 3, Grade 1 or Early 2 -> 2, Grade K -> 1. Never a 4.
+   Written against the grade in Setup, so for 2nd grade it is exactly that.
+   "No scores" means no assignment or ORF score: the iReady tab's own domain
+   marks (Turn iReady into standards marks) don't count as grades, so a
+   standard with only those is marked by this rule instead.
+   The placement used is the domain the standard belongs to (2.OA ->
+   Algebra and Algebraic Thinking, 2.RF.3 -> Phonics, ...), the overall
+   placement when no domain fits or the domain is missing. Math and
+   reading only: writing, speaking/listening and conventions (L.1-L.3)
+   are never filled. Any score at all on the standard and this is not
+   used; an override (Set it yourself) beats it. Nothing is stored.
+   ============================================================ */
+const RC_IR_FILL = [
+  [/\.OA\./, [/algebra/]],
+  [/\.NBT\./, [/number/]],
+  [/\.GM\.A\./, [/geometry/]],
+  [/\.GM\.[B-D]\./, [/measurement/]],
+  [/\.DR\./, [/measurement/]],
+  [/\.RF\.2[a-z]?$/, [/phonological/]],
+  [/\.RF\.3[a-z]?$/, [/\bphonics\b/, /high.?frequency/]],
+  [/\.RF\.4[a-z]?$/, []],
+  [/\.RL\./, [/literature/, /comprehension(: | )?overall|^comprehension$/]],
+  [/\.RI\./, [/informational/, /comprehension(: | )?overall|^comprehension$/]],
+  [/\.L\.[456][a-z]?$/, [/vocab/]]
+];
+/* graded: an assignment or ORF score counts. The domain marks the iReady
+   tab writes are not grades, so a standard with only those is filled too */
+function rcGraded(sid, code, term) { return stdEvidence(sid, code, term).some(x => x.source !== "iready"); }
+function irGradeWord(n) { return n <= 0 ? "K" : String(n); }
+/* placement -> 1, 2 or 3 by his rule; null when it can't be read. Takes
+   absolute placements ("Mid 2", "Grade 1", "Emerging K") and relative
+   ones ("Mid or Above Grade Level", "Early On Grade Level", "1 Grade Level Below") */
+function irFillMark(p) {
+  const s = normHdr(p);
+  if (!s) return null;
+  const G = Number(S.settings.studentGrade || 2);
+  if (/tested out|max(imum)? scale/.test(s)) return 3;
+  if (/emerging/.test(s)) return 1;
+  if (/above grade level|(mid|late) on grade level/.test(s)) return 3;
+  if (/early on grade level/.test(s)) return 2;
+  if (/on grade level|at grade level/.test(s)) return 3;
+  let below = null, m = s.match(/(\d+)\s*(?:or more\s*)?grade levels?\s*below/);
+  if (m) below = Number(m[1]);
+  else if (/three or more grade levels?\s*below/.test(s)) below = 3;
+  else if (/two grade levels?\s*below/.test(s)) below = 2;
+  else if (/one grade level\s*below/.test(s)) below = 1;
+  if (below != null) return below <= 1 ? 2 : 1;
+  m = s.match(/^(?:(early|mid|late)\s+)?(?:grade\s*)?(k|\d+)$/);
+  if (!m) return null;
+  const g = m[2] === "k" ? 0 : Number(m[2]);
+  if (g > G) return 3;
+  if (g === G) return m[1] === "early" ? 2 : 3;
+  return g === G - 1 ? 2 : 1;
+}
+function irFillWords() {
+  const G = Number(S.settings.studentGrade || 2);
+  return "Mid " + irGradeWord(G) + " or higher \u2192 3 \u00b7 Grade " + irGradeWord(G - 1) + " or Early " + irGradeWord(G) +
+    " \u2192 2 \u00b7 Grade " + irGradeWord(G - 2) + (G - 2 > 0 ? " or below" : "") + " \u2192 1";
+}
+function rcIreadyFill(sid, code, term) {
+  if (!S.settings.rcIreadyFill) return null;
+  const std = byCode[code];
+  if (!std || (std.s !== "Math" && std.s !== "ELA")) return null;
+  const rule = RC_IR_FILL.find(r => r[0].test(code));
+  if (!rule) return null;
+  const rec = (S.iready || []).filter(r => r.sid === sid && r.subject === std.s && (!r.date || r.date <= term.end))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(-1)[0];
+  if (!rec) return null;
+  for (const re of rule[1]) {
+    const k = Object.keys(rec.domains || {}).find(k => re.test(normHdr(k)));
+    const v = k ? irFillMark((rec.domains[k] || {}).p) : null;
+    if (v) return { v: v, from: k, p: rec.domains[k].p, date: rec.date || "" };
+  }
+  const v = irFillMark(rec.placement);
+  return v ? { v: v, from: "Overall", p: rec.placement, date: rec.date || "" } : null;
 }
 /* v134: how a child's marks on a standard become one mark for a marking
    period. It was set on the Report card tab; that tab is gone and the rule
@@ -2815,6 +2906,7 @@ function termMarksCardHTML() {
     '<option value="mean"' + (r === "mean" ? " selected" : "") + '>Straight average</option></select></label>' +
     '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-ytd"' + (S.settings.rcYTD ? " checked" : "") + '> Count the whole year so far, not just this term</label>' +
     (S.settings.rcYTD ? "" : '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-carry"' + (S.settings.carryForward ? " checked" : "") + '> Carry a mark forward when a standard has no marks this term</label>') +
+    '<label class="row small" style="gap:6px;padding-bottom:7px"><input type="checkbox" id="tm-irfill"' + (S.settings.rcIreadyFill ? " checked" : "") + '> Mark a math or reading standard with no scores from iReady alone</label>' +
     "</div>" + (r === "powerlaw" ? '<p class="hint" style="margin-top:6px">With fewer than ' + POWER_MIN + " scores there is no trend to fit, so the plain average is used, and the Report card flags it.</p>" : "") + "</div>";
 }
 /* ============================================================
@@ -2844,7 +2936,8 @@ function rcMethodLine(term) {
   if (S.settings.orfAutoScore) what.push("ORF checks");
   const span = S.settings.rcYTD ? "the year so far, through " + fmtShort(term.end) : fmtShort(term.start) + " \u2013 " + fmtShort(term.end);
   return "Figured by " + (RC_RULE_WORDS[S.settings.rule] || S.settings.rule) + " over " + span + ", from " +
-    (what.length > 1 ? what.slice(0, -1).join(", ") + " and " + what[what.length - 1] : what[0]) + ".";
+    (what.length > 1 ? what.slice(0, -1).join(", ") + " and " + what[what.length - 1] : what[0]) + "." +
+    (S.settings.rcIreadyFill ? " A math or reading standard with no scores is marked from iReady alone." : "");
 }
 function fmtShort(iso) {
   const d = new Date(String(iso) + "T12:00:00");
@@ -2853,11 +2946,11 @@ function fmtShort(iso) {
 function rcCellHTML(st, code, term, f) {
   const ev = stdEvidence(st.id, code, term);
   const on = UI.rcSel && UI.rcSel.sid === st.id && UI.rcSel.code === code;
-  const cls = "mark " + (f.v ? "v" + f.v : "vnone") + (rcThin(f) ? " rc-thin" : "") + (f.over ? " rc-over" : "");
-  const label = fullName(st) + ", " + code + ": " + (f.v ? f.v : "no mark") + (f.over ? ", set by you" : "") + (rcThin(f) ? ", fewer than " + POWER_MIN + " scores" : "");
+  const cls = "mark " + (f.v ? "v" + f.v : "vnone") + (rcThin(f) ? " rc-thin" : "") + (f.over ? " rc-over" : "") + (f.ir ? " rc-ir" : "");
+  const label = fullName(st) + ", " + code + ": " + (f.v ? f.v : "no mark") + (f.over ? ", set by you" : "") + (rcThin(f) ? ", fewer than " + POWER_MIN + " scores" : "") + (f.ir ? ", from iReady alone" : "");
   return '<td class="c"><button type="button" class="rc-cell' + (on ? " on" : "") + '" data-sid="' + esc(st.id) + '" data-code="' + esc(code) + '" aria-label="' + esc(label) + '">' +
     '<span class="' + cls + '">' + (f.v || "\u2013") + "</span>" +
-    (ev.some(x => x.source === "iready") ? '<span class="rc-i" aria-hidden="true">i</span>' : "") + "</button></td>";
+    (f.ir || ev.some(x => x.source === "iready") ? '<span class="rc-i" aria-hidden="true">i</span>' : "") + "</button></td>";
 }
 function rcChartSVG(ev, fit) {
   const n = ev.length, W = 300, H = 120, x0 = 22, x1 = 290, y0 = 10, y1 = 104;
@@ -2890,14 +2983,18 @@ function rcWhyHTML(term) {
   else if (rule === "powerlaw") how = "<b>Average of " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ": " + two(calc) + "</b> \u2192 " + roundMark(calc);
   else how = "<b>" + esc(RC_RULE_WORDS[rule] || rule) + " " + two(calc) + "</b> \u2192 " + roundMark(calc);
   let sub = vals.length ? "Straight average " + two(plain) + " \u00b7 " + vals.length + " score" + (vals.length === 1 ? "" : "s") + ", " + fmtShort(ev[0].date) + " \u2013 " + fmtShort(ev[ev.length - 1].date) : "";
-  if (f.over) { how = "<b>Set by you: " + f.v + "</b>"; sub = vals.length ? "Calculated: " + roundMark(calc) + " (" + two(calc) + ")" : "Nothing calculated yet"; }
+  const irf = f.ir || (!rcGraded(st.id, code, term) ? rcIreadyFill(st.id, code, term) : null);
+  const irWhere = x => esc((x.from === "Overall" ? "Overall" : x.from) + " placement " + x.p) + (x.date ? ", diagnostic of " + esc(fmtShort(x.date)) : "");
+  if (f.over) { how = "<b>Set by you: " + f.v + "</b>"; sub = vals.length && !irf ? "Calculated: " + roundMark(calc) + " (" + two(calc) + ")" : irf ? "From iReady: " + irf.v + " (" + irWhere(irf) + ")" : "Nothing calculated yet"; }
   else if (!vals.length && f.carried) sub = "Carried from " + esc(f.carried);
+  else if (f.ir) { how = "<b>From iReady: " + f.v + "</b>"; sub = irWhere(f.ir); }
   let h = '<div class="card pad rc-why" id="rc-why"><div class="rc-whyhead"><span class="rc-eyebrow">' + esc(code) + " \u00b7 " + esc(byCode[code].lbl) + "</span>" +
     '<span class="rc-who">' + nameLink(st, fullName(st)) + "</span></div>" +
     '<div class="rc-result">' + '<span class="mark rc-big ' + (f.v ? "v" + f.v : "vnone") + '">' + (f.v || "\u2013") + "</span>" +
     '<div class="rc-how"><span>' + how + "</span>" + (sub ? '<span class="muted">' + sub + "</span>" : "") + "</div></div>";
+  if (f.ir) h += '<p class="notice rc-thinnote">No assignment or ORF scores on this standard yet, so the mark comes from the iReady placement alone: ' + irFillWords() + ". A score on it, or setting it yourself, replaces this.</p>";
   if (rcThin(f)) h += '<p class="notice rc-thinnote">Fewer than ' + POWER_MIN + " scores, so there\u2019s no trend to fit and this is the plain average. Worth a look before it goes on the report card.</p>";
-  if (ev.length) {
+  if (ev.length && !f.ir) {
     const fit = rule === "powerlaw" && vals.length >= POWER_MIN && !f.over ? powerFit(vals) : null;
     h += rcChartSVG(ev, fit) + '<div class="rc-axis"><span>oldest</span><span>newest</span></div>';
     h += '<div class="rc-ev">' + ev.slice().reverse().map(x => {
@@ -2923,8 +3020,8 @@ function renderReport() {
     UI.rcSel = codes.length ? { sid: studs[0].id, code: codes[0] } : null;
   const marks = {};
   studs.forEach(st => { marks[st.id] = {}; codes.forEach(c => { marks[st.id][c] = finalStd(st.id, c, term); }); });
-  let thin = 0, over = 0;
-  studs.forEach(st => codes.forEach(c => { const f = marks[st.id][c]; if (rcThin(f)) thin++; if (f.over) over++; }));
+  let thin = 0, over = 0, irn = 0;
+  studs.forEach(st => codes.forEach(c => { const f = marks[st.id][c]; if (rcThin(f)) thin++; if (f.over) over++; if (f.ir) irn++; }));
   let h = '<div class="sectionhead rc-top"><div><h2>' + esc(term.name) + " report card \u00b7 " + esc(subjLabel()) + "</h2>" +
     '<p class="hint" style="margin-top:2px">' + esc(rcMethodLine(term)) + ' <a class="rc-change" href="#setup" onclick="gotoTab(\'setup\');setTimeout(()=>{const t=document.getElementById(\'term-marks\');t&&t.scrollIntoView()},50);return false">Change</a></p></div>' +
     '<span class="spacer"></span><label class="fld">Term<select id="rc-term">' + S.terms.map(t => '<option value="' + t.id + '"' + (t.id === term.id ? " selected" : "") + ">" + esc(t.name) + "</option>").join("") + "</select></label>" +
@@ -2952,6 +3049,7 @@ function renderReport() {
     '<div class="rc-legend"><span><b class="rc-ikey">i</b> includes an iReady score</span>' +
     '<span><span class="mark rc-thin v2" aria-hidden="true">2</span> fewer than ' + POWER_MIN + " scores: plain average" + (thin ? " (" + thin + ")" : "") + "</span>" +
     '<span><span class="mark rc-over v3" aria-hidden="true">3</span> set by you' + (over ? " (" + over + ")" : "") + "</span>" +
+    (irn ? '<span><span class="mark rc-ir v2" aria-hidden="true">2</span> no scores: from iReady alone (' + irn + ")</span>" : "") +
     (unscored ? '<label class="row small" style="gap:6px"><input type="checkbox" id="rc-all"' + (UI.rcAll ? " checked" : "") + "> Show standards with no scores yet (" + unscored + ")</label>" : "") +
     "</div></div>" + rcWhyHTML(term) + "</div>";
   el.innerHTML = h;
@@ -2997,10 +3095,10 @@ function rcCopy(code) {
 function rcPrint() {
   const term = rcTerm(), codes = rcShownCodes(term);
   let h = "<h2>" + esc(term.name) + " report card \u00b7 " + esc(subjLabel()) + '</h2><p style="font-size:11px;color:#555">' + esc(rcMethodLine(term)) +
-    " * fewer than " + POWER_MIN + " scores. Printed " + todayISO() + '.</p><table border="1" cellspacing="0" cellpadding="3" style="width:100%;border-collapse:collapse;font-size:11px"><tr><th align="left">Student</th>' +
+    " * fewer than " + POWER_MIN + " scores." + (S.settings.rcIreadyFill ? " i from iReady alone (no scores)." : "") + " Printed " + todayISO() + '.</p><table border="1" cellspacing="0" cellpadding="3" style="width:100%;border-collapse:collapse;font-size:11px"><tr><th align="left">Student</th>' +
     codes.map(c => '<th style="text-align:center">' + esc(c) + "</th>").join("") + "</tr>";
   sortedStudents().forEach(st => {
-    h += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>" + codes.map(c => { const f = finalStd(st.id, c, term); return '<td style="text-align:center">' + (f.v || "") + (rcThin(f) ? "*" : "") + "</td>"; }).join("") + "</tr>";
+    h += "<tr><td>" + esc(st.last + ", " + st.first) + "</td>" + codes.map(c => { const f = finalStd(st.id, c, term); return '<td style="text-align:center">' + (f.v || "") + (rcThin(f) ? "*" : "") + (f.ir ? "<sup>i</sup>" : "") + "</td>"; }).join("") + "</tr>";
   });
   document.getElementById("printsheet").innerHTML = h + "</table>";
   suitePrint();
@@ -4907,6 +5005,8 @@ function renderSetup() {
   if (tc) tc.onchange = e => { S.settings.carryForward = e.target.checked; save(); };
   const ty = document.getElementById("tm-ytd");
   if (ty) ty.onchange = e => { S.settings.rcYTD = e.target.checked; save(); renderSetup(); };
+  const tf = document.getElementById("tm-irfill");
+  if (tf) tf.onchange = e => { S.settings.rcIreadyFill = e.target.checked; save(); };
 
   const mp = document.getElementById("set-mapprompts");
   if (mp) mp.onchange = e => { S.settings.noMapPrompts = !e.target.checked; save(); };
