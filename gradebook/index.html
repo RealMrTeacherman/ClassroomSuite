@@ -1179,6 +1179,13 @@ function hydrate(p) {
   const out = Object.assign(b, p || {});
   out.settings = Object.assign({}, defSettings, (p && p.settings) || {});
   out.settings.orfCuts = Object.assign({ 4: 75, 3: 50, 2: 25 }, out.settings.orfCuts || {});
+  /* v150: Creswell scores fluency by fixed WCPM bands, 0-19 a 1, 20-79 a 2,
+     80-100 a 3, 101+ a 4. Until now every check was placed on the spring
+     percentile norms, so a 41 (below the spring 25th, 72) came out a 1.
+     The bands become the rule, once; the norm rules stay a choice. */
+  out.settings.orfWcpm = Object.assign({ 2: 20, 3: 80, 4: 101 }, out.settings.orfWcpm || {});
+  out.seeded = out.seeded || {};
+  if (!out.seeded.orfWcpm) { out.settings.orfAgainst = "wcpm"; out.seeded.orfWcpm = 1; }
   out.settings.orfSeason = Object.assign({ fall: "08-01", winter: "12-01", spring: "03-01" }, out.settings.orfSeason || {});
   out.settings.ireadyCuts = Object.assign({ 4: 1, 3: 0, 2: -1 }, out.settings.ireadyCuts || {});
   if (!Array.isArray(out.students)) out.students = [];
@@ -1352,7 +1359,7 @@ function blankState() {
     overrides: {},
     groupPins: {},
     settings: { rule: "powerlaw", rcYTD: true, teacher: "", year: y + "\u2013" + (y + 1), showSubs: false,
-      orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 }, orfAgainst: "eoy",
+      orfAutoScore: true, orfStandard: "2.RF.4", orfCuts: { 4: 75, 3: 50, 2: 25 }, orfAgainst: "wcpm", orfWcpm: { 2: 20, 3: 80, 4: 101 },
       orfSeason: { fall: "08-01", winter: "12-01", spring: "03-01" }, orfAutoLink: true,
       yearStart: y + "-09-01", yearEnd: (y + 1) + "-06-11", carryForward: true, studentGrade: 2, subject: "Math",
       ireadyAutoScore: true, ireadyInReport: true, ireadyCuts: { 4: 1, 3: 0, 2: -1 }, ireadyMap: null,
@@ -5305,8 +5312,16 @@ function normAt(p, season) { return ORF_NORMS && ORF_NORMS[p] ? ORF_NORMS[p][sea
    so a fall 50 — on the fall 50th — is a 1, as it would be on the report
    card. "season" is the older behaviour, each check against its own window's
    norms, kept as a choice on the Fluency tab. */
-function orfBasis() { return S.settings.orfAgainst === "season" ? "season" : "eoy"; }
+function orfBasis() { const a = S.settings.orfAgainst; return a === "season" || a === "eoy" ? a : "wcpm"; }
+/* what the ORF marks were last written under: the rule, and for the bands
+   the bands themselves, so changing either re-marks every check */
+function orfMarksKey() { const b = orfBasis(), c = S.settings.orfWcpm || {}; return b === "wcpm" ? "wcpm:" + c[2] + "/" + c[3] + "/" + c[4] : b; }
 function wcpmToMark(wcpm, season) {
+  if (orfBasis() === "wcpm") {
+    const w = Number(wcpm), c = Object.assign({ 2: 20, 3: 80, 4: 101 }, S.settings.orfWcpm || {});
+    if (!isFinite(w) || w < 0) return null;
+    return w >= c[4] ? 4 : w >= c[3] ? 3 : w >= c[2] ? 2 : 1;
+  }
   const band = pctBand(wcpm, orfBasis() === "eoy" ? 2 : season);
   if (band == null) return null;
   const cuts = S.settings.orfCuts;                        /* percentile floor for each mark */
@@ -5654,8 +5669,9 @@ function resolveStudent(raw, people) {
 /* ---------- writing ORF results into the gradebook ---------- */
 function syncOrfScores() {
   const code = S.settings.orfStandard;
-  if (!ORF_NORMS) { save(); return; }     /* suite-orf.js missing: keep the marks there are */
-  S.settings.orfMarksBasis = orfBasis();
+  /* suite-orf.js missing: keep the marks there are (the bands need no norms) */
+  if (!ORF_NORMS && orfBasis() !== "wcpm") { save(); return; }
+  S.settings.orfMarksBasis = orfMarksKey();
   S.scores = S.scores.filter(x => x.source !== "orf");
   if (!S.settings.orfAutoScore) { save(); return; }
   S.orf.filter(r => !r.exclude && !r.gone).forEach(r => {
@@ -6414,9 +6430,19 @@ function renderORF() {
   html += '<div class="card pad"><div class="sectionhead"><h3>How WCPM becomes a 1\u20134</h3><span class="spacer"></span>' +
     '<label class="row small" style="gap:6px"><input type="checkbox" id="orf-auto"' + (S.settings.orfAutoScore ? " checked" : "") + "> Turn readings into marks automatically</label></div>" +
     '<label class="fld" style="margin-top:8px">Grade every check against<select id="orf-against">' +
+      '<option value="wcpm"' + (orfBasis() === "wcpm" ? " selected" : "") + '>Our WCPM bands</option>' +
       '<option value="eoy"' + (orfBasis() === "eoy" ? " selected" : "") + '>End-of-year expectations (as report cards are graded)</option>' +
       '<option value="season"' + (orfBasis() === "season" ? " selected" : "") + '>The norms for the season it was taken in</option></select></label>' +
-    '<p class="hint">' + (orfBasis() === "eoy"
+(orfBasis() === "wcpm" ? (function () {
+      /* v150: Creswell's bands, the same for every check whenever it was read */
+      const c = Object.assign({ 2: 20, 3: 80, 4: 101 }, S.settings.orfWcpm || {});
+      const to = { 1: c[2] - 1, 2: c[3] - 1, 3: c[4] - 1 };
+      return '<p class="hint">Each check is marked by its words correct per minute, whenever it was read. Change where a band starts if the school\u2019s bands change.</p>' +
+        '<table style="margin-top:10px"><thead><tr><th>Mark</th><th>Words correct per minute</th></tr></thead><tbody>' +
+        [4, 3, 2].map(mk => "<tr><td>" + markHTML(mk) + '</td><td class="row" style="gap:6px"><input type="number" min="1" max="300" step="1" style="width:76px" data-wcut="' + mk +
+          '" value="' + c[mk] + '" aria-label="A ' + mk + ' starts at"><span class="small">' + (mk === 4 ? "and up" : "to " + to[mk]) + "</span></td></tr>").join("") +
+        "<tr><td>" + markHTML(1) + '</td><td class="small">0 to ' + to[1] + "</td></tr></tbody></table>";
+    })() : (    '<p class="hint">' + (orfBasis() === "eoy"
       ? "Every check is measured against the spring norms, whenever it was read, because report card marks are graded against end-of-year expectations. A 3 is the end-of-year 50th percentile, so fall and winter marks run lower by design."
       : "Each check is measured against the norms for its own season, read from its date using the windows on the school calendar (Setup).") +
     ' Percentiles come from Hasbrouck &amp; Tindal (2017) grade 2 norms. Change the cut points if Creswell uses different ones.</p>' +
@@ -6430,7 +6456,7 @@ function renderORF() {
           : '<td class="c num">' + normAt(p, 0) + '</td><td class="c num">' + normAt(p, 1) + '</td><td class="c num">' + normAt(p, 2) + "</td>") + "</tr>";
     }).join("") +
     "<tr><td>" + markHTML(1) + '</td><td colspan="' + (orfBasis() === "eoy" ? 2 : 4) + '" class="muted small">anything below the cut for a 2</td></tr>' +
-    "</tbody></table>" +
+    "</tbody></table>")) +
     '<div class="row" style="margin-top:12px">' +
     '<label class="fld">These marks land on<select id="orf-std">' +
     CATALOG.filter(s => s.s === "ELA" && s.d === "Foundational Skills").map(s => '<option value="' + s.c + '"' + (S.settings.orfStandard === s.c ? " selected" : "") + ">" + esc(s.c + " \u2014 " + s.lbl) + "</option>").join("") +
@@ -6461,7 +6487,17 @@ function renderORF() {
   document.getElementById("orf-autolink").onchange = e => { S.settings.orfAutoLink = e.target.checked; save(); };
   document.getElementById("orf-std").onchange = e => { S.settings.orfStandard = e.target.value; syncOrfScores(); renderORF(); };
   const ag = document.getElementById("orf-against");
-  if (ag) ag.onchange = () => { S.settings.orfAgainst = ag.value === "season" ? "season" : "eoy"; syncOrfScores(); renderORF(); };
+  if (ag) ag.onchange = () => { S.settings.orfAgainst = ag.value === "season" || ag.value === "eoy" ? ag.value : "wcpm"; syncOrfScores(); renderORF(); };
+  el.querySelectorAll("[data-wcut]").forEach(inp => {
+    inp.onchange = () => {
+      const c = S.settings.orfWcpm = Object.assign({ 2: 20, 3: 80, 4: 101 }, S.settings.orfWcpm || {});
+      const n = Math.round(Number(inp.value));
+      if (!isFinite(n) || n < 1) { renderORF(); return; }
+      c[Number(inp.dataset.wcut)] = n;
+      if (!(c[4] > c[3] && c[3] > c[2])) toast("Each band has to start above the one below it");
+      syncOrfScores(); renderORF();
+    };
+  });
   el.querySelectorAll("[data-cut]").forEach(sl => {
     sl.onchange = () => {
       S.settings.orfCuts[Number(sl.dataset.cut)] = Number(sl.value);
@@ -8469,7 +8505,7 @@ if (foldedOrf) syncOrfScores();
 /* ORF marks made under the other basis (every build before v59 graded each
    check against its own season) are rebuilt once. Converges: hand-entered
    marks are never touched, and a matching basis does nothing. */
-if (S.settings.orfMarksBasis !== orfBasis() && S.orf.length) syncOrfScores();
+if (S.settings.orfMarksBasis !== orfMarksKey() && S.orf.length) syncOrfScores();
 pushRosterToOrf(true);                                      /* v87 */
 if (S.settings.orfAutoLink) {
   const pulled = syncFromOrf(true);
