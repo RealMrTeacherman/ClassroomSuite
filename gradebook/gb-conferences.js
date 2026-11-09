@@ -367,7 +367,9 @@ function printConferences() {
 
    Reading: every "Tuesday, Nov 10" (or 11/10/2026) heading sets the day,
    every "3:30 PM to 3:50 PM" starts a slot, and the words after it up to
-   the next time are that slot's sign-up. The child is found in those
+   the next time are that slot's sign-up (links and buttons stripped; a
+   slot still open, "0 filled", is left out). SignUpGenius and ParentSquare
+   both read this way. The child is found in those
    words against the roster (and Also called names): a name in brackets
    counts most, since the sheet puts the child there, then a first or last
    name anywhere, a full name a little more; a name cut off at the edge of
@@ -447,11 +449,14 @@ function csParse(raw) {
   const count = {};
   out.forEach(x => csCells(x.text).forEach(c => { count[c] = (count[c] || 0) + 1; }));
   out.forEach(x => {
+    /* a slot still open ("1 open, 0 filled") has nobody to print for */
+    x.open = /\b0\s*filled\b/i.test(x.text);
     x.text = csCells(x.text).filter(c => count[c] < 2 || /\(/.test(c))
-      .join(" ").replace(/\b\d+\s*(open|filled)\b/gi, " ").replace(/\b(sign\s*up|swap|already filled)\b/gi, " ")
+      .join(" ").replace(/\]\([^)]*\)/g, "] ").replace(/\(?\bhttps?:\/\/\S*/gi, " ").replace(/[\[\]*\u2022]/g, " ")
+      .replace(/\b\d+\s*(open|filled)\b/gi, " ").replace(/\b(sign\s*up|swap|already filled|add someone|disable)\b/gi, " ")
       .replace(/^\s*(pm|am)\b/i, " ").replace(/\s+/g, " ").trim();
   });
-  return out;
+  return out.filter(x => !x.open);
 }
 /* the child one slot's words name, or "" */
 function csMatch(text) {
