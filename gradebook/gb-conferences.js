@@ -221,10 +221,16 @@ function confChartSVG(pl) {
     const ys = pl.checks.filter(c => c.t === t).map(c => c.y).sort((a, b) => a - b);
     return { t: t, v: Math.round(ys[Math.floor(ys.length / 2)]) };
   });
-  const top = Math.max.apply(null, bars.map(b => b.v).concat([pl.goal]));
+  /* v156: the grade's end-of-year 50th percentile (Hasbrouck & Tindal
+     spring, 100 in 2nd grade) as a gray dashed line, so a family sees grade
+     level as well as their own child's goal */
+  const grade = Number(S.settings.studentGrade || 2);
+  const row = window.SuiteOrf.HT && window.SuiteOrf.HT[grade] && window.SuiteOrf.HT[grade][50];
+  const norm = row && row[2] != null ? row[2] : null;
+  const top = Math.max.apply(null, bars.map(b => b.v).concat([pl.goal, norm || 0]));
   const step = top > 120 ? 40 : 20;
   const yMax = Math.ceil(top * 1.15 / step) * step;
-  const W = 720, H = 170, L = 34, R = 84, T = 10, B = 24;
+  const W = 720, H = 170, L = 34, R = 104, T = 14, B = 24;
   const n = Math.max(bars.length, 1), slot = (W - L - R) / Math.max(n, 4);
   const bw = Math.min(56, slot * 0.68);
   const X = i => L + slot * (i + 0.5), Y = v => T + (H - T - B) * (1 - v / yMax);
@@ -234,17 +240,33 @@ function confChartSVG(pl) {
       '<text x="' + (L - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="#444">' + v + "</text>";
   }
   const every = slot < 34 ? Math.ceil(34 / slot) : 1;
+  let nums = "";
   bars.forEach((b, i) => {
     const x = X(i) - bw / 2, y = Y(b.v);
     g += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" fill="#A6A6A6" stroke="#000" stroke-width="1"><title>' + G.fmtShort(new Date(b.t)) + ": " + b.v + "</title></rect>";
-    if (slot >= 20) g += '<text x="' + X(i).toFixed(1) + '" y="' + (y - 4).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#000">' + b.v + "</text>";
+    /* scores go on last, with a white edge, so a line through one never hides it */
+    if (slot >= 20) nums += '<text x="' + X(i).toFixed(1) + '" y="' + (y - 4).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#000" stroke="#fff" stroke-width="3" paint-order="stroke">' + b.v + "</text>";
     if (i % every === 0 || i === bars.length - 1) g += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="11" fill="#444">' + G.fmtShort(new Date(b.t)) + "</text>";
   });
-  const gy = Y(pl.goal).toFixed(1);
-  g += '<line x1="' + L + '" x2="' + (W - R + 4) + '" y1="' + gy + '" y2="' + gy + '" stroke="#000" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>' +
-    '<text x="' + (W - R + 8) + '" y="' + (+gy - 2).toFixed(1) + '" font-size="11" font-weight="700" fill="#000">Goal: ' + pl.goal + "</text>" +
-    '<text x="' + (W - R + 8) + '" y="' + (+gy + 11).toFixed(1) + '" font-size="10.5" fill="#444">by ' + G.fmtShort(pl.goalDate) + "</text>";
-  return g + "</svg>";
+  /* each line's two-line label at the right, nudged apart when the two
+     lines sit close; a goal that is grade level gets one line and says so */
+  const same = norm != null && norm === pl.goal;
+  const gy = Y(pl.goal), ny = norm != null && !same ? Y(norm) : null;
+  let gl = gy, nl = ny;
+  if (ny != null && Math.abs(gy - ny) < 28) {
+    const mid = (gy + ny) / 2, up = gy <= ny;
+    gl = mid + (up ? -14 : 14); nl = mid + (up ? 14 : -14);
+  }
+  const label = (y, a, b, bold) => '<text x="' + (W - R + 8) + '" y="' + (y - 2).toFixed(1) + '" font-size="11"' + (bold ? ' font-weight="700"' : "") + ' fill="#000">' + a + "</text>" +
+    '<text x="' + (W - R + 8) + '" y="' + (y + 11).toFixed(1) + '" font-size="10.5" fill="#444">' + b + "</text>";
+  if (ny != null) {
+    g += '<line x1="' + L + '" x2="' + (W - R + 4) + '" y1="' + ny.toFixed(1) + '" y2="' + ny.toFixed(1) + '" stroke="#666" stroke-width="1.5" stroke-dasharray="7 4"/>' +
+      label(nl, "Grade level: " + norm, "end of grade " + grade, false);
+  }
+  g += '<line x1="' + L + '" x2="' + (W - R + 4) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) + '" stroke="#000" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>' +
+    label(gl, "Goal: " + pl.goal, "by " + G.fmtShort(pl.goalDate), true) +
+    (same ? '<text x="' + (W - R + 8) + '" y="' + (gl + 23).toFixed(1) + '" font-size="10.5" fill="#444">= grade level</text>' : "");
+  return g + nums + "</svg>";
 }
 /* report card marks in a family's words (v153, his three): 3 and 4 are
    "Got it", 2 "Working on it", 1 "Needs some help". Shown as a row of three
