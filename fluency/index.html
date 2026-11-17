@@ -453,6 +453,7 @@ const S = {
   laps:[{marks:{},stopTok:null}],  // one entry per pass through the passage
   lap:0,                  // pass currently being read
   editLap:0,              // pass whose marks taps apply to
+  late:0,                 // passes added with "Started over" after time was up
   tokens:[],
   duration:60,
   startTs:null,
@@ -548,15 +549,17 @@ function setPhase(p){
   document.body.classList.toggle("marking", p==="running"||p==="done");
   $("#btnStart").disabled = (p==="running") || !DB.students.some(st=>!st.demo) || !currentPassage();
   $("#btnFinished").disabled = (p!=="running");
-  $("#btnRestart").classList.toggle("hidden", p!=="running");
-  $("#btnUndoRestart").classList.toggle("hidden", !(p==="running" && S.laps.length>1));
+  /* "Started over" stays after time is up, for a restart that wasn't
+     tapped while the student read (lateRestart) */
+  $("#btnRestart").classList.toggle("hidden", !(p==="running"||p==="stopmark"||p==="done"));
+  $("#btnUndoRestart").classList.toggle("hidden", !((p==="running" && S.laps.length>1) || ((p==="stopmark"||p==="done") && S.late>0)));
   $("#btnEndOfPass").classList.toggle("hidden", !(p==="stopmark" && S.laps.length>1));
   $("#btnStart").textContent = (p==="done"||p==="stopmark") ? "Start a new check" : "Start reading";
   const n=S.lap+1;
   const cue=$("#cue"); cue.classList.remove("act");
   if(p==="idle") cue.textContent = DB.students.some(st=>!st.demo) ? "Pick a student and passage, then start the timer." : "No class list yet: add your students in the gradebook's Setup tab.";
   if(p==="running") cue.textContent = (S.laps.length>1 ? `Pass ${n}. ` : "") + "Tap each word the student misses. Tap twice if they self-correct. If they reach the end and start over, tap “Started over”.";
-  if(p==="stopmark"){ cue.textContent = `Time. Tap the last word the student read${S.laps.length>1?` on pass ${n}`:""}.`; cue.classList.add("act"); }
+  if(p==="stopmark"){ cue.textContent = `Time. Tap the last word the student read${S.laps.length>1?` on pass ${n}`:""}.` + (S.laps.length>1 ? "" : " If they started over and you didn’t tap it, tap “Started over” first."); cue.classList.add("act"); }
   if(p==="done") cue.textContent = "Tap words to adjust marks, or tap “Change last word” below.";
 }
 
@@ -572,7 +575,44 @@ function restartPass(){
   window.scrollTo({top:0,behavior:"smooth"});
   toast(`Pass ${S.lap+1} started — errors from earlier passes still count.`);
 }
+/* "Started over" after time was up: the student reached the end and went
+   back to the start, but the button wasn't tapped while they read. The pass
+   being finished runs to the last word and a new one begins. Taps made
+   during the read all stay where they were made (on the earlier pass), so
+   errors still count once each. Before the last word is tapped, the new
+   pass waits for it; after, the word already tapped becomes where the new
+   pass stopped. */
+function lateRestart(){
+  if(S.phase!=="stopmark" && S.phase!=="done") return;
+  const lt=lastWordTok();
+  if(lt==null) return;
+  const L=S.laps[S.laps.length-1];
+  const tapped = S.phase==="done" ? L.stopTok : null;
+  L.stopTok = lt;
+  S.laps.push({marks:{},stopTok:tapped,late:true});
+  S.lap = S.editLap = S.laps.length-1;
+  S.late++;
+  paintMarks();
+  if(tapped!=null){
+    setPhase("done"); showResults();
+    toast(`Pass ${S.lap} now runs to the end, and pass ${S.lap+1} stops at the word you tapped.`);
+  }else{
+    setPhase("stopmark");
+    toast(`Pass ${S.lap+1} added. Tap the last word they read on it.`);
+  }
+}
+function undoLateRestart(){
+  const L=S.laps[S.laps.length-1];
+  if(S.laps.length<2 || !L.late) return;
+  S.laps.pop(); S.late--;
+  S.lap = S.editLap = S.laps.length-1;
+  S.laps[S.lap].stopTok = L.stopTok;
+  paintMarks();
+  if(L.stopTok!=null){ setPhase("done"); showResults(); } else setPhase("stopmark");
+  toast(`Back to ${S.laps.length>1?`${S.laps.length} passes`:"one pass"}.`);
+}
 function undoRestart(){
+  if(S.phase==="stopmark"||S.phase==="done"){ undoLateRestart(); return; }
   if(S.laps.length<2) return;
   S.laps.pop();
   S.lap = S.laps.length-1;
@@ -583,7 +623,7 @@ function undoRestart(){
 }
 
 function resetSession(){
-  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0;
+  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0; S.late=0;
   S.elapsed=0; S.startTs=null;
   clearInterval(S.tick); S.tick=null;
   S.duration = +$("#selDur").value;
@@ -600,7 +640,7 @@ function clockText(sec){
 }
 function startRead(){
   if(!currentPassage() || !DB.students.length) return;
-  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0;
+  S.laps=[{marks:{},stopTok:null}]; S.lap=0; S.editLap=0; S.late=0;
   $("#results").innerHTML="";
   S.duration = +$("#selDur").value;
   S.startTs = Date.now();
@@ -771,9 +811,10 @@ $("#btnFinished").addEventListener("click", ()=>{
   const el=(Date.now()-S.startTs)/1000;
   endRead(Math.max(1,el));
 });
-$("#btnRestart").addEventListener("click", restartPass);
+$("#btnRestart").addEventListener("click", ()=>{ if(S.phase==="running") restartPass(); else lateRestart(); });
 $("#btnEndOfPass").addEventListener("click", ()=>{
   if(S.phase!=="stopmark" || S.laps.length<2) return;
+  if(S.laps[S.laps.length-1].late) S.late--;
   S.laps.pop();                       // the pass they never got into
   S.lap = S.editLap = S.laps.length-1;
   paintMarks(); setPhase("done"); showResults();
@@ -1175,3 +1216,4 @@ function renderAll(){
 <script src="../suite-orf.js"></script>
 <script src="../fluency-extras.js"></script>
 <script src="../fluency-assess.js"></script>
+<script src="../fluency-todo.js"></script>
